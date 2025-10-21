@@ -1,6 +1,6 @@
 // backend/controllers/authController.js
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 /**
  * @desc    Register a new user
@@ -11,23 +11,71 @@ exports.register = async (req, res) => {
   try {
     const { email, password, name, role } = req.body;
 
-    // TODO: Implement user registration logic
-    // - Validate input
-    // - Check if user already exists
-    // - Hash password
-    // - Create user in database
-    // - Generate JWT token
+    // Validate required fields
+    if (!email || !password || !name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email, password, and name'
+      });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email already registered'
+      });
+    }
+
+    // Create user (password will be hashed by model pre-save hook)
+    const user = await User.create({
+      name,
+      email: email.toLowerCase(),
+      password,
+      role: role || 'patient'
+    });
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
 
     res.status(201).json({
       success: true,
-      message: 'User registration endpoint - To be implemented',
-      data: { email, name, role }
+      message: 'User registered successfully',
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        },
+        token
+      }
     });
   } catch (error) {
     console.error('Register error:', error);
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email already in use'
+      });
+    }
     res.status(500).json({
       success: false,
-      message: 'Server error during registration'
+      message: 'Server error during registration',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -41,23 +89,62 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // TODO: Implement user login logic
-    // - Validate input
-    // - Find user by email
-    // - Compare password
-    // - Generate JWT token
-    // - Return user data and token
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password'
+      });
+    }
+
+    // Find user by email and include password field
+    const user = await User.findOne({ email: email.toLowerCase() }).select(
+      '+password'
+    );
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    // Compare passwords
+    const isPasswordMatch = await user.matchPassword(password);
+
+    if (!isPasswordMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
 
     res.status(200).json({
       success: true,
-      message: 'User login endpoint - To be implemented',
-      data: { email }
+      message: 'Login successful',
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        },
+        token
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error during login'
+      message: 'Server error during login',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -69,20 +156,34 @@ exports.login = async (req, res) => {
  */
 exports.getMe = async (req, res) => {
   try {
-    // TODO: Implement get current user logic
-    // - User will be available in req.user (set by auth middleware)
-    // - Return user data
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
 
     res.status(200).json({
       success: true,
-      message: 'Get current user endpoint - To be implemented',
-      data: req.user || null
+      message: 'Current user fetched successfully',
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          createdAt: user.createdAt
+        }
+      }
     });
   } catch (error) {
     console.error('Get me error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error fetching user data'
+      message: 'Server error fetching user data',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

@@ -1,5 +1,6 @@
 // backend/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 /**
  * @desc    Protect routes - Verify JWT token
@@ -30,13 +31,22 @@ exports.protect = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
 
-      // TODO: Fetch user from database using decoded.id
-      // For now, just attach the decoded payload to req.user
+      // Fetch user from database
+      const user = await User.findById(decoded.id);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Attach user to request object
       req.user = decoded;
 
       next();
     } catch (error) {
-      console.error('Token verification error:', error);
+      console.error('Token verification error:', error.message);
       return res.status(401).json({
         success: false,
         message: 'Not authorized to access this route - Invalid token'
