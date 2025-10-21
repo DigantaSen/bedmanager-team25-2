@@ -5,10 +5,12 @@ import { HeroHighlight, Highlight } from "@/components/ui/hero-highlight"
 import { FloatingNav } from "@/components/ui/floating-navbar"
 import { motion } from "framer-motion"
 import { Home, User, MessageSquare } from "lucide-react"
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
 
 function App() {
+  const location = useLocation();
   const navItems = [
     { name: "Home", link: "/", icon: <Home className="h-4 w-4 text-neutral-500 dark:text-white" /> },
     { name: "About", link: "/about", icon: <User className="h-4 w-4 text-neutral-500 dark:text-white" /> },
@@ -17,9 +19,11 @@ function App() {
 
   return (
     <div className="dark bg-black text-white min-h-screen">
-      <FloatingNav navItems={navItems} />
+      {/* Hide the floating nav on the dashboard (/about) page */}
+      {location.pathname !== "/about" && <FloatingNav navItems={navItems} />}
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/about" element={<Dashboard />} />
         <Route
           path="/"
           element={
