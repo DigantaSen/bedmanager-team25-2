@@ -11,8 +11,10 @@ export const FloatingNav = ({ navItems, className }) => {
     return (
         <AnimatePresence mode="wait">
             <motion.div
-                initial={{ opacity: 1, y: 0 }}
-                animate={{ y: visible ? 0 : -100, opacity: visible ? 1 : 0 }}
+                initial={{ opacity: 1, y: 0, scale: 1 }}
+                animate={{ y: visible ? 0 : -100, opacity: visible ? 1 : 0, scale: 1 }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.2 }}
                 className={cn(
                     // dark, slightly translucent pill with backdrop blur for legibility
