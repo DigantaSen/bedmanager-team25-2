@@ -6,7 +6,8 @@ import React from "react";
 export const HeroHighlight = ({
     children,
     className,
-    containerClassName
+    containerClassName,
+    center = true,
 }) => {
     let mouseX = useMotionValue(0);
     let mouseY = useMotionValue(0);
@@ -34,12 +35,13 @@ export const HeroHighlight = ({
         mouseX.set(clientX - left);
         mouseY.set(clientY - top);
     }
+    const base = center
+        ? "group relative flex min-h-screen w-full items-center justify-center bg-white dark:bg-black"
+        : "group relative w-full bg-white dark:bg-black";
+
     return (
         <div
-            className={cn(
-                "group relative flex min-h-screen w-full items-center justify-center bg-white dark:bg-black",
-                containerClassName
-            )}
+            className={cn(base, containerClassName)}
             onMouseMove={handleMouseMove}>
             <div
                 className="pointer-events-none absolute inset-0 dark:hidden"
