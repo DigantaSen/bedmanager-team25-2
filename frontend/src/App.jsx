@@ -1,38 +1,29 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import { Button } from "@/components/ui/button"
-import './App.css'
+import React from "react"
+import "./App.css"
+import { WavyBackground } from "@/components/ui/wavy-background"
+import { FloatingNav } from "@/components/ui/floating-navbar"
+import { Home, User, MessageSquare } from "lucide-react"
 
 function App() {
-  const [count, setCount] = useState(0)
+  const navItems = [
+    { name: "Home", link: "/", icon: <Home className="h-4 w-4 text-neutral-500 dark:text-white" /> },
+    { name: "About", link: "/about", icon: <User className="h-4 w-4 text-neutral-500 dark:text-white" /> },
+    { name: "Contact", link: "/contact", icon: <MessageSquare className="h-4 w-4 text-neutral-500 dark:text-white" /> },
+  ];
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
+    <div className="bg-black text-white min-h-screen">
+      <FloatingNav navItems={navItems} />
+      <WavyBackground className="max-w-4xl mx-auto pb-40" backgroundFill="black" blur={12} speed="fast" waveOpacity={0.6}>
+        <p className="text-2xl md:text-4xl lg:text-7xl text-white font-bold inter-var text-center">
+          Bed Manager
         </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-      <div className="flex min-h-svh flex-col items-center justify-center">
-        <Button>Click me</Button>
-      </div>
-    </>
+        <p className="text-base md:text-lg mt-4 text-white font-normal inter-var text-center">
+          Real-Time Hospital Bed and ICU Occupancy Management
+          Dashboard
+        </p>
+      </WavyBackground>
+    </div>
   )
 }
 
