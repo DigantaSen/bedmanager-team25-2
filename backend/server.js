@@ -29,11 +29,13 @@ const express = require('express');
 const connectDB = require('./config/db');
 const healthRouter = require('./routes/health');
 const authRoutes = require('./routes/authRoutes');
+const bedRoutes = require('./routes/bedRoutes');
 const app = express();
 
 app.use(express.json());
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRoutes);
+app.use('/api/beds', bedRoutes);
 
 const PORT = process.env.PORT || 5000;
 
