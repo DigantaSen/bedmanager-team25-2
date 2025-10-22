@@ -34,6 +34,7 @@ const authRoutes = require('./routes/authRoutes');
 const bedRoutes = require('./routes/bedRoutes');
 const logRoutes = require('./routes/logRoutes');
 const initializeSocket = require('./socketHandler');
+const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const server = http.createServer(app);
@@ -75,6 +76,10 @@ app.get('/api/test/broadcast', (req, res) => {
     broadcastData: testData
   });
 });
+
+// Error handling middlewares (must be last)
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
