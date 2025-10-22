@@ -1,6 +1,8 @@
 // backend/controllers/bedController.js
 const Bed = require('../models/Bed');
+const OccupancyLog = require('../models/OccupancyLog');
 const mongoose = require('mongoose');
+const { AppError } = require('../middleware/errorHandler');
 
 /**
  * @desc    Get all beds with optional filtering
@@ -168,10 +170,47 @@ exports.updateBedStatus = async (req, res) => {
       }
     }
 
+    // Store previous status for logging
+    const previousStatus = bed.status;
+
     // Update bed
     bed.status = status;
     bed.patientId = status === 'occupied' ? patientId : null;
     await bed.save();
+
+    // Determine status change type for logging
+    let statusChangeType;
+    if (status === 'occupied') {
+      statusChangeType = 'assigned';
+    } else if (previousStatus === 'occupied' && status === 'available') {
+      statusChangeType = 'released';
+    } else if (status === 'maintenance') {
+      statusChangeType = 'maintenance_start';
+    } else if (previousStatus === 'maintenance' && status === 'available') {
+      statusChangeType = 'maintenance_end';
+    } else if (status === 'reserved') {
+      statusChangeType = 'reserved';
+    } else if (previousStatus === 'reserved' && status === 'available') {
+      statusChangeType = 'reservation_cancelled';
+    } else {
+      // Default to assigned for any other transitions
+      statusChangeType = 'assigned';
+    }
+
+    // Create occupancy log entry
+    try {
+      console.log('Creating log - User ID:', req.user._id, 'Bed ID:', bed._id);
+      await OccupancyLog.create({
+        bedId: bed._id,
+        userId: req.user._id, // User who made the change (from JWT)
+        statusChange: statusChangeType,
+        timestamp: new Date()
+      });
+      console.log('✅ Occupancy log created successfully');
+    } catch (logError) {
+      console.error('Error creating occupancy log:', logError);
+      // Continue even if logging fails - don't block the main operation
+    }
 
     // Populate patient details
     await bed.populate('patientId', 'name email');

@@ -32,7 +32,9 @@ const connectDB = require('./config/db');
 const healthRouter = require('./routes/health');
 const authRoutes = require('./routes/authRoutes');
 const bedRoutes = require('./routes/bedRoutes');
+const logRoutes = require('./routes/logRoutes');
 const initializeSocket = require('./socketHandler');
+const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const server = http.createServer(app);
@@ -47,6 +49,7 @@ app.use(express.json());
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRoutes);
 app.use('/api/beds', bedRoutes);
+app.use('/api/logs', logRoutes);
 
 // Initialize socket connections
 initializeSocket(io);
@@ -73,6 +76,10 @@ app.get('/api/test/broadcast', (req, res) => {
     broadcastData: testData
   });
 });
+
+// Error handling middlewares (must be last)
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 

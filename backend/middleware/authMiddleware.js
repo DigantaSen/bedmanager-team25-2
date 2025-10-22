@@ -32,7 +32,7 @@ exports.protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
 
       // Fetch user from database
-      const user = await User.findById(decoded.id);
+      const user = await User.findById(decoded.id).select('-password');
 
       if (!user) {
         return res.status(404).json({
@@ -41,8 +41,8 @@ exports.protect = async (req, res, next) => {
         });
       }
 
-      // Attach user to request object
-      req.user = decoded;
+      // Attach user to request object (with _id, not just id)
+      req.user = user;
 
       next();
     } catch (error) {
