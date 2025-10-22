@@ -1,6 +1,7 @@
 // backend/controllers/authController.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { AppError } = require('../middleware/errorHandler');
 
 /**
  * @desc    Register a new user

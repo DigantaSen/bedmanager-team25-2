@@ -2,6 +2,7 @@
 const Bed = require('../models/Bed');
 const OccupancyLog = require('../models/OccupancyLog');
 const mongoose = require('mongoose');
+const { AppError } = require('../middleware/errorHandler');
 
 /**
  * @desc    Get all beds with optional filtering
