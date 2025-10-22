@@ -32,6 +32,7 @@ const connectDB = require('./config/db');
 const healthRouter = require('./routes/health');
 const authRoutes = require('./routes/authRoutes');
 const bedRoutes = require('./routes/bedRoutes');
+const logRoutes = require('./routes/logRoutes');
 const initializeSocket = require('./socketHandler');
 
 const app = express();
@@ -47,6 +48,7 @@ app.use(express.json());
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRoutes);
 app.use('/api/beds', bedRoutes);
+app.use('/api/logs', logRoutes);
 
 // Initialize socket connections
 initializeSocket(io);
