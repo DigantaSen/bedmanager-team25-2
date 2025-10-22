@@ -48,8 +48,10 @@ const bedLayoutData = [
     {
         categoryName: 'FLOOR 2',
         rows: [
-            { rowId: 'J', beds: [...generateBeds(1, 13, 'J'), { id: 'J-spacer', isSpacer: true }, ...generateBeds(14, 25, 'J')] },
-            { rowId: 'K', beds: [...generateBeds(1, 13, 'K'), { id: 'K-spacer', isSpacer: true }, ...generateBeds(14, 25, 'K')] },
+            { rowId: 'E', beds: [...generateBeds(1, 9, 'E'), { id: 'E-spacer', isSpacer: true }, ...generateBeds(10, 21, 'E')] },
+            { rowId: 'F', beds: [...generateBeds(1, 9, 'F'), { id: 'F-spacer', isSpacer: true }, ...generateBeds(10, 21, 'F')] },
+            { rowId: 'G', beds: [...generateBeds(1, 9, 'G'), { id: 'G-spacer', isSpacer: true }, ...generateBeds(10, 21, 'G')] },
+            { rowId: 'H', beds: [...generateBeds(1, 9, 'H'), { id: 'H-spacer', isSpacer: true }, ...generateBeds(10, 21, 'H')] },
         ],
     },
 ];
@@ -64,23 +66,13 @@ const Legend = () => (
 
 export default function Dashboard() {
     const [selectedBeds, setSelectedBeds] = useState(['iA4']);
-    const occupiedBeds = useMemo(() => ['J17', 'J18', 'J19', 'C1', 'C2', 'C10', 'C11', 'G9'], []);
+    const occupiedBeds = useMemo(() => ['F17', 'F18', 'F19', 'iA1', 'C2', 'C10', 'C11', 'E9'], []);
 
     const handleBedSelect = (bedId) => {
         setSelectedBeds((prev) => prev.includes(bedId) ? prev.filter(id => id !== bedId) : [...prev, bedId]);
     };
 
-    const totalPrice = useMemo(() => {
-        return selectedBeds.reduce((total, bedId) => {
-            for (const category of bedLayoutData) {
-                if (category.rows.some(row => row.beds.some(bed => bed.id === bedId))) {
-                    // treat missing price as 0 for hospital beds
-                    return total + (Number(category.price) || 0);
-                }
-            }
-            return total;
-        }, 0);
-    }, [selectedBeds]);
+    // Pricing removed for hospital bed allocation; no totalPrice calculation
 
     return (
         <Sidebar>
@@ -134,19 +126,8 @@ export default function Dashboard() {
                                             </span>
                                         ))}
                                     </div>
-                                    {totalPrice > 0 ? (
-                                        <div className="border-t pt-4 flex justify-between items-center">
-                                            <span className="text-md font-medium text-muted-foreground">Total Price:</span>
-                                            <span className="text-xl font-bold text-foreground">
-                                                {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(totalPrice)}
-                                                <span className="text-xs font-normal text-muted-foreground"> + GST</span>
-                                            </span>
-                                        </div>
-                                    ) : (
-                                        <div className="border-t pt-4 text-sm text-muted-foreground">No price required for bed allocation</div>
-                                    )}
-
-                                    <Button className="w-full mt-4">{totalPrice > 0 ? 'Proceed to Payment' : 'Proceed to Book'}</Button>
+                                    <div className="border-t pt-4" />
+                                    <Button className="w-full mt-4">Proceed to Book</Button>
                                 </motion.div>
                             )}
                         </AnimatePresence>

@@ -81,12 +81,7 @@ const BedSelection = ({
         animate="visible">
         {layout.map((category) => (
           <div key={category.categoryName} className="flex flex-col items-center gap-3">
-            <h3 className="text-sm font-semibold text-foreground">
-              {category.categoryName}
-              {category.price != null && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">({new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(category.price)} + GST)</span>
-              )}
-            </h3>
+            <h3 className="text-sm font-semibold text-foreground">{category.categoryName}</h3>
             <div
               className="w-full bg-card p-2 sm:p-4 rounded-lg border flex flex-col gap-2">
               {category.rows.map((row, rowIndex) => (
