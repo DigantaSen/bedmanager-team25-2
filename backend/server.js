@@ -46,6 +46,13 @@ const io = socketIO(server, {
 });
 
 app.use(express.json());
+
+// Make io available to routes via req
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRoutes);
 app.use('/api/beds', bedRoutes);

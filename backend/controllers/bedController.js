@@ -215,6 +215,16 @@ exports.updateBedStatus = async (req, res) => {
     // Populate patient details
     await bed.populate('patientId', 'name email');
 
+    // Emit bedUpdate event via socket.io
+    if (req.io) {
+      req.io.emit('bedUpdate', {
+        bed: bed.toObject(),
+        previousStatus,
+        timestamp: new Date()
+      });
+      console.log('✅ bedUpdate event emitted via socket.io');
+    }
+
     res.status(200).json({
       success: true,
       message: `Bed status updated to ${status}`,
