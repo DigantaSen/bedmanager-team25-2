@@ -29,7 +29,7 @@ export const connectSocket = (token, dispatch) => {
   });
 
   // Create new socket connection
-  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
   
   socket = io(SOCKET_URL, {
     auth: {

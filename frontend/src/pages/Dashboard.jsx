@@ -83,9 +83,9 @@ function Dashboard() {
 
     const links = [
         { label: "Overview", href: "#overview", icon: <BarChart2 className="h-4 w-4" /> },
-        { 
-            label: "Settings", 
-            href: "#settings", 
+        {
+            label: "Settings",
+            href: "#settings",
             icon: <Settings className="h-4 w-4" />,
             onClick: (e) => {
                 e.preventDefault();
@@ -120,15 +120,15 @@ function Dashboard() {
             setLoading(true);
             const response = await api.get('/beds');
             const beds = response.data?.data?.beds || response.data?.beds || [];
-            
+
             setAllBeds(beds);
-            
+
             // Extract occupied bed IDs
             const occupied = beds
                 .filter(bed => bed.status === 'occupied')
                 .map(bed => bed.bedId);
             setOccupiedBeds(occupied);
-            
+
             console.log('Fetched beds:', beds.length);
             console.log('Occupied bed IDs:', occupied);
             console.log('Sample beds:', beds.slice(0, 5));
@@ -188,7 +188,7 @@ function Dashboard() {
         }
 
         setIsBooking(true);
-        
+
         try {
             const results = [];
             const errors = [];
@@ -209,9 +209,9 @@ function Dashboard() {
                 } catch (error) {
                     console.error(`Failed to book bed ${bedId}:`, error);
                     console.error('Error response:', error.response?.data);
-                    const errorMsg = error.response?.data?.message || 
-                                   error.response?.data?.errors?.[0]?.message ||
-                                   'Booking failed';
+                    const errorMsg = error.response?.data?.message ||
+                        error.response?.data?.errors?.[0]?.message ||
+                        'Booking failed';
                     errors.push({ bedId, error: errorMsg });
                 }
             }
@@ -229,7 +229,7 @@ function Dashboard() {
             if (errors.length === 0) {
                 alert(`✅ Successfully booked ${results.length} bed(s):\n${selectedBeds.join(', ')}`);
                 setSelectedBeds([]);
-                
+
                 // Refresh bed data from backend to ensure consistency
                 console.log('Refreshing bed data from backend...');
                 await fetchBeds();
@@ -237,18 +237,18 @@ function Dashboard() {
                 const successCount = results.length;
                 const errorCount = errors.length;
                 const errorDetails = errors.map(e => `${e.bedId}: ${e.error}`).join('\n');
-                
+
                 alert(
                     `Booking completed with some errors:\n\n` +
                     `✅ Success: ${successCount} bed(s)\n` +
                     `❌ Failed: ${errorCount} bed(s)\n\n` +
                     `Failed beds:\n${errorDetails}`
                 );
-                
+
                 // Remove successfully booked beds from selection
                 const failedBedIds = errors.map(e => e.bedId);
                 setSelectedBeds(failedBedIds);
-                
+
                 // Refresh bed data from backend
                 await fetchBeds();
             }
@@ -293,8 +293,8 @@ function Dashboard() {
                         </div>
 
                         <div className="flex gap-2 items-center">
-                            <Button 
-                                variant="outline" 
+                            <Button
+                                variant="outline"
                                 size="sm"
                                 onClick={fetchBeds}
                                 disabled={loading}
@@ -354,7 +354,7 @@ function Dashboard() {
                                                 ))}
                                             </div>
                                             <div className="border-t pt-4" />
-                                            <Button 
+                                            <Button
                                                 className="w-full mt-4"
                                                 onClick={handleProceedToBook}
                                                 disabled={isBooking}
@@ -369,47 +369,47 @@ function Dashboard() {
                     </div>
                 </div>
             </div>
-            
+
             {/* Settings Modal */}
             {showSettings && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowSettings(false)}>
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-2xl font-bold text-white">User Profile</h2>
-                            <button 
+                            <button
                                 onClick={() => setShowSettings(false)}
                                 className="text-zinc-400 hover:text-white"
                             >
                                 ✕
                             </button>
                         </div>
-                        
+
                         <div className="space-y-4">
                             <div>
                                 <label className="text-sm text-zinc-400">Name</label>
                                 <p className="text-white font-medium">{currentUser?.name || 'N/A'}</p>
                             </div>
-                            
+
                             <div>
                                 <label className="text-sm text-zinc-400">Email</label>
                                 <p className="text-white font-medium">{currentUser?.email || 'N/A'}</p>
                             </div>
-                            
+
                             <div>
                                 <label className="text-sm text-zinc-400">Role</label>
                                 <p className="text-white font-medium capitalize">
                                     {currentUser?.role?.replace(/_/g, ' ') || 'N/A'}
                                 </p>
                             </div>
-                            
+
                             <div>
                                 <label className="text-sm text-zinc-400">User ID</label>
                                 <p className="text-white font-mono text-xs">{currentUser?.id || 'N/A'}</p>
                             </div>
                         </div>
-                        
+
                         <div className="mt-6 flex gap-2">
-                            <Button 
+                            <Button
                                 onClick={() => setShowSettings(false)}
                                 className="flex-1"
                             >

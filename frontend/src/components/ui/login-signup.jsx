@@ -36,7 +36,7 @@ export default function LoginCardSection() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { status, error } = useSelector((state) => state.auth);
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showLoginPw, setShowLoginPw] = useState(false);
   const [showSignupPw, setShowSignupPw] = useState(false);
@@ -156,7 +156,7 @@ export default function LoginCardSection() {
                         const resultAction = await dispatch(loginAction(payload));
                         if (loginAction.fulfilled.match(resultAction)) {
                           // Success - navigate to dashboard
-                          navigate('/about');
+                          navigate('/');
                         } else {
                           // Error - show message
                           setErrors({ loginPassword: resultAction.payload || 'Login failed' });
@@ -262,10 +262,10 @@ export default function LoginCardSection() {
                           password: payload.password,
                           role: payload.role
                         }));
-                        
+
                         if (registerAction.fulfilled.match(resultAction)) {
                           // Success - navigate to dashboard
-                          navigate('/about');
+                          navigate('/');
                         } else {
                           // Error - show message
                           setErrors({ password: resultAction.payload || 'Registration failed' });
