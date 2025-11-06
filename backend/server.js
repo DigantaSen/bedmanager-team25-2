@@ -34,6 +34,7 @@ const healthRouter = require('./routes/health');
 const authRoutes = require('./routes/authRoutes');
 const bedRoutes = require('./routes/bedRoutes');
 const logRoutes = require('./routes/logRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 const initializeSocket = require('./socketHandler');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
@@ -84,6 +85,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/auth', authRoutes);
 app.use('/api/beds', bedRoutes);
 app.use('/api/logs', logRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Initialize socket connections
 initializeSocket(io);
