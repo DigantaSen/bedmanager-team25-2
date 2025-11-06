@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/authSlice';
+import { useSelector, useDispatch } from 'react-redux';
+import { selectCurrentUser, selectIsAuthenticated, logout } from '@/features/auth/authSlice';
 import api from '@/services/api';
 import {
     Sidebar,
@@ -71,6 +71,7 @@ const Legend = () => (
 
 function Dashboard() {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const currentUser = useSelector(selectCurrentUser);
     const isAuthenticated = useSelector(selectIsAuthenticated);
     const [selectedBeds, setSelectedBeds] = useState([]);
@@ -93,7 +94,17 @@ function Dashboard() {
                 setShowSettings(true);
             }
         },
-        { label: "Logout", href: "/login", icon: <Home className="h-4 w-4" /> },
+        {
+            label: "Logout",
+            href: "/login",
+            icon: <Home className="h-4 w-4" />,
+            onClick: (e) => {
+                e.preventDefault();
+                // Clear session and logout
+                dispatch(logout());
+                navigate('/login');
+            }
+        },
     ];
 
     // Debug authentication state

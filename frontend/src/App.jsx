@@ -27,8 +27,8 @@ function App() {
     // { name: "Contact", link: "/contact", icon: <MessageSquare className="h-4 w-4 text-neutral-500 dark:text-white" /> },
   ];
 
-  // Show floating nav on home page only (when not authenticated and not on login)
-  const shouldShowNav = !isAuthenticated && location.pathname !== "/login";
+  // Show floating nav on home page and login (when not authenticated)
+  const shouldShowNav = !isAuthenticated;
 
   return (
     <div className="dark bg-black text-white min-h-screen">
@@ -36,10 +36,13 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
+        {/* Home page - landing page for unauthenticated users */}
+        <Route path="/" element={!isAuthenticated ? <HomePage /> : <Navigate to="/dashboard" />} />
+
         {/* Dashboard - only accessible when authenticated */}
         <Route
-          path="/"
-          element={isAuthenticated ? <Dashboard /> : <HomePage />}
+          path="/dashboard"
+          element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />}
         />
       </Routes>
     </div>

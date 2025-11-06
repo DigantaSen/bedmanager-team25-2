@@ -156,7 +156,7 @@ export default function LoginCardSection() {
                         const resultAction = await dispatch(loginAction(payload));
                         if (loginAction.fulfilled.match(resultAction)) {
                           // Success - navigate to dashboard
-                          navigate('/');
+                          navigate('/dashboard');
                         } else {
                           // Error - show message
                           setErrors({ loginPassword: resultAction.payload || 'Login failed' });
@@ -265,7 +265,7 @@ export default function LoginCardSection() {
 
                         if (registerAction.fulfilled.match(resultAction)) {
                           // Success - navigate to dashboard
-                          navigate('/');
+                          navigate('/dashboard');
                         } else {
                           // Error - show message
                           setErrors({ password: resultAction.payload || 'Registration failed' });
