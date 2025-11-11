@@ -44,7 +44,7 @@
 
 ---
 
-### Task 1.3: Create Alert/Notification Model
+### Task 1.3: Create Alert/Notification Model✅
 
 **Assignee:** Nilkanta (Backend)  
 **Priority:** High  
