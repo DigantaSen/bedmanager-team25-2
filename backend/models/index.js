@@ -4,9 +4,11 @@
 const User = require('./User');
 const Bed = require('./Bed');
 const OccupancyLog = require('./OccupancyLog');
+const EmergencyRequest = require('./EmergencyRequest');
 
 module.exports = {
   User,
   Bed,
-  OccupancyLog
+  OccupancyLog,
+  EmergencyRequest
 };
