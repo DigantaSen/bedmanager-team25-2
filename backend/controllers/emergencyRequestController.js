@@ -9,13 +9,13 @@ const mongoose = require('mongoose');
  */
 exports.createEmergencyRequest = async (req, res) => {
   try {
-    const { patientId, location, description } = req.body;
+    const { patientId, location, ward, priority, reason, description } = req.body;
 
     // Validate required fields
-    if (!patientId || !location) {
+    if (!patientId || !location || !ward) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide patientId and location'
+        message: 'Please provide patientId, location, and ward'
       });
     }
 
@@ -31,19 +31,37 @@ exports.createEmergencyRequest = async (req, res) => {
     const emergencyRequest = await EmergencyRequest.create({
       patientId,
       location,
+      ward,
+      priority: priority || 'medium',
+      reason: reason || null,
       description: description || null
     });
 
-    // Emit Socket.io event for real-time notification
+    // Emit Socket.io event for real-time notification to ward-specific room
     if (req.io) {
-      req.io.emit('emergencyRequestCreated', {
+      // Emit to ward-specific room and all managers
+      req.io.to(`ward-${ward}`).emit('emergencyRequestCreated', {
         requestId: emergencyRequest._id,
         patientId: emergencyRequest.patientId,
         location: emergencyRequest.location,
+        ward: emergencyRequest.ward,
+        priority: emergencyRequest.priority,
         status: emergencyRequest.status,
         createdAt: emergencyRequest.createdAt
       });
-      console.log('✅ Socket event emitted: emergencyRequestCreated');
+      
+      // Also emit to all hospital admins
+      req.io.to('role-hospital_admin').emit('emergencyRequestCreated', {
+        requestId: emergencyRequest._id,
+        patientId: emergencyRequest.patientId,
+        location: emergencyRequest.location,
+        ward: emergencyRequest.ward,
+        priority: emergencyRequest.priority,
+        status: emergencyRequest.status,
+        createdAt: emergencyRequest.createdAt
+      });
+      
+      console.log(`✅ Socket event emitted: emergencyRequestCreated to ward-${ward}`);
     }
 
     res.status(201).json({
@@ -65,14 +83,22 @@ exports.createEmergencyRequest = async (req, res) => {
  * @desc    Get all emergency requests with optional filtering
  * @route   GET /api/emergency-requests
  * @access  Private
- * @query   status
+ * @query   status, ward
  */
 exports.getAllEmergencyRequests = async (req, res) => {
   try {
     const { status } = req.query;
+    const userRole = req.user?.role;
+    const userWard = req.user?.ward;
 
     // Build filter object
     const filter = {};
+    
+    // If user is a manager, filter by their assigned ward
+    if (userRole === 'manager' && userWard) {
+      filter.ward = userWard;
+    }
+    
     if (status) {
       // Validate status
       const validStatuses = ['pending', 'approved', 'rejected'];
@@ -273,6 +299,192 @@ exports.deleteEmergencyRequest = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error deleting emergency request',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * @desc    Approve emergency request (Manager only - ward-specific)
+ * @route   PATCH /api/emergency-requests/:id/approve
+ * @access  Private (Manager)
+ */
+exports.approveEmergencyRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { bedId } = req.body; // Optional: assign a specific bed
+    const userRole = req.user?.role;
+    const userWard = req.user?.ward;
+
+    // Validate ID format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid emergency request ID format'
+      });
+    }
+
+    // Find the emergency request
+    const emergencyRequest = await EmergencyRequest.findById(id);
+    
+    if (!emergencyRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Emergency request not found'
+      });
+    }
+
+    // Check if manager is authorized for this ward
+    if (userRole === 'manager' && emergencyRequest.ward !== userWard) {
+      return res.status(403).json({
+        success: false,
+        message: `Not authorized: You can only approve requests for ${userWard} ward`
+      });
+    }
+
+    // Check if already processed
+    if (emergencyRequest.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Request is already ${emergencyRequest.status}`
+      });
+    }
+
+    // Update status to approved
+    emergencyRequest.status = 'approved';
+    await emergencyRequest.save();
+
+    // Populate patient details
+    await emergencyRequest.populate('patientId', 'name email');
+
+    // Emit Socket.io event for real-time notification
+    if (req.io) {
+      const eventData = {
+        requestId: emergencyRequest._id,
+        patientId: emergencyRequest.patientId,
+        location: emergencyRequest.location,
+        ward: emergencyRequest.ward,
+        status: emergencyRequest.status,
+        bedId: bedId || null,
+        approvedBy: req.user?.name || req.user?.email,
+        updatedAt: emergencyRequest.updatedAt
+      };
+      
+      // Emit to ward-specific room
+      req.io.to(`ward-${emergencyRequest.ward}`).emit('emergencyRequestApproved', eventData);
+      
+      // Also broadcast to all
+      req.io.emit('emergencyRequestApproved', eventData);
+      
+      console.log(`✅ Socket event emitted: emergencyRequestApproved for ward-${emergencyRequest.ward}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Emergency request approved successfully',
+      data: { 
+        emergencyRequest,
+        bedId: bedId || null
+      }
+    });
+  } catch (error) {
+    console.error('Approve emergency request error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error approving emergency request',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * @desc    Reject emergency request (Manager only - ward-specific)
+ * @route   PATCH /api/emergency-requests/:id/reject
+ * @access  Private (Manager)
+ */
+exports.rejectEmergencyRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rejectionReason } = req.body; // Optional: reason for rejection
+    const userRole = req.user?.role;
+    const userWard = req.user?.ward;
+
+    // Validate ID format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid emergency request ID format'
+      });
+    }
+
+    // Find the emergency request
+    const emergencyRequest = await EmergencyRequest.findById(id);
+    
+    if (!emergencyRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Emergency request not found'
+      });
+    }
+
+    // Check if manager is authorized for this ward
+    if (userRole === 'manager' && emergencyRequest.ward !== userWard) {
+      return res.status(403).json({
+        success: false,
+        message: `Not authorized: You can only reject requests for ${userWard} ward`
+      });
+    }
+
+    // Check if already processed
+    if (emergencyRequest.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Request is already ${emergencyRequest.status}`
+      });
+    }
+
+    // Update status to rejected
+    emergencyRequest.status = 'rejected';
+    if (rejectionReason) {
+      emergencyRequest.description = rejectionReason;
+    }
+    await emergencyRequest.save();
+
+    // Populate patient details
+    await emergencyRequest.populate('patientId', 'name email');
+
+    // Emit Socket.io event for real-time notification
+    if (req.io) {
+      const eventData = {
+        requestId: emergencyRequest._id,
+        patientId: emergencyRequest.patientId,
+        location: emergencyRequest.location,
+        ward: emergencyRequest.ward,
+        status: emergencyRequest.status,
+        rejectionReason: rejectionReason || null,
+        rejectedBy: req.user?.name || req.user?.email,
+        updatedAt: emergencyRequest.updatedAt
+      };
+      
+      // Emit to ward-specific room
+      req.io.to(`ward-${emergencyRequest.ward}`).emit('emergencyRequestRejected', eventData);
+      
+      // Also broadcast to all
+      req.io.emit('emergencyRequestRejected', eventData);
+      
+      console.log(`✅ Socket event emitted: emergencyRequestRejected for ward-${emergencyRequest.ward}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Emergency request rejected successfully',
+      data: { emergencyRequest }
+    });
+  } catch (error) {
+    console.error('Reject emergency request error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error rejecting emergency request',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

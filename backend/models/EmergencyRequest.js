@@ -15,6 +15,27 @@ const emergencyRequestSchema = new mongoose.Schema(
       required: [true, 'Location is required'],
       trim: true
     },
+    ward: {
+      type: String,
+      enum: {
+        values: ['ICU', 'General', 'Emergency'],
+        message: '{VALUE} is not a valid ward'
+      },
+      required: [true, 'Ward is required']
+    },
+    priority: {
+      type: String,
+      enum: {
+        values: ['low', 'medium', 'high', 'critical'],
+        message: '{VALUE} is not a valid priority'
+      },
+      default: 'medium'
+    },
+    reason: {
+      type: String,
+      trim: true,
+      default: null
+    },
     status: {
       type: String,
       enum: {
