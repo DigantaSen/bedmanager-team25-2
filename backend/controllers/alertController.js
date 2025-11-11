@@ -10,9 +10,21 @@ const mongoose = require('mongoose');
 exports.getAlerts = async (req, res) => {
   try {
     const role = req.user.role;
+    const ward = req.user.ward; // Get user's assigned ward
 
-    // Fetch alerts filtered by user's role
-    const alerts = await Alert.find({ targetRole: role })
+    // Build filter based on role
+    const filter = { targetRole: role };
+    
+    // If user is a manager, filter by their assigned ward
+    if (role === 'manager' && ward) {
+      filter.$or = [
+        { ward }, // Alerts specific to this ward
+        { ward: null } // General alerts not specific to any ward
+      ];
+    }
+
+    // Fetch alerts filtered by user's role and ward
+    const alerts = await Alert.find(filter)
       .populate('relatedBed', 'bedId ward status')
       .populate('relatedRequest', 'patientId location status')
       .sort({ timestamp: -1 });
@@ -61,6 +73,15 @@ exports.dismissAlert = async (req, res) => {
         success: false,
         message: 'Alert not found'
       });
+    }
+
+    // Emit socket event for alert dismissal
+    if (req.io) {
+      req.io.emit('alertDismissed', {
+        alertId: alert._id,
+        timestamp: new Date()
+      });
+      console.log('✅ alertDismissed event emitted via socket.io');
     }
 
     res.status(200).json({
