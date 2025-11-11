@@ -1,5 +1,6 @@
 // Socket.IO connection and event handler
 const jwt = require('jsonwebtoken');
+const Alert = require('./models/Alert');
 
 const initializeSocket = (io) => {
   // Track authenticated users
@@ -103,4 +104,32 @@ const initializeSocket = (io) => {
   });
 };
 
+/**
+ * @desc    Create and emit a new alert in real-time
+ * @param   {Object} alertData - Alert data to create
+ * @param   {Object} io - Socket.IO server instance
+ * @returns {Object} Created alert document
+ */
+const emitNewAlert = async (alertData, io) => {
+  try {
+    // Create new alert in database
+    const newAlert = await Alert.create(alertData);
+
+    // Emit real-time event to all connected clients
+    io.emit('alertCreated', newAlert);
+
+    console.log('✅ Alert created and emitted:', {
+      type: newAlert.type,
+      severity: newAlert.severity,
+      targetRole: newAlert.targetRole
+    });
+
+    return newAlert;
+  } catch (error) {
+    console.error('❌ Error creating/emitting alert:', error);
+    throw error;
+  }
+};
+
 module.exports = initializeSocket;
+module.exports.emitNewAlert = emitNewAlert;

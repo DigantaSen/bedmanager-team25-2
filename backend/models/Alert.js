@@ -1,0 +1,73 @@
+// backend/models/Alert.js
+// Alert model for managing notifications and alerts
+
+const mongoose = require('mongoose');
+
+const alertSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: {
+        values: ['occupancy_high', 'bed_emergency', 'maintenance_needed', 'request_pending'],
+        message: '{VALUE} is not a valid alert type'
+      },
+      required: [true, 'Alert type is required']
+    },
+    severity: {
+      type: String,
+      enum: {
+        values: ['low', 'medium', 'high', 'critical'],
+        message: '{VALUE} is not a valid severity level'
+      },
+      default: 'low'
+    },
+    message: {
+      type: String,
+      required: [true, 'Alert message is required'],
+      trim: true
+    },
+    relatedBed: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Bed',
+      default: null
+    },
+    relatedRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'EmergencyRequest',
+      default: null
+    },
+    targetRole: [{
+      type: String,
+      enum: {
+        values: ['icu_manager', 'hospital_admin'],
+        message: '{VALUE} is not a valid target role'
+      }
+    }],
+    read: {
+      type: Boolean,
+      default: false
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  {
+    timestamps: true,
+    versionKey: false
+  }
+);
+
+// Index for faster queries by targetRole
+alertSchema.index({ targetRole: 1 });
+
+// Index for faster queries by read status
+alertSchema.index({ read: 1 });
+
+// Compound index for targetRole + read + timestamp queries
+alertSchema.index({ targetRole: 1, read: 1, timestamp: -1 });
+
+// Index for type-based queries
+alertSchema.index({ type: 1 });
+
+module.exports = mongoose.model('Alert', alertSchema);
