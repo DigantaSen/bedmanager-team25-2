@@ -1,6 +1,7 @@
 // backend/controllers/bedController.js
 const Bed = require('../models/Bed');
 const OccupancyLog = require('../models/OccupancyLog');
+const Alert = require('../models/Alert');
 const mongoose = require('mongoose');
 const { AppError } = require('../middleware/errorHandler');
 
@@ -194,6 +195,9 @@ exports.updateBedStatus = async (req, res) => {
       console.log('✅ bedUpdate event emitted via socket.io');
     }
 
+    // Check occupancy and trigger alerts if > 90%
+    await checkOccupancyAndCreateAlerts(bed.ward, req.io);
+
     res.status(200).json({
       success: true,
       message: `Bed status updated to ${status}`,
@@ -215,5 +219,65 @@ exports.updateBedStatus = async (req, res) => {
       message: 'Server error updating bed status',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+};
+
+/**
+ * Helper function to check occupancy levels and create alerts
+ * @param {String} ward - Ward to check (ICU, General, Emergency)
+ * @param {Object} io - Socket.io instance
+ */
+const checkOccupancyAndCreateAlerts = async (ward, io) => {
+  try {
+    // Get total and occupied beds for this ward
+    const totalBeds = await Bed.countDocuments({ ward });
+    const occupiedBeds = await Bed.countDocuments({ ward, status: 'occupied' });
+
+    if (totalBeds === 0) return; // No beds in this ward
+
+    const occupancyRate = (occupiedBeds / totalBeds) * 100;
+    console.log(`📊 ${ward} occupancy: ${occupancyRate.toFixed(1)}% (${occupiedBeds}/${totalBeds})`);
+
+    // Create alert if occupancy > 90%
+    if (occupancyRate > 90) {
+      // Check if alert already exists for this ward (to avoid duplicates)
+      const existingAlert = await Alert.findOne({
+        type: 'occupancy_high',
+        message: { $regex: ward, $options: 'i' },
+        read: false
+      });
+
+      if (!existingAlert) {
+        const severity = occupancyRate >= 95 ? 'critical' : 'high';
+        
+        const alert = await Alert.create({
+          type: 'occupancy_high',
+          severity,
+          message: `${ward} ward occupancy at ${occupancyRate.toFixed(1)}% (${occupiedBeds}/${totalBeds} beds occupied)`,
+          ward,
+          targetRole: ['manager', 'hospital_admin']
+        });
+
+        console.log(`🚨 Alert created: ${ward} occupancy high (${occupancyRate.toFixed(1)}%)`);
+
+        // Emit real-time alert via Socket.io
+        if (io) {
+          io.emit('occupancyAlert', {
+            alert: alert.toObject(),
+            ward,
+            occupancyRate: occupancyRate.toFixed(1),
+            occupiedBeds,
+            totalBeds,
+            timestamp: new Date()
+          });
+          console.log('✅ occupancyAlert event emitted via socket.io');
+        }
+      } else {
+        console.log(`ℹ️ Alert already exists for ${ward} ward high occupancy`);
+      }
+    }
+  } catch (error) {
+    console.error('Error checking occupancy and creating alerts:', error);
+    // Don't throw - this is a background check, shouldn't break main operation
   }
 };

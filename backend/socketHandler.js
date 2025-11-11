@@ -42,8 +42,21 @@ const initializeSocket = (io) => {
       userId: socket.user.id,
       email: socket.user.email,
       role: socket.user.role,
+      ward: socket.user.ward, // Store ward info
       socketId: socket.id
     };
+
+    // Join room based on ward (for ward-specific alerts)
+    if (socket.user.ward) {
+      socket.join(`ward-${socket.user.ward}`);
+      console.log(`User ${socket.user.email} joined ward room: ward-${socket.user.ward}`);
+    }
+
+    // Join room based on role (for role-specific broadcasts)
+    if (socket.user.role) {
+      socket.join(`role-${socket.user.role}`);
+      console.log(`User ${socket.user.email} joined role room: role-${socket.user.role}`);
+    }
 
     // Handle user join with user ID
     socket.on('userJoin', (userId) => {

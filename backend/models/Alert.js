@@ -36,10 +36,18 @@ const alertSchema = new mongoose.Schema(
       ref: 'EmergencyRequest',
       default: null
     },
+    ward: {
+      type: String,
+      enum: {
+        values: ['ICU', 'General', 'Emergency'],
+        message: '{VALUE} is not a valid ward'
+      },
+      default: null
+    },
     targetRole: [{
       type: String,
       enum: {
-        values: ['icu_manager', 'hospital_admin'],
+        values: ['manager', 'hospital_admin', 'ward_staff', 'er_staff'],
         message: '{VALUE} is not a valid target role'
       }
     }],
