@@ -8,7 +8,7 @@ import { motion } from "framer-motion"
 import { Home, User, MessageSquare } from "lucide-react"
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { restoreSession, selectIsAuthenticated, selectAuthStatus } from '@/features/auth/authSlice'
+import { restoreSession, selectIsAuthenticated, selectAuthStatus, selectCurrentUser } from '@/features/auth/authSlice'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -21,6 +21,7 @@ function App() {
   const location = useLocation();
   const dispatch = useDispatch();
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  const currentUser = useSelector(selectCurrentUser);
   const authStatus = useSelector((state) => state.auth.status);
   const [hasCheckedSession, setHasCheckedSession] = React.useState(false);
 
@@ -56,6 +57,21 @@ function App() {
     );
   }
 
+  // Helper function to get role-based redirect path
+  const getRoleDashboard = () => {
+    if (!currentUser) return '/dashboard';
+    switch (currentUser.role) {
+      case 'hospital_admin':
+        return '/admin/dashboard';
+      case 'manager':
+        return '/manager/dashboard';
+      case 'ward_staff':
+        return '/staff/dashboard';
+      default:
+        return '/dashboard';
+    }
+  };
+
   return (
     <div className="dark bg-black text-white min-h-screen">
       {shouldShowNav && <FloatingNav navItems={navItems} />}
@@ -63,7 +79,7 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         {/* Home page - landing page for unauthenticated users */}
-        <Route path="/" element={!isAuthenticated ? <HomePage /> : <Navigate to="/dashboard" />} />
+        <Route path="/" element={!isAuthenticated ? <HomePage /> : <Navigate to={getRoleDashboard()} />} />
 
         {/* Dashboard - only accessible when authenticated */}
         <Route

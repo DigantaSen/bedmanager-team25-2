@@ -1,16 +1,33 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser } from '@/features/auth/authSlice';
-import { Briefcase, BedDouble, Users, Activity } from 'lucide-react';
+import { Briefcase } from 'lucide-react';
+import KPISummaryCard from '@/components/manager/KPISummaryCard';
+import BedStatusGrid from '@/components/manager/BedStatusGrid';
+import AlertNotificationPanel from '@/components/manager/AlertNotificationPanel';
+import EmergencyRequestsQueue from '@/components/manager/EmergencyRequestsQueue';
+import ForecastingPanel from '@/components/manager/ForecastingPanel';
+import BedDetailsModal from '@/components/manager/BedDetailsModal';
 
 const ManagerDashboard = () => {
   const currentUser = useSelector(selectCurrentUser);
-  const navigate = useNavigate();
+  const [selectedBed, setSelectedBed] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleBedClick = (bed) => {
+    setSelectedBed(bed);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedBed(null);
+  };
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Briefcase className="w-8 h-8 text-purple-500" />
@@ -18,71 +35,35 @@ const ManagerDashboard = () => {
           </div>
           <p className="text-zinc-400">
             Welcome, <span className="text-cyan-400">{currentUser?.name}</span>
+            {currentUser?.ward && (
+              <span className="ml-2">
+                | Ward: <span className="text-purple-400 font-semibold">{currentUser.ward}</span>
+              </span>
+            )}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Ward Overview Card */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 hover:border-purple-500/50 transition-colors">
-            <div className="flex items-start justify-between mb-4">
-              <div className="p-3 rounded-lg bg-purple-500/10">
-                <BedDouble className="w-6 h-6 text-purple-500" />
-              </div>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Ward Management</h3>
-            <p className="text-zinc-400 text-sm">
-              Manage wards and bed allocations
-            </p>
-          </div>
+        {/* KPI Summary Cards */}
+        <KPISummaryCard ward={currentUser?.ward} />
 
-          {/* Staff Management Card */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 hover:border-purple-500/50 transition-colors">
-            <div className="flex items-start justify-between mb-4">
-              <div className="p-3 rounded-lg bg-cyan-500/10">
-                <Users className="w-6 h-6 text-cyan-500" />
-              </div>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Staff Overview</h3>
-            <p className="text-zinc-400 text-sm">
-              View and coordinate ward staff
-            </p>
-          </div>
+        {/* Bed Status Grid */}
+        <BedStatusGrid ward={currentUser?.ward} onBedClick={handleBedClick} />
 
-          {/* Activity Monitor Card */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 hover:border-purple-500/50 transition-colors">
-            <div className="flex items-start justify-between mb-4">
-              <div className="p-3 rounded-lg bg-green-500/10">
-                <Activity className="w-6 h-6 text-green-500" />
-              </div>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Activity Monitor</h3>
-            <p className="text-zinc-400 text-sm">
-              Real-time ward activity updates
-            </p>
-          </div>
+        {/* Two Column Layout for Alerts and Emergency Requests */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AlertNotificationPanel ward={currentUser?.ward} />
+          <EmergencyRequestsQueue ward={currentUser?.ward} />
         </div>
 
-        <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-          <h2 className="text-2xl font-semibold mb-4">Manager Capabilities</h2>
-          <ul className="space-y-2 text-zinc-300">
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-              Manage specific wards and bed allocations
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-              Coordinate ward staff activities
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-              View ward-specific analytics and reports
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-              Patient bed assignment oversight
-            </li>
-          </ul>
-        </div>
+        {/* Forecasting Panel */}
+        <ForecastingPanel ward={currentUser?.ward} />
+
+        {/* Bed Details Modal */}
+        <BedDetailsModal
+          bed={selectedBed}
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+        />
       </div>
     </div>
   );

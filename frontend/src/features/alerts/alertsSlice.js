@@ -32,8 +32,8 @@ const alertsSlice = createSlice({
       })
       .addCase(fetchAlerts.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.alerts = action.payload;
-        state.unreadCount = action.payload.filter(a => !a.read).length;
+        state.alerts = Array.isArray(action.payload) ? action.payload : [];
+        state.unreadCount = state.alerts.filter(a => !a.read).length;
       })
       .addCase(fetchAlerts.rejected, (state, action) => {
         state.status = 'failed';

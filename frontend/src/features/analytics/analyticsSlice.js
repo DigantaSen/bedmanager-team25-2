@@ -6,10 +6,17 @@ export const fetchKpis = createAsyncThunk('analytics/fetchKpis', async () => {
   return res.data;
 });
 
+export const fetchAnalyticsSummary = createAsyncThunk('analytics/fetchAnalyticsSummary', async ({ ward }) => {
+  const url = ward ? `/analytics/occupancy-by-ward?ward=${ward}` : '/analytics/occupancy-summary';
+  const res = await api.get(url);
+  return res.data;
+});
+
 const analyticsSlice = createSlice({
   name: 'analytics',
   initialState: {
     kpis: {},
+    summary: {},
     occupancyByWard: [],
     trends: [],
     status: 'idle',
@@ -26,6 +33,17 @@ const analyticsSlice = createSlice({
         state.kpis = action.payload;
       })
       .addCase(fetchKpis.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message;
+      })
+      .addCase(fetchAnalyticsSummary.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchAnalyticsSummary.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.summary = action.payload;
+      })
+      .addCase(fetchAnalyticsSummary.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.error.message;
       });

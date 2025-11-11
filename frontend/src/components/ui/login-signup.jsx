@@ -168,8 +168,17 @@ export default function LoginCardSection() {
                         // Call login action
                         const resultAction = await dispatch(loginAction(payload));
                         if (loginAction.fulfilled.match(resultAction)) {
-                          // Success - navigate to dashboard
-                          navigate('/dashboard');
+                          // Success - navigate to role-specific dashboard
+                          const userRole = resultAction.payload.user.role;
+                          if (userRole === 'hospital_admin') {
+                            navigate('/admin/dashboard');
+                          } else if (userRole === 'manager') {
+                            navigate('/manager/dashboard');
+                          } else if (userRole === 'ward_staff') {
+                            navigate('/staff/dashboard');
+                          } else {
+                            navigate('/dashboard');
+                          }
                         } else {
                           // Error - show message
                           setErrors({ loginPassword: resultAction.payload || 'Login failed' });
@@ -321,8 +330,17 @@ export default function LoginCardSection() {
                         const resultAction = await dispatch(registerAction(registrationData));
 
                         if (registerAction.fulfilled.match(resultAction)) {
-                          // Success - navigate to dashboard
-                          navigate('/dashboard');
+                          // Success - navigate to role-specific dashboard
+                          const userRole = resultAction.payload.user.role;
+                          if (userRole === 'hospital_admin') {
+                            navigate('/admin/dashboard');
+                          } else if (userRole === 'manager') {
+                            navigate('/manager/dashboard');
+                          } else if (userRole === 'ward_staff') {
+                            navigate('/staff/dashboard');
+                          } else {
+                            navigate('/dashboard');
+                          }
                         } else {
                           // Error - show message
                           setErrors({ password: resultAction.payload || 'Registration failed' });
