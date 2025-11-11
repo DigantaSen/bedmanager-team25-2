@@ -34,10 +34,42 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Role is required'],
       enum: {
-        values: ['technical_team', 'hospital_admin', 'er_staff', 'ward_staff', 'icu_manager'],
+        values: ['technical_team', 'hospital_admin', 'er_staff', 'ward_staff', 'manager'],
         message: '{VALUE} is not a valid role'
       },
       default: 'ward_staff'
+    },
+    ward: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Ward name cannot exceed 100 characters'],
+      // Required for ward_staff and manager roles
+      validate: {
+        validator: function(value) {
+          // If role is ward_staff or manager, ward is required
+          if ((this.role === 'ward_staff' || this.role === 'manager') && !value) {
+            return false;
+          }
+          return true;
+        },
+        message: 'Ward is required for ward_staff and manager roles'
+      }
+    },
+    assignedWards: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: function(value) {
+          // Ensure all ward names are within length limits
+          return value.every(ward => ward.length <= 100);
+        },
+        message: 'Each ward name cannot exceed 100 characters'
+      }
+    },
+    department: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Department name cannot exceed 100 characters']
     }
   },
   {
@@ -48,6 +80,12 @@ const userSchema = new mongoose.Schema(
 
 // Index for role-based queries
 userSchema.index({ role: 1 });
+
+// Index for ward-based queries
+userSchema.index({ ward: 1 });
+
+// Index for department-based queries
+userSchema.index({ department: 1 });
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {

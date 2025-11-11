@@ -43,14 +43,23 @@ export const login = createAsyncThunk(
 // Async thunk for registration
 export const register = createAsyncThunk(
   'auth/register',
-  async ({ name, email, password, role }, { rejectWithValue }) => {
+  async ({ name, email, password, role, ward, assignedWards, department }, { rejectWithValue }) => {
     try {
-      const response = await api.post('/auth/register', {
+      const payload = {
         name,
         email,
         password,
-        role,
-      });
+        role
+      };
+
+      // Add optional fields if provided
+      if (ward) payload.ward = ward;
+      if (assignedWards && Array.isArray(assignedWards) && assignedWards.length > 0) {
+        payload.assignedWards = assignedWards;
+      }
+      if (department) payload.department = department;
+
+      const response = await api.post('/auth/register', payload);
       
       // Extract token and user from response
       const { data } = response.data; // response.data.data contains user and token

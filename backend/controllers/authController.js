@@ -10,10 +10,18 @@ const { AppError } = require('../middleware/errorHandler');
  */
 exports.register = async (req, res) => {
   try {
-    const { email, password, name, role } = req.body;
+    const { email, password, name, role, ward, assignedWards, department } = req.body;
     
     // Debug log
-    console.log('📝 Register request body:', { email, password: password ? '***' : undefined, name, role });
+    console.log('📝 Register request body:', { 
+      email, 
+      password: password ? '***' : undefined, 
+      name, 
+      role,
+      ward,
+      assignedWards,
+      department
+    });
 
     // Validate required fields
     if (!email || !password || !name) {
@@ -21,6 +29,14 @@ exports.register = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Please provide email, password, and name'
+      });
+    }
+
+    // Validate ward requirement for specific roles
+    if ((role === 'ward_staff' || role === 'manager') && !ward) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ward is required for ward_staff and manager roles'
       });
     }
 
@@ -41,17 +57,34 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create user (password will be hashed by model pre-save hook)
-    const user = await User.create({
+    // Prepare user data
+    const userData = {
       name,
       email: email.toLowerCase(),
       password,
       role: role || 'ward_staff'
-    });
+    };
+
+    // Add optional fields if provided
+    if (ward) userData.ward = ward;
+    if (assignedWards && Array.isArray(assignedWards) && assignedWards.length > 0) {
+      userData.assignedWards = assignedWards;
+    }
+    if (department) userData.department = department;
+
+    // Create user (password will be hashed by model pre-save hook)
+    const user = await User.create(userData);
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      { 
+        id: user._id, 
+        email: user.email, 
+        role: user.role,
+        ward: user.ward,
+        assignedWards: user.assignedWards,
+        department: user.department
+      },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
@@ -64,7 +97,10 @@ exports.register = async (req, res) => {
           id: user._id,
           name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          ward: user.ward,
+          assignedWards: user.assignedWards,
+          department: user.department
         },
         token
       }
@@ -126,7 +162,14 @@ exports.login = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      { 
+        id: user._id, 
+        email: user.email, 
+        role: user.role,
+        ward: user.ward,
+        assignedWards: user.assignedWards,
+        department: user.department
+      },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
@@ -139,7 +182,10 @@ exports.login = async (req, res) => {
           id: user._id,
           name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          ward: user.ward,
+          assignedWards: user.assignedWards,
+          department: user.department
         },
         token
       }
@@ -179,6 +225,9 @@ exports.getMe = async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
+          ward: user.ward,
+          assignedWards: user.assignedWards,
+          department: user.department,
           createdAt: user.createdAt
         }
       }

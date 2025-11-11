@@ -58,8 +58,8 @@ const validateRegister = [
   
   body('role')
     .optional()
-    .isIn(['technical_team', 'hospital_admin', 'er_staff', 'ward_staff', 'icu_manager'])
-    .withMessage('Role must be one of: technical_team, hospital_admin, er_staff, ward_staff, icu_manager'),
+    .isIn(['technical_team', 'hospital_admin', 'er_staff', 'ward_staff', 'manager'])
+    .withMessage('Role must be one of: technical_team, hospital_admin, er_staff, ward_staff, manager'),
   
   handleValidationErrors
 ];

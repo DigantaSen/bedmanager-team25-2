@@ -42,6 +42,8 @@ export default function LoginCardSection() {
   const [showSignupPw, setShowSignupPw] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const [role, setRole] = useState('ward_staff');
+  const [ward, setWard] = useState('');
+  const [department, setDepartment] = useState('');
   const nameRef = useRef(null);
   const loginEmailRef = useRef(null);
   const loginPwRef = useRef(null);
@@ -64,7 +66,18 @@ export default function LoginCardSection() {
     name: z.string().min(2, 'Full name is required'),
     email: z.string().min(1, 'Required').email('Invalid email'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
+    ward: z.string().optional(),
+    department: z.string().optional(),
     terms: z.literal(true, { errorMap: () => ({ message: 'You must accept Terms & Privacy' }) }),
+  }).refine((data) => {
+    // Ward is required for ward_staff and manager roles
+    if ((data.role === 'ward_staff' || data.role === 'manager') && !data.ward) {
+      return false;
+    }
+    return true;
+  }, {
+    message: 'Ward is required for Ward Staff and Manager roles',
+    path: ['ward'],
   });
 
   return (
@@ -194,11 +207,46 @@ export default function LoginCardSection() {
                           <SelectItem value="hospital_admin">Hospital Admin</SelectItem>
                           <SelectItem value="er_staff">ER Staff</SelectItem>
                           <SelectItem value="ward_staff">Ward Staff</SelectItem>
-                          <SelectItem value="icu_manager">ICU Manager</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
                         </SelectContent>
                       </Select>
                       {errors.role && <p className="text-xs text-red-400 mt-1">{errors.role}</p>}
                     </div>
+
+                    {/* Ward Selection - Required for ward_staff and manager */}
+                    {(role === 'ward_staff' || role === 'manager') && (
+                      <div className="grid gap-2 text-left">
+                        <Label htmlFor="ward" className="text-zinc-300">
+                          Ward <span className="text-red-400">*</span>
+                        </Label>
+                        <Select value={ward} onValueChange={setWard}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select ward" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ICU">ICU</SelectItem>
+                            <SelectItem value="General">General</SelectItem>
+                            <SelectItem value="Emergency">Emergency</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {errors.ward && <p className="text-xs text-red-400 mt-1">{errors.ward}</p>}
+                      </div>
+                    )}
+
+                    {/* Department - Optional for all roles */}
+                    <div className="grid gap-2 text-left">
+                      <Label htmlFor="department" className="text-zinc-300">Department (Optional)</Label>
+                      <Input 
+                        id="department" 
+                        type="text" 
+                        placeholder="e.g., Cardiology, Surgery" 
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                        className="bg-zinc-950 border-zinc-800 text-zinc-50 placeholder:text-zinc-600" 
+                      />
+                      {errors.department && <p className="text-xs text-red-400 mt-1">{errors.department}</p>}
+                    </div>
+
                     <div className="grid gap-2 text-left">
                       <Label htmlFor="name" className="text-zinc-300">Full Name</Label>
                       <div className="relative">
@@ -242,6 +290,8 @@ export default function LoginCardSection() {
                           name: nameRef.current?.value || '',
                           email: signupEmailRef.current?.value || '',
                           password: signupPwRef.current?.value || '',
+                          ward: ward || undefined,
+                          department: department || undefined,
                           terms: termsChecked,
                         };
 
@@ -255,13 +305,20 @@ export default function LoginCardSection() {
                           return;
                         }
 
-                        // Call register action
-                        const resultAction = await dispatch(registerAction({
+                        // Prepare registration data
+                        const registrationData = {
                           name: payload.name,
                           email: payload.email,
                           password: payload.password,
                           role: payload.role
-                        }));
+                        };
+
+                        // Add optional fields only if they have values
+                        if (payload.ward) registrationData.ward = payload.ward;
+                        if (payload.department) registrationData.department = payload.department;
+
+                        // Call register action
+                        const resultAction = await dispatch(registerAction(registrationData));
 
                         if (registerAction.fulfilled.match(resultAction)) {
                           // Success - navigate to dashboard

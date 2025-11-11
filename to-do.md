@@ -2,7 +2,7 @@
 
 ## Phase 1: Foundation & Infrastructure
 
-### Task 1.1: Extend User Model with Ward Assignment
+### Task 1.1: Extend User Model with Ward Assignment ✅
 
 **Assignee:** Surjit (Backend)  
 **Priority:** Critical  
@@ -11,8 +11,15 @@
 **Deliverables:**
 
 - Update User model with `ward`, `assignedWards`, `department` fields
+- Ward is required for `ward_staff` and `manager` roles
+- Manager role replaces `icu_manager` - ward selection determines: ICU Manager, General Manager, or Emergency Manager
 - Update registration form to include ward/department selection
 - Store ward info in Redux auth state
+
+**Note:** The `manager` role is ward-specific:
+- Manager + Ward=ICU → ICU Manager (manages ICU beds)
+- Manager + Ward=General → General Manager (manages General ward beds)
+- Manager + Ward=Emergency → Emergency Manager (manages Emergency ward beds)
 
 ---
 
@@ -107,9 +114,9 @@
 
 ---
 
-## Phase 2: ICU Manager (Anuradha) Dashboard
+## Phase 2: Manager Dashboard (Ward-Specific: ICU/General/Emergency)
 
-### Task 2.1: Create ICU Manager Dashboard Layout
+### Task 2.1: Create Manager Dashboard Layout
 
 **Assignee:** Surjit (Frontend)  
 **Priority:** Critical  
@@ -118,11 +125,13 @@
 **Deliverables:**
 
 - Build KPI Summary Card component
-- Build Real-time Bed Status Grid
+- Build Real-time Bed Status Grid (filtered by manager's assigned ward)
 - Build Alert/Notification Panel
 - Build Emergency Requests Queue
 - Build Forecasting Panel
 - Create BedDetailsModal component
+
+**Note:** Dashboard is shared across all managers (ICU/General/Emergency) but filtered by their assigned ward.
 
 ---
 
@@ -150,10 +159,11 @@
 **Deliverables:**
 
 - Implement `POST /api/emergency-requests` (ER Staff creates)
-- Implement `GET /api/emergency-requests` (ICU Manager views)
+- Implement `GET /api/emergency-requests` (Manager views - filtered by their ward)
 - Implement `PATCH /api/emergency-requests/:id/approve`
 - Implement `PATCH /api/emergency-requests/:id/reject`
 - Create EmergencyRequestController with full logic
+- Managers can only approve/reject requests for their assigned ward
 
 ---
 
@@ -224,7 +234,7 @@
   - Patient Name, ID, Admission time
   - Cleaning status and time remaining
   - Time in bed calculation
-- Add edit functionality for ICU Manager
+- Add edit functionality for Managers
 - Implement notes field
 - Handle cleaning duration adjustment
 
@@ -242,6 +252,7 @@
 - Implement event handlers on frontend
 - Test real-time sync across all components
 - Handle reconnection scenarios
+- Ensure managers only receive events for their assigned ward
 
 ---
 
