@@ -3,12 +3,12 @@ import api from '../../services/api';
 
 export const fetchAlerts = createAsyncThunk('alerts/fetchAll', async () => {
   const res = await api.get('/alerts');
-  return res.data;
+  return res.data.data?.alerts || res.data.alerts || res.data;
 });
 
 export const dismissAlert = createAsyncThunk('alerts/dismiss', async (id) => {
   const res = await api.patch(`/alerts/${id}/dismiss`);
-  return res.data.alert;
+  return res.data.data?.alert || res.data.alert;
 });
 
 const alertsSlice = createSlice({

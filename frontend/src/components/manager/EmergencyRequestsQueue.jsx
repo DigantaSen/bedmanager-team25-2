@@ -1,12 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchRequests } from '@/features/requests/requestsSlice';
+import { fetchRequests, approveRequest, rejectRequest } from '@/features/requests/requestsSlice';
 import { AlertOctagon, Clock, CheckCircle, XCircle } from 'lucide-react';
 
 const EmergencyRequestsQueue = ({ ward }) => {
   const dispatch = useDispatch();
   const { requests, status } = useSelector((state) => state.requests);
   const currentUser = useSelector((state) => state.auth.user);
+  const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => {
     dispatch(fetchRequests());
@@ -15,6 +16,35 @@ const EmergencyRequestsQueue = ({ ward }) => {
   const filteredRequests = ward || currentUser?.ward
     ? (Array.isArray(requests) ? requests : []).filter((req) => req.ward === (ward || currentUser?.ward))
     : (Array.isArray(requests) ? requests : []);
+
+  const handleApprove = async (requestId) => {
+    if (window.confirm('Are you sure you want to approve this emergency request?')) {
+      setProcessingId(requestId);
+      try {
+        await dispatch(approveRequest({ id: requestId })).unwrap();
+        alert('Emergency request approved successfully!');
+      } catch (error) {
+        alert(`Error: ${error.message || 'Failed to approve request'}`);
+      } finally {
+        setProcessingId(null);
+      }
+    }
+  };
+
+  const handleReject = async (requestId) => {
+    const reason = window.prompt('Please provide a reason for rejection (optional):');
+    if (reason !== null) { // User didn't cancel
+      setProcessingId(requestId);
+      try {
+        await dispatch(rejectRequest({ id: requestId, rejectionReason: reason })).unwrap();
+        alert('Emergency request rejected.');
+      } catch (error) {
+        alert(`Error: ${error.message || 'Failed to reject request'}`);
+      } finally {
+        setProcessingId(null);
+      }
+    }
+  };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -129,22 +159,18 @@ const EmergencyRequestsQueue = ({ ward }) => {
               {request.status === 'pending' && (
                 <div className="mt-3 flex gap-2">
                   <button
-                    className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded transition-colors"
-                    onClick={() => {
-                      // This will be handled by Task 2.3 (Nilkanta's emergency request workflow)
-                      console.log('Approve request:', request._id);
-                    }}
+                    className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handleApprove(request._id)}
+                    disabled={processingId === request._id}
                   >
-                    Approve
+                    {processingId === request._id ? 'Processing...' : 'Approve'}
                   </button>
                   <button
-                    className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition-colors"
-                    onClick={() => {
-                      // This will be handled by Task 2.3 (Nilkanta's emergency request workflow)
-                      console.log('Reject request:', request._id);
-                    }}
+                    className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handleReject(request._id)}
+                    disabled={processingId === request._id}
                   >
-                    Reject
+                    {processingId === request._id ? 'Processing...' : 'Reject'}
                   </button>
                 </div>
               )}
