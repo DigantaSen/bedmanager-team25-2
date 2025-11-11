@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser } from '@/features/auth/authSlice';
 import { Briefcase } from 'lucide-react';
@@ -13,6 +13,15 @@ const ManagerDashboard = () => {
   const currentUser = useSelector(selectCurrentUser);
   const [selectedBed, setSelectedBed] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then((permission) => {
+        console.log('Notification permission:', permission);
+      });
+    }
+  }, []);
 
   const handleBedClick = (bed) => {
     setSelectedBed(bed);

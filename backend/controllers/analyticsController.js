@@ -273,52 +273,91 @@ exports.getOccupancyTrends = async (req, res) => {
  * @desc    Get forecasting data - predicted discharges and available beds
  * @route   GET /api/analytics/forecasting
  * @access  Public
- * @returns { expectedDischarges, availabilityForecast, insights }
+ * @returns { expectedDischarges, availabilityForecast, insights, timeline }
  *
- * NOTE: This is a placeholder implementation that provides basic statistics.
- * Full forecasting would require ML models or external scheduling system integration.
+ * Enhanced implementation for Task 2.4:
+ * - Calculates actual average length of stay from OccupancyLog
+ * - Queries expected discharges based on patient admission times
+ * - Provides timeline visualization data
  */
 exports.getForecasting = async (req, res) => {
   try {
-    // Get current occupancy snapshot
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // ===== 1. Calculate Average Length of Stay =====
+    // Find all assigned/released pairs in last 30 days to calculate actual stay duration
+    const occupancyLogs = await OccupancyLog.find({
+      timestamp: { $gte: thirtyDaysAgo },
+      statusChange: { $in: ['assigned', 'released'] }
+    })
+      .sort({ bedId: 1, timestamp: 1 })
+      .lean();
+
+    // Group logs by bedId and calculate stay durations
+    const bedStays = {};
+    const stayDurations = [];
+
+    occupancyLogs.forEach(log => {
+      if (!bedStays[log.bedId]) {
+        bedStays[log.bedId] = [];
+      }
+      bedStays[log.bedId].push(log);
+    });
+
+    // Calculate duration for each stay (assigned -> released)
+    Object.values(bedStays).forEach(logs => {
+      for (let i = 0; i < logs.length - 1; i++) {
+        if (logs[i].statusChange === 'assigned' && logs[i + 1].statusChange === 'released') {
+          const durationMs = logs[i + 1].timestamp - logs[i].timestamp;
+          const durationDays = durationMs / (1000 * 60 * 60 * 24);
+          stayDurations.push(durationDays);
+        }
+      }
+    });
+
+    const averageLengthOfStay = stayDurations.length > 0
+      ? stayDurations.reduce((sum, dur) => sum + dur, 0) / stayDurations.length
+      : 3.5; // Default 3.5 days if no data
+
+    // ===== 2. Get Current Occupancy and Expected Discharges =====
     const occupiedBeds = await Bed.find({ status: 'occupied' })
-      .populate('patientName', 'bedId ward patientName patientId createdAt')
+      .select('bedId ward patientName patientId updatedAt')
       .lean();
 
     const totalBeds = await Bed.countDocuments({});
     const currentlyOccupied = occupiedBeds.length;
 
-    // Calculate average length of stay (from occupancy logs)
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    // Calculate expected discharge time for each occupied bed
+    const expectedDischargesList = occupiedBeds.map(bed => {
+      // Use updatedAt as proxy for admission time (when status changed to occupied)
+      const admissionTime = bed.updatedAt;
+      const expectedDischargeTime = new Date(
+        admissionTime.getTime() + averageLengthOfStay * 24 * 60 * 60 * 1000
+      );
+      const hoursUntilDischarge = (expectedDischargeTime - now) / (1000 * 60 * 60);
 
-    const stayAnalysis = await OccupancyLog.aggregate([
-      {
-        $match: {
-          timestamp: { $gte: thirtyDaysAgo },
-          statusChange: { $in: ['released'] }
-        }
-      },
-      {
-        $group: {
-          _id: '$bedId',
-          releaseCount: { $sum: 1 }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          averageReleases: { $avg: '$releaseCount' },
-          totalReleases: { $sum: '$releaseCount' }
-        }
-      }
-    ]);
+      return {
+        bedId: bed.bedId,
+        ward: bed.ward,
+        patientName: bed.patientName,
+        patientId: bed.patientId,
+        admissionTime: admissionTime,
+        expectedDischargeTime: expectedDischargeTime,
+        hoursUntilDischarge: Math.max(0, hoursUntilDischarge),
+        daysInBed: (now - admissionTime) / (1000 * 60 * 60 * 24)
+      };
+    });
 
-    const averageLengthOfStay = stayAnalysis.length > 0
-      ? Math.round((30 / stayAnalysis[0].totalReleases) * 100) / 100 // Days per release
-      : 3; // Default estimate
+    // Sort by expected discharge time
+    expectedDischargesList.sort((a, b) => a.expectedDischargeTime - b.expectedDischargeTime);
 
-    // Get ward-level statistics
+    // Count discharges by time window
+    const dischargesNext24h = expectedDischargesList.filter(d => d.hoursUntilDischarge <= 24).length;
+    const dischargesNext48h = expectedDischargesList.filter(d => d.hoursUntilDischarge <= 48).length;
+    const dischargesNext72h = expectedDischargesList.filter(d => d.hoursUntilDischarge <= 72).length;
+
+    // ===== 3. Get Ward-Level Statistics =====
     const wardStats = await Bed.aggregate([
       {
         $group: {
@@ -326,12 +365,10 @@ exports.getForecasting = async (req, res) => {
           totalBeds: { $sum: 1 },
           occupiedBeds: {
             $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] }
+          },
+          availableBeds: {
+            $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] }
           }
-        }
-      },
-      {
-        $addFields: {
-          availableBeds: { $subtract: ['$totalBeds', '$occupiedBeds'] }
         }
       },
       {
@@ -339,9 +376,82 @@ exports.getForecasting = async (req, res) => {
       }
     ]);
 
-    // Simple forecast: estimate discharges in next 24-72 hours based on average LOS
-    const expectedDischarges = Math.round(currentlyOccupied / (averageLengthOfStay || 3));
+    // Calculate ward-specific forecasts
+    const wardForecasts = wardStats.map(ward => {
+      const wardDischarges = expectedDischargesList.filter(d => d.ward === ward._id);
+      const wardDischargesNext24h = wardDischarges.filter(d => d.hoursUntilDischarge <= 24).length;
+      const wardDischargesNext48h = wardDischarges.filter(d => d.hoursUntilDischarge <= 48).length;
 
+      return {
+        ward: ward._id,
+        totalBeds: ward.totalBeds,
+        occupiedBeds: ward.occupiedBeds,
+        availableBeds: ward.availableBeds,
+        occupancyPercentage: Math.round((ward.occupiedBeds / ward.totalBeds) * 100),
+        expectedDischarges: {
+          next24Hours: wardDischargesNext24h,
+          next48Hours: wardDischargesNext48h
+        },
+        projectedAvailability: {
+          next24Hours: ward.availableBeds + wardDischargesNext24h,
+          next48Hours: ward.availableBeds + wardDischargesNext48h
+        }
+      };
+    });
+
+    // ===== 4. Build Timeline Data =====
+    // Create hourly buckets for next 72 hours
+    const timelineBuckets = [];
+    for (let i = 0; i < 72; i += 6) { // 6-hour intervals
+      const bucketTime = new Date(now.getTime() + i * 60 * 60 * 1000);
+      const bucketEndTime = new Date(now.getTime() + (i + 6) * 60 * 60 * 1000);
+      
+      const dischargesInBucket = expectedDischargesList.filter(
+        d => d.expectedDischargeTime >= bucketTime && d.expectedDischargeTime < bucketEndTime
+      );
+
+      timelineBuckets.push({
+        startTime: bucketTime,
+        endTime: bucketEndTime,
+        label: `${i}h - ${i + 6}h`,
+        expectedDischarges: dischargesInBucket.length,
+        beds: dischargesInBucket.map(d => ({
+          bedId: d.bedId,
+          ward: d.ward,
+          patientId: d.patientId
+        }))
+      });
+    }
+
+    // ===== 5. Generate Insights =====
+    const insights = [];
+    
+    if (currentlyOccupied / totalBeds > 0.9) {
+      insights.push({
+        type: 'warning',
+        message: `High occupancy alert: ${Math.round((currentlyOccupied / totalBeds) * 100)}% of beds occupied`,
+        priority: 'high'
+      });
+    }
+
+    if (dischargesNext24h >= 3) {
+      insights.push({
+        type: 'info',
+        message: `${dischargesNext24h} beds expected to be available in next 24 hours`,
+        priority: 'medium'
+      });
+    }
+
+    const criticalWards = wardForecasts.filter(w => w.occupancyPercentage > 90);
+    if (criticalWards.length > 0) {
+      insights.push({
+        type: 'warning',
+        message: `Critical capacity in ${criticalWards.map(w => w.ward).join(', ')}`,
+        priority: 'high'
+      });
+    }
+
+    // ===== Response =====
     res.status(200).json({
       success: true,
       data: {
@@ -351,26 +461,34 @@ exports.getForecasting = async (req, res) => {
           availableBeds: totalBeds - currentlyOccupied,
           occupancyPercentage: Math.round((currentlyOccupied / totalBeds) * 100)
         },
-        expectedDischarges: {
-          next24Hours: Math.ceil(expectedDischarges / 3),
-          next48Hours: Math.ceil(expectedDischarges / 1.5),
-          next72Hours: expectedDischarges,
-          note: 'Based on average length of stay estimates'
-        },
         averageLengthOfStay: {
-          days: averageLengthOfStay,
-          note: 'Average length of stay (last 30 days)'
+          days: Math.round(averageLengthOfStay * 10) / 10,
+          basedOnSamples: stayDurations.length,
+          note: `Calculated from ${stayDurations.length} patient stays in last 30 days`
         },
-        wardForecast: wardStats.map(ward => ({
-          ward: ward._id,
-          totalBeds: ward.totalBeds,
-          occupiedBeds: ward.occupiedBeds,
-          availableBeds: ward.availableBeds,
-          occupancyPercentage: Math.round((ward.occupiedBeds / ward.totalBeds) * 100),
-          predictedDischarges: Math.max(1, Math.ceil(ward.occupiedBeds / (averageLengthOfStay || 3)))
-        })),
-        timestamp: new Date().toISOString(),
-        disclaimer: 'Forecasting is based on historical trends and may not account for emergency admissions or unscheduled discharges'
+        expectedDischarges: {
+          next24Hours: dischargesNext24h,
+          next48Hours: dischargesNext48h,
+          next72Hours: dischargesNext72h,
+          total: expectedDischargesList.length,
+          details: expectedDischargesList.slice(0, 10).map(d => ({
+            bedId: d.bedId,
+            ward: d.ward,
+            patientId: d.patientId,
+            expectedDischargeTime: d.expectedDischargeTime,
+            hoursUntilDischarge: Math.round(d.hoursUntilDischarge * 10) / 10,
+            daysInBed: Math.round(d.daysInBed * 10) / 10
+          }))
+        },
+        wardForecasts,
+        timeline: timelineBuckets,
+        insights,
+        metadata: {
+          timestamp: now.toISOString(),
+          forecastHorizon: '72 hours',
+          calculationMethod: 'Average length of stay based on historical occupancy logs',
+          disclaimer: 'Forecasting is based on historical trends and may not account for emergency admissions or unscheduled discharges'
+        }
       }
     });
   } catch (error) {

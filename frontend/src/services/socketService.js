@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { updateBedInList } from '../features/beds/bedsSlice';
+import { addAlert } from '../features/alerts/alertsSlice';
 
 let socket = null;
 
@@ -69,6 +70,34 @@ export const connectSocket = (token, dispatch) => {
     // Dispatch action to update Redux store
     if (dispatch) {
       dispatch(updateBedInList(updatedBed));
+    }
+  });
+
+  // Listen for occupancy alert events
+  socket.on('occupancyAlert', (data) => {
+    console.log('🚨 Occupancy alert received:', data);
+    
+    // Dispatch action to add alert to Redux store
+    if (dispatch && data.alert) {
+      dispatch(addAlert(data.alert));
+      
+      // Optional: Show browser notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('High Occupancy Alert', {
+          body: data.alert.message,
+          icon: '/alert-icon.png',
+          tag: data.alert._id
+        });
+      }
+    }
+  });
+
+  // Listen for general alert created events
+  socket.on('alertCreated', (alert) => {
+    console.log('📢 Alert created:', alert);
+    
+    if (dispatch) {
+      dispatch(addAlert(alert));
     }
   });
 

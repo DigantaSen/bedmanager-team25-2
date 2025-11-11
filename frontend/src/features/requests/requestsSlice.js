@@ -7,6 +7,22 @@ export const fetchRequests = createAsyncThunk('requests/fetchAll', async () => {
   return res.data;
 });
 
+export const approveRequest = createAsyncThunk(
+  'requests/approve',
+  async ({ id, bedId }) => {
+    const res = await api.patch(`/emergency-requests/${id}/approve`, { bedId });
+    return res.data.data.emergencyRequest;
+  }
+);
+
+export const rejectRequest = createAsyncThunk(
+  'requests/reject',
+  async ({ id, rejectionReason }) => {
+    const res = await api.patch(`/emergency-requests/${id}/reject`, { rejectionReason });
+    return res.data.data.emergencyRequest;
+  }
+);
+
 export const updateRequestStatus = createAsyncThunk(
   'requests/updateStatus',
   async ({ id, status }) => {
@@ -40,6 +56,14 @@ const requestsSlice = createSlice({
       .addCase(fetchRequests.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.error.message;
+      })
+      .addCase(approveRequest.fulfilled, (state, action) => {
+        const idx = state.requests.findIndex(r => r._id === action.payload._id);
+        if (idx >= 0) state.requests[idx] = action.payload;
+      })
+      .addCase(rejectRequest.fulfilled, (state, action) => {
+        const idx = state.requests.findIndex(r => r._id === action.payload._id);
+        if (idx >= 0) state.requests[idx] = action.payload;
       })
       .addCase(updateRequestStatus.fulfilled, (state, action) => {
         const idx = state.requests.findIndex(r => r._id === action.payload._id);
