@@ -105,8 +105,8 @@ const validateCreateBed = [
   
   body('status')
     .optional()
-    .isIn(['available', 'occupied', 'maintenance', 'reserved'])
-    .withMessage('Status must be one of: available, occupied, maintenance, reserved'),
+    .isIn(['available', 'cleaning', 'occupied'])
+    .withMessage('Status must be one of: available, cleaning, occupied'),
   
   body('patientName')
     .optional()
@@ -134,8 +134,8 @@ const validateUpdateBedStatus = [
   body('status')
     .notEmpty()
     .withMessage('Status is required')
-    .isIn(['available', 'occupied', 'maintenance', 'reserved'])
-    .withMessage('Status must be one of: available, occupied, maintenance, reserved'),
+    .isIn(['available', 'cleaning', 'occupied'])
+    .withMessage('Status must be one of: available, cleaning, occupied'),
   
   body('patientName')
     .optional()
@@ -165,8 +165,8 @@ const validateUpdateBedStatus = [
 const validateBedQuery = [
   query('status')
     .optional()
-    .isIn(['available', 'occupied', 'maintenance', 'reserved'])
-    .withMessage('Status must be one of: available, occupied, maintenance, reserved'),
+    .isIn(['available', 'cleaning', 'occupied'])
+    .withMessage('Status must be one of: available, cleaning, occupied'),
   
   query('ward')
     .optional()

@@ -141,7 +141,7 @@ const ReportGenerator = () => {
     const totalBeds = bedsList.length;
     const occupiedBeds = bedsList.filter(bed => bed.status === 'occupied').length;
     const availableBeds = bedsList.filter(bed => bed.status === 'available').length;
-    const maintenanceBeds = bedsList.filter(bed => bed.status === 'maintenance').length;
+    const cleaningBeds = bedsList.filter(bed => bed.status === 'cleaning').length;
     const occupancyRate = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
 
     // Filter beds by selected wards
@@ -154,7 +154,7 @@ const ReportGenerator = () => {
     const wardStats = {};
     filteredBeds.forEach(bed => {
       if (!wardStats[bed.ward]) {
-        wardStats[bed.ward] = { total: 0, occupied: 0, available: 0, maintenance: 0 };
+        wardStats[bed.ward] = { total: 0, occupied: 0, available: 0, cleaning: 0 };
       }
       wardStats[bed.ward].total++;
       wardStats[bed.ward][bed.status]++;
@@ -168,7 +168,7 @@ const ReportGenerator = () => {
         totalBeds,
         occupiedBeds,
         availableBeds,
-        maintenanceBeds,
+        cleaningBeds,
         occupancyRate
       },
       wardStats,
@@ -190,7 +190,7 @@ const ReportGenerator = () => {
     content += `Total Beds: ${data.summary.totalBeds}\n`;
     content += `Occupied: ${data.summary.occupiedBeds} (${data.summary.occupancyRate}%)\n`;
     content += `Available: ${data.summary.availableBeds}\n`;
-    content += `Under Maintenance: ${data.summary.maintenanceBeds}\n\n`;
+    content += `Cleaning: ${data.summary.cleaningBeds}\n\n`;
     
     content += `WARD-WISE BREAKDOWN\n`;
     content += `${'-'.repeat(60)}\n`;
@@ -200,7 +200,7 @@ const ReportGenerator = () => {
       content += `  Total Beds: ${stats.total}\n`;
       content += `  Occupied: ${stats.occupied} (${wardOccupancy}%)\n`;
       content += `  Available: ${stats.available}\n`;
-      content += `  Maintenance: ${stats.maintenance}\n`;
+      content += `  Cleaning: ${stats.cleaning}\n`;
     });
     
     content += `\n${'='.repeat(60)}\n`;
@@ -324,8 +324,8 @@ const ReportGenerator = () => {
               <td>${data.summary.availableBeds}</td>
             </tr>
             <tr>
-              <td>Under Maintenance</td>
-              <td>${data.summary.maintenanceBeds}</td>
+              <td>Cleaning</td>
+              <td>${data.summary.cleaningBeds}</td>
             </tr>
           </table>
         </div>
@@ -354,8 +354,8 @@ const ReportGenerator = () => {
                   <td>${stats.available}</td>
                 </tr>
                 <tr>
-                  <td>Maintenance</td>
-                  <td>${stats.maintenance}</td>
+                  <td>Cleaning</td>
+                  <td>${stats.cleaning}</td>
                 </tr>
               </table>
             </div>

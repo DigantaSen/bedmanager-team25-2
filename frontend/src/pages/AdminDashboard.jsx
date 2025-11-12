@@ -4,12 +4,13 @@ import WardUtilizationReport from '@/components/WardUtilizationReport';
 import OccupancyTrendsChart from '@/components/OccupancyTrendsChart';
 import ForecastingInsights from '@/components/ForecastingInsights';
 import ReportGenerator from '@/components/ReportGenerator';
+import DashboardLayout from '@/components/DashboardLayout';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white p-6">
+    <DashboardLayout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -78,7 +79,7 @@ const AdminDashboard = () => {
           {activeTab === 'reports' && <ReportGenerator />}
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 

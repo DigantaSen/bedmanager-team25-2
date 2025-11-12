@@ -14,13 +14,12 @@ const mongoose = require('mongoose');
  */
 exports.getOccupancySummary = async (req, res) => {
   try {
-    // Count beds by status
-    const [totalBeds, occupied, available, maintenance, reserved] = await Promise.all([
+    // Count beds by status (only 3 statuses now: available, cleaning, occupied)
+    const [totalBeds, occupied, available, cleaning] = await Promise.all([
       Bed.countDocuments({}),
       Bed.countDocuments({ status: 'occupied' }),
       Bed.countDocuments({ status: 'available' }),
-      Bed.countDocuments({ status: 'maintenance' }),
-      Bed.countDocuments({ status: 'reserved' })
+      Bed.countDocuments({ status: 'cleaning' })
     ]);
 
     // Calculate occupancy percentage
@@ -28,16 +27,11 @@ exports.getOccupancySummary = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: {
-        summary: {
-          totalBeds,
-          occupied,
-          available,
-          maintenance,
-          reserved,
-          occupancyPercentage
-        }
-      }
+      totalBeds,
+      occupiedBeds: occupied,
+      availableBeds: available,
+      cleaningBeds: cleaning,
+      occupancyRate: occupancyPercentage
     });
   } catch (error) {
     console.error('Get occupancy summary error:', error);
@@ -57,18 +51,40 @@ exports.getOccupancySummary = async (req, res) => {
  */
 exports.getOccupancyByWard = async (req, res) => {
   try {
+    const { ward } = req.query;
+
+    // If specific ward is requested, return data for that ward only
+    if (ward) {
+      const [totalBeds, occupied, available, cleaning] = await Promise.all([
+        Bed.countDocuments({ ward }),
+        Bed.countDocuments({ ward, status: 'occupied' }),
+        Bed.countDocuments({ ward, status: 'available' }),
+        Bed.countDocuments({ ward, status: 'cleaning' })
+      ]);
+
+      const occupancyRate = totalBeds > 0 ? Math.round((occupied / totalBeds) * 100) : 0;
+
+      return res.status(200).json({
+        success: true,
+        totalBeds,
+        occupiedBeds: occupied,
+        availableBeds: available,
+        cleaningBeds: cleaning,
+        occupancyRate
+      });
+    }
+
     // Get all unique wards
     const wards = await Bed.distinct('ward');
 
     // For each ward, get the count of beds by status
     const wardData = await Promise.all(
       wards.map(async (ward) => {
-        const [totalBeds, occupied, available, maintenance, reserved] = await Promise.all([
+        const [totalBeds, occupied, available, cleaning] = await Promise.all([
           Bed.countDocuments({ ward }),
           Bed.countDocuments({ ward, status: 'occupied' }),
           Bed.countDocuments({ ward, status: 'available' }),
-          Bed.countDocuments({ ward, status: 'maintenance' }),
-          Bed.countDocuments({ ward, status: 'reserved' })
+          Bed.countDocuments({ ward, status: 'cleaning' })
         ]);
 
         const occupancyPercentage = totalBeds > 0 ? Math.round((occupied / totalBeds) * 100) : 0;
@@ -78,8 +94,7 @@ exports.getOccupancyByWard = async (req, res) => {
           totalBeds,
           occupied,
           available,
-          maintenance,
-          reserved,
+          cleaning,
           occupancyPercentage
         };
       })
