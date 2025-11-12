@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, BedDouble, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, BedDouble, Loader2, Clock, User, Calendar, AlertCircle, FileText } from 'lucide-react';
 import api from '@/services/api';
 
 const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
@@ -7,8 +7,65 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
   const [patientName, setPatientName] = useState(bed?.patientName || '');
   const [patientId, setPatientId] = useState(bed?.patientId || '');
   const [cleaningDuration, setCleaningDuration] = useState('45');
+  const [notes, setNotes] = useState(bed?.notes || '');
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
+
+  // Calculate time-related metadata
+  const [timeInBed, setTimeInBed] = useState(null);
+  const [cleaningProgress, setCleaningProgress] = useState(null);
+  const [admissionTime, setAdmissionTime] = useState(null);
+
+  useEffect(() => {
+    if (!bed) return;
+
+    // Reset form when bed changes
+    setStatus(bed.status || 'available');
+    setPatientName(bed.patientName || '');
+    setPatientId(bed.patientId || '');
+    setNotes(bed.notes || '');
+    
+    // Calculate admission time (using updatedAt as proxy)
+    if (bed.status === 'occupied' && bed.updatedAt) {
+      setAdmissionTime(new Date(bed.updatedAt));
+      
+      // Calculate time in bed
+      const now = new Date();
+      const admission = new Date(bed.updatedAt);
+      const diffMs = now - admission;
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      setTimeInBed({ hours: diffHours, minutes: diffMinutes });
+    } else {
+      setAdmissionTime(null);
+      setTimeInBed(null);
+    }
+
+    // Calculate cleaning progress
+    if (bed.status === 'maintenance' && bed.cleaningStartTime && bed.estimatedCleaningDuration) {
+      const now = new Date();
+      const startTime = new Date(bed.cleaningStartTime);
+      const elapsedMs = now - startTime;
+      const elapsedMinutes = elapsedMs / (1000 * 60);
+      const percentage = Math.min(Math.round((elapsedMinutes / bed.estimatedCleaningDuration) * 100), 100);
+      const remainingMinutes = Math.max(0, bed.estimatedCleaningDuration - elapsedMinutes);
+      const isOverdue = elapsedMinutes > bed.estimatedCleaningDuration;
+      
+      setCleaningProgress({
+        percentage,
+        elapsed: Math.round(elapsedMinutes),
+        remaining: Math.round(remainingMinutes),
+        isOverdue,
+        estimatedDuration: bed.estimatedCleaningDuration
+      });
+      
+      // Set current cleaning duration for adjustment
+      setCleaningDuration(bed.estimatedCleaningDuration.toString());
+    } else {
+      setCleaningProgress(null);
+      setCleaningDuration('45'); // Reset to default
+    }
+  }, [bed]);
 
   if (!isOpen || !bed) return null;
 
@@ -32,6 +89,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
     try {
       const payload = {
         status,
+        notes: notes.trim() || null,
         ...(status === 'occupied' && {
           patientName: patientName.trim(),
           patientId: patientId.trim() || null
@@ -55,9 +113,30 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
     }
   };
 
+  const formatDateTime = (date) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'available': return 'text-green-400 bg-green-900/20';
+      case 'occupied': return 'text-red-400 bg-red-900/20';
+      case 'maintenance': return 'text-yellow-400 bg-yellow-900/20';
+      case 'reserved': return 'text-blue-400 bg-blue-900/20';
+      default: return 'text-zinc-400 bg-zinc-800';
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg max-w-md w-full">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg max-w-2xl w-full my-8">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-800">
           <div className="flex items-center gap-3">
@@ -65,8 +144,8 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
               <BedDouble className="w-6 h-6 text-cyan-500" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Update Bed {bed.bedId}</h2>
-              <p className="text-zinc-400 text-sm">Change status and details</p>
+              <h2 className="text-xl font-bold text-white">Bed {bed.bedId}</h2>
+              <p className="text-zinc-400 text-sm">Ward: {bed.ward}</p>
             </div>
           </div>
           <button
@@ -77,13 +156,133 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
           </button>
         </div>
 
-        {/* Form */}
+        {/* Metadata Section - Task 2.5c */}
+        <div className="p-6 border-b border-zinc-800 bg-zinc-950/50">
+          <h3 className="text-sm font-semibold text-zinc-400 mb-4">Current Information</h3>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Current Status */}
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded ${getStatusColor(bed.status)}`}>
+                <BedDouble className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500">Current Status</p>
+                <p className="text-sm font-medium text-white capitalize">{bed.status}</p>
+              </div>
+            </div>
+
+            {/* Last Updated */}
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded bg-purple-500/10">
+                <Clock className="w-4 h-4 text-purple-400" />
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500">Last Updated</p>
+                <p className="text-sm font-medium text-white">{formatDateTime(bed.updatedAt)}</p>
+              </div>
+            </div>
+
+            {/* Patient Info (if occupied) */}
+            {bed.status === 'occupied' && bed.patientName && (
+              <>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded bg-blue-500/10">
+                    <User className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-500">Patient Name</p>
+                    <p className="text-sm font-medium text-white">{bed.patientName}</p>
+                    {bed.patientId && (
+                      <p className="text-xs text-zinc-400">ID: {bed.patientId}</p>
+                    )}
+                  </div>
+                </div>
+
+                {admissionTime && (
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded bg-cyan-500/10">
+                      <Calendar className="w-4 h-4 text-cyan-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-500">Admission Time</p>
+                      <p className="text-sm font-medium text-white">{formatDateTime(admissionTime)}</p>
+                      {timeInBed && (
+                        <p className="text-xs text-cyan-400">
+                          Time in bed: {timeInBed.hours}h {timeInBed.minutes}m
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Cleaning Progress (if maintenance) */}
+            {bed.status === 'maintenance' && cleaningProgress && (
+              <>
+                <div className="col-span-2">
+                  <div className="flex items-start gap-3 mb-2">
+                    <div className={`p-2 rounded ${cleaningProgress.isOverdue ? 'bg-red-500/10' : 'bg-yellow-500/10'}`}>
+                      <AlertCircle className={`w-4 h-4 ${cleaningProgress.isOverdue ? 'text-red-400' : 'text-yellow-400'}`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-zinc-500">Cleaning Progress</p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-white">
+                          {cleaningProgress.percentage}% Complete
+                        </p>
+                        <p className="text-xs text-zinc-400">
+                          {cleaningProgress.isOverdue ? (
+                            <span className="text-red-400">Overdue</span>
+                          ) : (
+                            <span>{cleaningProgress.remaining} min remaining</span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="w-full bg-zinc-700 rounded-full h-2">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            cleaningProgress.isOverdue ? 'bg-red-500' :
+                            cleaningProgress.percentage >= 75 ? 'bg-yellow-500' :
+                            'bg-green-500'
+                          }`}
+                          style={{ width: `${cleaningProgress.percentage}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        Elapsed: {cleaningProgress.elapsed} min / Estimated: {cleaningProgress.estimatedDuration} min
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Notes (if any) */}
+            {bed.notes && (
+              <div className="col-span-2 flex items-start gap-3">
+                <div className="p-2 rounded bg-zinc-700">
+                  <FileText className="w-4 h-4 text-zinc-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-zinc-500">Current Notes</p>
+                  <p className="text-sm text-zinc-300">{bed.notes}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Edit Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/50 rounded text-red-400 text-sm">
-              {error}
+            <div className="p-3 bg-red-500/10 border border-red-500/50 rounded text-red-400 text-sm flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
+
+          <h3 className="text-sm font-semibold text-zinc-400">Update Bed Information</h3>
 
           {/* Status Dropdown */}
           <div>
@@ -149,10 +348,32 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
                 required
               />
               <p className="text-xs text-zinc-500 mt-1">
-                Estimated time to complete cleaning
+                {bed.status === 'maintenance' ? 
+                  'Adjust estimated cleaning duration' : 
+                  'Estimated time to complete cleaning'
+                }
               </p>
             </div>
           )}
+
+          {/* Notes Field - Task 2.5c */}
+          <div>
+            <label className="block text-sm text-zinc-400 mb-2">
+              Notes <span className="text-zinc-600">(Optional)</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any additional notes or comments..."
+              rows="3"
+              maxLength="500"
+              className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 resize-none"
+              disabled={isUpdating}
+            />
+            <p className="text-xs text-zinc-500 mt-1">
+              {notes.length}/500 characters
+            </p>
+          </div>
 
           {/* Buttons */}
           <div className="flex gap-3 pt-4">
@@ -175,7 +396,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
                   Updating...
                 </>
               ) : (
-                'Update Status'
+                'Update Bed'
               )}
             </button>
           </div>
