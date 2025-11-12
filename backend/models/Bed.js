@@ -61,6 +61,17 @@ const bedSchema = new mongoose.Schema(
       default: null,
       trim: true,
       maxlength: [500, 'Notes cannot exceed 500 characters']
+    },
+    // Estimated discharge time fields
+    estimatedDischargeTime: {
+      type: Date,
+      default: null
+    },
+    dischargeNotes: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: [500, 'Discharge notes cannot exceed 500 characters']
     }
   },
   {

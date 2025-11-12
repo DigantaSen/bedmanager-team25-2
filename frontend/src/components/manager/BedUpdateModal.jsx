@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, BedDouble, Loader2, Clock, User, Calendar, AlertCircle, FileText } from 'lucide-react';
 import api from '@/services/api';
+import TimeRemaining from '../common/TimeRemaining';
 
 const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
   const [status, setStatus] = useState(bed?.status || 'available');
@@ -8,6 +9,8 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
   const [patientId, setPatientId] = useState(bed?.patientId || '');
   const [cleaningDuration, setCleaningDuration] = useState('45');
   const [notes, setNotes] = useState(bed?.notes || '');
+  const [estimatedDischargeTime, setEstimatedDischargeTime] = useState('');
+  const [dischargeNotes, setDischargeNotes] = useState(bed?.dischargeNotes || '');
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
 
@@ -31,6 +34,16 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
     setPatientName(bed.patientName || '');
     setPatientId(bed.patientId || '');
     setNotes(bed.notes || '');
+    setDischargeNotes(bed.dischargeNotes || '');
+    
+    // Format discharge time for datetime-local input
+    if (bed.estimatedDischargeTime) {
+      const date = new Date(bed.estimatedDischargeTime);
+      const formatted = date.toISOString().slice(0, 16);
+      setEstimatedDischargeTime(formatted);
+    } else {
+      setEstimatedDischargeTime('');
+    }
     
     // Calculate admission time (using updatedAt as proxy)
     if (bed.status === 'occupied' && bed.updatedAt) {
@@ -101,12 +114,55 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
       const response = await api.patch(`/beds/${bed.bedId}/status`, payload);
       
       if (response.data.success) {
+        // If assigning patient and discharge time is set, update discharge time
+        if (status === 'occupied' && estimatedDischargeTime) {
+          try {
+            const dischargePayload = {
+              estimatedDischargeTime: new Date(estimatedDischargeTime).toISOString(),
+              dischargeNotes: dischargeNotes.trim() || null
+            };
+            await api.patch(`/beds/${bed.bedId}/discharge-time`, dischargePayload);
+          } catch (dischargeErr) {
+            console.error('Error setting discharge time:', dischargeErr);
+            // Don't fail the whole operation if discharge time setting fails
+          }
+        }
+        
         onSuccess && onSuccess(response.data.data);
         onClose();
       }
     } catch (err) {
       console.error('Error updating bed:', err);
       setError(err.response?.data?.message || 'Failed to update bed');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleUpdateDischargeTime = async () => {
+    if (!estimatedDischargeTime) {
+      setError('Please select a discharge date and time');
+      return;
+    }
+
+    setIsUpdating(true);
+    setError(null);
+
+    try {
+      const payload = {
+        estimatedDischargeTime: new Date(estimatedDischargeTime).toISOString(),
+        dischargeNotes: dischargeNotes.trim() || null
+      };
+
+      const response = await api.patch(`/beds/${bed.bedId}/discharge-time`, payload);
+
+      if (response.data.success) {
+        onSuccess && onSuccess(response.data.data.bed);
+        alert('Discharge time updated successfully');
+      }
+    } catch (err) {
+      console.error('Error updating discharge time:', err);
+      setError(err.response?.data?.message || 'Failed to update discharge time');
     } finally {
       setIsUpdating(false);
     }
@@ -207,6 +263,23 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
                       {timeInBed && (
                         <p className="text-xs text-cyan-400">
                           Time in bed: {timeInBed.hours}h {timeInBed.minutes}m
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Estimated Discharge Time */}
+                {bed.estimatedDischargeTime && (
+                  <div className="col-span-2">
+                    <div className="p-4 bg-cyan-900/20 border border-cyan-700/30 rounded-lg">
+                      <TimeRemaining 
+                        targetTime={bed.estimatedDischargeTime} 
+                        label="Estimated discharge"
+                      />
+                      {bed.dischargeNotes && (
+                        <p className="mt-2 text-xs text-slate-400">
+                          Note: {bed.dischargeNotes}
                         </p>
                       )}
                     </div>
@@ -388,6 +461,70 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
               {notes.length}/500 characters
             </p>
           </div>
+
+          {/* Estimated Discharge Time Section - For Assigning Patient or Updating Occupied Beds */}
+          {(status === 'occupied' || bed.status === 'occupied') && (
+            <div className="pt-4 border-t border-zinc-800">
+              <h3 className="text-sm font-semibold text-zinc-400 mb-3 flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                {bed.status === 'available' ? 'Set' : 'Update'} Estimated Discharge Time
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-2">
+                    Discharge Date & Time <span className="text-zinc-600">(Optional)</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={estimatedDischargeTime}
+                    onChange={(e) => setEstimatedDischargeTime(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                    className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                    disabled={isUpdating}
+                  />
+                  {bed.status === 'available' && (
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Set the expected discharge time when assigning the patient
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-2">
+                    Discharge Notes <span className="text-zinc-600">(Optional)</span>
+                  </label>
+                  <textarea
+                    value={dischargeNotes}
+                    onChange={(e) => setDischargeNotes(e.target.value)}
+                    placeholder="Add discharge notes or instructions..."
+                    rows="2"
+                    maxLength="500"
+                    className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 resize-none"
+                    disabled={isUpdating}
+                  />
+                </div>
+                {bed.status === 'occupied' && (
+                  <button
+                    type="button"
+                    onClick={handleUpdateDischargeTime}
+                    className="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    disabled={isUpdating || !estimatedDischargeTime}
+                  >
+                    {isUpdating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-4 h-4" />
+                        Update Discharge Time
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Buttons */}
           <div className="flex gap-3 pt-4">

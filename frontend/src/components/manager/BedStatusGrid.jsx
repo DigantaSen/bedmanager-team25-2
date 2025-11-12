@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchBeds, selectAllBeds, selectBedsStatus } from '@/features/beds/bedsSlice';
+import TimeRemaining from '../common/TimeRemaining';
 
 const BedStatusGrid = ({ ward, onBedClick }) => {
   const dispatch = useDispatch();
@@ -109,6 +110,11 @@ const BedStatusGrid = ({ ward, onBedClick }) => {
                 <span className="text-xs mt-1 truncate w-full text-center opacity-80">
                   {bed.patientName}
                 </span>
+              )}
+              {bed.status === 'occupied' && bed.estimatedDischargeTime && (
+                <div className="mt-1">
+                  <TimeRemaining targetTime={bed.estimatedDischargeTime} compact={true} />
+                </div>
               )}
               {isCleaningStatus && (
                 <span className="text-xs mt-1">🧹</span>

@@ -8,7 +8,8 @@ const {
   getOccupiedBeds,
   getOccupantHistory,
   getCleaningQueue,
-  markCleaningComplete
+  markCleaningComplete,
+  updateDischargeTime
 } = require('../controllers/bedController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const { canReadBeds, canUpdateBedStatus } = require('../middleware/roleGuards');
@@ -21,13 +22,14 @@ const {
 // Protected read routes (requires JWT authentication + role-based filtering)
 router.get('/', protect, canReadBeds, validateBedQuery, getAllBeds);
 router.get('/occupied', protect, getOccupiedBeds); // Task 2.5: Get all occupied beds
-router.get('/cleaning-queue', protect, authorize('manager', 'hospital_admin'), getCleaningQueue); // Task 2.5b: Get cleaning queue
+router.get('/cleaning-queue', protect, authorize('manager', 'hospital_admin', 'ward_staff'), getCleaningQueue); // Task 2.5b: Get cleaning queue
 router.get('/:id', protect, validateObjectId, getBedById);
 router.get('/:id/occupant-history', protect, getOccupantHistory); // Task 2.5: Get bed occupancy history
 
 // Protected write routes (requires JWT authentication + role-based guards)
 router.patch('/:id/status', protect, canUpdateBedStatus, validateUpdateBedStatus, updateBedStatus);
 router.put('/:id/cleaning/mark-complete', protect, authorize('manager', 'hospital_admin'), markCleaningComplete); // Task 2.5b: Mark cleaning complete
+router.patch('/:id/discharge-time', protect, authorize('manager', 'hospital_admin'), updateDischargeTime); // Update estimated discharge time
 
 module.exports = router;
 

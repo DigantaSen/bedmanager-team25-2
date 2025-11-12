@@ -301,12 +301,30 @@ exports.getForecasting = async (req, res) => {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+    // Determine ward filter based on user role
+    const userRole = req.user?.role || 'unknown';
+    const userWard = req.user?.ward;
+    let wardFilter = {};
+    
+    // Managers can only see their ward's data (if ward is set)
+    if (userRole === 'manager' && userWard) {
+      wardFilter.ward = userWard;
+    }
+    // hospital_admin, er_staff, technical_team, and managers without ward can see all wards
+
     // ===== 1. Calculate Average Length of Stay =====
     // Find all assigned/released pairs in last 30 days to calculate actual stay duration
-    const occupancyLogs = await OccupancyLog.find({
+    const occupancyLogFilter = {
       timestamp: { $gte: thirtyDaysAgo },
       statusChange: { $in: ['assigned', 'released'] }
-    })
+    };
+    
+    // Apply ward filter to occupancy logs if manager
+    if (wardFilter.ward) {
+      occupancyLogFilter.ward = wardFilter.ward;
+    }
+
+    const occupancyLogs = await OccupancyLog.find(occupancyLogFilter)
       .sort({ bedId: 1, timestamp: 1 })
       .lean();
 
@@ -337,20 +355,34 @@ exports.getForecasting = async (req, res) => {
       : 3.5; // Default 3.5 days if no data
 
     // ===== 2. Get Current Occupancy and Expected Discharges =====
-    const occupiedBeds = await Bed.find({ status: 'occupied' })
-      .select('bedId ward patientName patientId updatedAt')
+    // Apply ward filter for managers
+    const bedFilter = { status: 'occupied', ...wardFilter };
+    const occupiedBeds = await Bed.find(bedFilter)
+      .select('bedId ward patientName patientId updatedAt estimatedDischargeTime')
       .lean();
 
-    const totalBeds = await Bed.countDocuments({});
+    // Count total beds (filtered by ward for managers)
+    const totalBeds = await Bed.countDocuments(wardFilter);
     const currentlyOccupied = occupiedBeds.length;
 
     // Calculate expected discharge time for each occupied bed
+    // PRIORITY: Use estimatedDischargeTime if set by manager, otherwise estimate from avg length of stay
     const expectedDischargesList = occupiedBeds.map(bed => {
-      // Use updatedAt as proxy for admission time (when status changed to occupied)
       const admissionTime = bed.updatedAt;
-      const expectedDischargeTime = new Date(
-        admissionTime.getTime() + averageLengthOfStay * 24 * 60 * 60 * 1000
-      );
+      let expectedDischargeTime;
+      let isManuallySet = false;
+
+      // Use manager-set discharge time if available, otherwise calculate from average
+      if (bed.estimatedDischargeTime) {
+        expectedDischargeTime = new Date(bed.estimatedDischargeTime);
+        isManuallySet = true;
+      } else {
+        // Fallback: estimate based on average length of stay
+        expectedDischargeTime = new Date(
+          admissionTime.getTime() + averageLengthOfStay * 24 * 60 * 60 * 1000
+        );
+      }
+
       const hoursUntilDischarge = (expectedDischargeTime - now) / (1000 * 60 * 60);
 
       return {
@@ -361,7 +393,8 @@ exports.getForecasting = async (req, res) => {
         admissionTime: admissionTime,
         expectedDischargeTime: expectedDischargeTime,
         hoursUntilDischarge: Math.max(0, hoursUntilDischarge),
-        daysInBed: (now - admissionTime) / (1000 * 60 * 60 * 24)
+        daysInBed: (now - admissionTime) / (1000 * 60 * 60 * 24),
+        isManuallySet: isManuallySet // Flag to indicate if manager set the time
       };
     });
 
@@ -374,7 +407,17 @@ exports.getForecasting = async (req, res) => {
     const dischargesNext72h = expectedDischargesList.filter(d => d.hoursUntilDischarge <= 72).length;
 
     // ===== 3. Get Ward-Level Statistics =====
-    const wardStats = await Bed.aggregate([
+    // Build aggregation pipeline with ward filter for managers
+    const wardStatsPipeline = [];
+    
+    // Add match stage if manager (filter by ward)
+    if (wardFilter.ward) {
+      wardStatsPipeline.push({
+        $match: { ward: wardFilter.ward }
+      });
+    }
+    
+    wardStatsPipeline.push(
       {
         $group: {
           _id: '$ward',
@@ -390,7 +433,9 @@ exports.getForecasting = async (req, res) => {
       {
         $sort: { _id: 1 }
       }
-    ]);
+    );
+    
+    const wardStats = await Bed.aggregate(wardStatsPipeline);
 
     // Calculate ward-specific forecasts
     const wardForecasts = wardStats.map(ward => {
@@ -442,6 +487,10 @@ exports.getForecasting = async (req, res) => {
     // ===== 5. Generate Insights =====
     const insights = [];
     
+    // Count manually set vs estimated discharge times
+    const manuallySetCount = expectedDischargesList.filter(d => d.isManuallySet).length;
+    const estimatedCount = expectedDischargesList.filter(d => !d.isManuallySet).length;
+    
     if (currentlyOccupied / totalBeds > 0.9) {
       insights.push({
         type: 'warning',
@@ -451,9 +500,18 @@ exports.getForecasting = async (req, res) => {
     }
 
     if (dischargesNext24h >= 3) {
+      const manualNext24h = expectedDischargesList.filter(d => d.hoursUntilDischarge <= 24 && d.isManuallySet).length;
       insights.push({
         type: 'info',
-        message: `${dischargesNext24h} beds expected to be available in next 24 hours`,
+        message: `${dischargesNext24h} beds expected to be available in next 24 hours (${manualNext24h} confirmed, ${dischargesNext24h - manualNext24h} estimated)`,
+        priority: 'medium'
+      });
+    }
+
+    if (estimatedCount > manuallySetCount && currentlyOccupied > 5) {
+      insights.push({
+        type: 'warning',
+        message: `${estimatedCount} of ${currentlyOccupied} occupied beds using estimated discharge times. Set accurate discharge times for better forecasting.`,
         priority: 'medium'
       });
     }
@@ -487,13 +545,17 @@ exports.getForecasting = async (req, res) => {
           next48Hours: dischargesNext48h,
           next72Hours: dischargesNext72h,
           total: expectedDischargesList.length,
-          details: expectedDischargesList.slice(0, 10).map(d => ({
+          manuallySet: expectedDischargesList.filter(d => d.isManuallySet).length,
+          estimated: expectedDischargesList.filter(d => !d.isManuallySet).length,
+          details: expectedDischargesList.slice(0, 20).map(d => ({
             bedId: d.bedId,
             ward: d.ward,
             patientId: d.patientId,
+            patientName: d.patientName,
             expectedDischargeTime: d.expectedDischargeTime,
             hoursUntilDischarge: Math.round(d.hoursUntilDischarge * 10) / 10,
-            daysInBed: Math.round(d.daysInBed * 10) / 10
+            daysInBed: Math.round(d.daysInBed * 10) / 10,
+            isManuallySet: d.isManuallySet
           }))
         },
         wardForecasts,
@@ -502,13 +564,18 @@ exports.getForecasting = async (req, res) => {
         metadata: {
           timestamp: now.toISOString(),
           forecastHorizon: '72 hours',
-          calculationMethod: 'Average length of stay based on historical occupancy logs',
-          disclaimer: 'Forecasting is based on historical trends and may not account for emergency admissions or unscheduled discharges'
+          calculationMethod: 'Combines manager-set discharge times with AI estimates based on historical average length of stay',
+          disclaimer: 'Forecasts prioritize manager-set discharge times when available. Estimates may not account for emergency admissions or unscheduled discharges.',
+          accuracyNote: `${manuallySetCount} beds have confirmed discharge times, ${estimatedCount} use AI estimates`,
+          filteredByWard: wardFilter.ward || null,
+          userRole: userRole,
+          scope: wardFilter.ward ? `Data filtered for ${wardFilter.ward} ward only` : 'Hospital-wide data'
         }
       }
     });
   } catch (error) {
     console.error('Get forecasting error:', error);
+    console.error('User info:', req.user ? { role: req.user.role, ward: req.user.ward, id: req.user._id } : 'No user');
     res.status(500).json({
       success: false,
       message: 'Server error fetching forecasting data',

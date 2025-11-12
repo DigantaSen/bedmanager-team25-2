@@ -585,9 +585,9 @@ exports.getOccupantHistory = async (req, res) => {
 };
 
 /**
- * @desc    Get cleaning queue (all beds in maintenance with progress)
+ * @desc    Get cleaning queue (all beds in cleaning status with progress)
  * @route   GET /api/beds/cleaning-queue
- * @access  Private (Manager, Hospital Admin)
+ * @access  Private (Manager, Hospital Admin, Ward Staff)
  * @query   ward (optional - filter by ward)
  */
 exports.getCleaningQueue = async (req, res) => {
@@ -597,8 +597,8 @@ exports.getCleaningQueue = async (req, res) => {
     // Build filter - only include 'cleaning' status (not maintenance)
     const filter = { status: 'cleaning' };
     
-    // Apply ward filter for managers
-    if (req.user.role === 'manager' && req.user.ward) {
+    // Apply ward filter for managers and ward staff
+    if ((req.user.role === 'manager' || req.user.role === 'ward_staff') && req.user.ward) {
       filter.ward = req.user.ward;
     } else if (ward) {
       filter.ward = ward;
@@ -831,6 +831,98 @@ exports.markCleaningComplete = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error marking cleaning as complete',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * @desc    Update estimated discharge time for a bed
+ * @route   PATCH /api/beds/:id/discharge-time
+ * @access  Private (Manager only)
+ */
+exports.updateDischargeTime = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estimatedDischargeTime, dischargeNotes } = req.body;
+
+    // Validate estimatedDischargeTime
+    if (!estimatedDischargeTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Estimated discharge time is required'
+      });
+    }
+
+    const dischargeDate = new Date(estimatedDischargeTime);
+    if (isNaN(dischargeDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format for estimated discharge time'
+      });
+    }
+
+    // Find bed
+    let bed;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      bed = await Bed.findById(id);
+    } else {
+      bed = await Bed.findOne({ bedId: id });
+    }
+
+    if (!bed) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bed not found'
+      });
+    }
+
+    // Only allow updating discharge time for occupied beds
+    if (bed.status !== 'occupied') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only set discharge time for occupied beds'
+      });
+    }
+
+    // Update discharge information
+    bed.estimatedDischargeTime = dischargeDate;
+    if (dischargeNotes !== undefined) {
+      bed.dischargeNotes = dischargeNotes ? dischargeNotes.trim() : null;
+    }
+
+    await bed.save();
+
+    // Emit socket event for real-time updates
+    if (req.io) {
+      req.io.to(`ward-${bed.ward}`).emit('bedDischargeTimeUpdated', {
+        bed: bed.toObject(),
+        estimatedDischargeTime: bed.estimatedDischargeTime,
+        dischargeNotes: bed.dischargeNotes,
+        timestamp: new Date()
+      });
+
+      // Global emit for hospital admins
+      req.io.emit('bedDischargeTimeUpdated', {
+        bed: bed.toObject(),
+        estimatedDischargeTime: bed.estimatedDischargeTime,
+        dischargeNotes: bed.dischargeNotes,
+        timestamp: new Date()
+      });
+
+      console.log(`✅ bedDischargeTimeUpdated event emitted for bed ${bed.bedId}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Estimated discharge time updated successfully',
+      data: { bed: bed.toObject() }
+    });
+  } catch (error) {
+    console.error('Update discharge time error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating discharge time',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

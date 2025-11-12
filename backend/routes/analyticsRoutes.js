@@ -47,8 +47,9 @@ router.get('/occupancy-trends', getOccupancyTrends);
 /**
  * GET /api/analytics/forecasting
  * Get forecasting data - predicted discharges and capacity insights
+ * Protected route - managers see only their ward, admins see all
  */
-router.get('/forecasting', getForecasting);
+router.get('/forecasting', protect, getForecasting);
 
 /**
  * GET /api/analytics/cleaning-performance
