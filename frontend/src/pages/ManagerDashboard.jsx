@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectCurrentUser } from '@/features/auth/authSlice';
 import { fetchBeds } from '@/features/beds/bedsSlice';
+import { fetchAnalyticsSummary } from '@/features/analytics/analyticsSlice';
 import { Briefcase } from 'lucide-react';
 import KPISummaryCard from '@/components/manager/KPISummaryCard';
 import BedStatusGrid from '@/components/manager/BedStatusGrid';
@@ -17,6 +18,7 @@ const ManagerDashboard = () => {
   const dispatch = useDispatch();
   const [selectedBed, setSelectedBed] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -38,8 +40,10 @@ const ManagerDashboard = () => {
   };
 
   const handleUpdateSuccess = () => {
-    // Refresh beds after successful update
+    // Refresh beds and analytics after successful update
     dispatch(fetchBeds());
+    dispatch(fetchAnalyticsSummary({ ward: currentUser?.ward }));
+    setRefreshKey(prev => prev + 1); // Force re-render
   };
 
   return (
@@ -62,7 +66,7 @@ const ManagerDashboard = () => {
             </div>
 
             {/* KPI Summary Cards */}
-            <KPISummaryCard ward={currentUser?.ward} />
+            <KPISummaryCard key={refreshKey} ward={currentUser?.ward} />
 
             {/* Bed Status Grid */}
             <BedStatusGrid ward={currentUser?.ward} onBedClick={handleBedClick} />
