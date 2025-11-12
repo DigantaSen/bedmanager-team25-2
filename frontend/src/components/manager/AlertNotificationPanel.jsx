@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchAlerts, dismissAlert } from '@/features/alerts/alertsSlice';
 import { AlertTriangle, AlertCircle, Info, CheckCircle, X } from 'lucide-react';
+import { getSocket } from '@/services/socketService';
 
 const AlertNotificationPanel = ({ ward }) => {
   const dispatch = useDispatch();
@@ -10,6 +11,27 @@ const AlertNotificationPanel = ({ ward }) => {
 
   useEffect(() => {
     dispatch(fetchAlerts());
+  }, [dispatch]);
+
+  // Socket.IO listener for new alerts
+  useEffect(() => {
+    const socket = getSocket();
+    
+    if (socket) {
+      console.log('📡 Setting up alert listener for manager');
+      
+      const handleNewAlert = (data) => {
+        console.log('🔔 New alert received:', data);
+        // Refresh alerts list
+        dispatch(fetchAlerts());
+      };
+      
+      socket.on('alertCreated', handleNewAlert);
+      
+      return () => {
+        socket.off('alertCreated', handleNewAlert);
+      };
+    }
   }, [dispatch]);
 
   const filteredAlerts = ward || currentUser?.ward

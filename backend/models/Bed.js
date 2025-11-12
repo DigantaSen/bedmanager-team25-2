@@ -91,8 +91,8 @@ bedSchema.pre('save', function(next) {
     this.patientId = null; // Clear patient info if bed is not occupied
   }
   
-  // Task 2.5b: Clear cleaning fields if not in maintenance
-  if (this.status !== 'maintenance') {
+  // Task 2.5b: Clear cleaning fields if not in cleaning status
+  if (this.status !== 'cleaning') {
     this.cleaningStartTime = null;
     this.estimatedCleaningDuration = null;
     this.estimatedCleaningEndTime = null;

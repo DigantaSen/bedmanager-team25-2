@@ -10,10 +10,8 @@ const BedDetailsModal = ({ bed, isOpen, onClose }) => {
         return 'text-green-500 bg-green-500/10 border-green-500/50';
       case 'occupied':
         return 'text-red-500 bg-red-500/10 border-red-500/50';
-      case 'maintenance':
+      case 'cleaning':
         return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/50';
-      case 'reserved':
-        return 'text-blue-500 bg-blue-500/10 border-blue-500/50';
       default:
         return 'text-zinc-500 bg-zinc-500/10 border-zinc-500/50';
     }

@@ -32,14 +32,14 @@ class ReportService {
     const totalBeds = beds.length;
     const occupiedBeds = beds.filter(bed => bed.status === 'occupied').length;
     const availableBeds = beds.filter(bed => bed.status === 'available').length;
-    const maintenanceBeds = beds.filter(bed => bed.status === 'maintenance').length;
+    const cleaningBeds = beds.filter(bed => bed.status === 'cleaning').length;
     const occupancyRate = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
 
     // Group by ward
     const wardStats = {};
     beds.forEach(bed => {
       if (!wardStats[bed.ward]) {
-        wardStats[bed.ward] = { total: 0, occupied: 0, available: 0, maintenance: 0 };
+        wardStats[bed.ward] = { total: 0, occupied: 0, available: 0, cleaning: 0 };
       }
       wardStats[bed.ward].total++;
       wardStats[bed.ward][bed.status]++;
@@ -84,7 +84,7 @@ class ReportService {
         totalBeds,
         occupiedBeds,
         availableBeds,
-        maintenanceBeds,
+        cleaningBeds,
         occupancyRate
       },
       wardStats,
@@ -307,8 +307,8 @@ class ReportService {
               <div class="value">${data.summary.availableBeds}</div>
             </div>
             <div class="summary-card">
-              <h3>Maintenance</h3>
-              <div class="value">${data.summary.maintenanceBeds}</div>
+              <h3>Cleaning</h3>
+              <div class="value">${data.summary.cleaningBeds}</div>
             </div>
           </div>
         </div>
@@ -322,7 +322,7 @@ class ReportService {
                 <th>Total Beds</th>
                 <th>Occupied</th>
                 <th>Available</th>
-                <th>Maintenance</th>
+                <th>Cleaning</th>
                 <th>Occupancy Rate</th>
               </tr>
             </thead>
@@ -335,7 +335,7 @@ class ReportService {
                     <td>${stats.total}</td>
                     <td>${stats.occupied}</td>
                     <td>${stats.available}</td>
-                    <td>${stats.maintenance}</td>
+                    <td>${stats.cleaning || 0}</td>
                     <td><strong>${wardOccupancy}%</strong></td>
                   </tr>
                 `;
@@ -376,13 +376,13 @@ class ReportService {
         'Total Beds': stats.total,
         'Occupied Beds': stats.occupied,
         'Available Beds': stats.available,
-        'Maintenance Beds': stats.maintenance,
+        'Cleaning Beds': stats.cleaning || 0,
         'Occupancy Rate (%)': wardOccupancy
       });
     });
 
-    const json2csvParser = new Parser({
-      fields: ['Ward', 'Total Beds', 'Occupied Beds', 'Available Beds', 'Maintenance Beds', 'Occupancy Rate (%)']
+    const parser = new Parser({
+      fields: ['Ward', 'Total Beds', 'Occupied Beds', 'Available Beds', 'Cleaning Beds', 'Occupancy Rate (%)']
     });
 
     const csv = json2csvParser.parse(csvData);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser } from '@/features/auth/authSlice';
-import { Sparkles, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import api from '@/services/api';
 import { getSocket } from '@/services/socketService';
 
@@ -10,9 +10,7 @@ const CleaningQueuePanel = ({ ward }) => {
   const [queueData, setQueueData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Check if user is ward staff (can mark beds clean)
-  const isWardStaff = currentUser?.role === 'ward_staff';
+  const [markingComplete, setMarkingComplete] = useState(null);
 
   // Fetch cleaning queue
   const fetchCleaningQueue = async () => {
@@ -54,24 +52,15 @@ const CleaningQueuePanel = ({ ward }) => {
     }
 
     const handleCleaningStarted = (data) => {
-      console.log('Cleaning started:', data);
       fetchCleaningQueue();
     };
 
     const handleCleaningCompleted = (data) => {
-      console.log('Cleaning completed:', data);
       fetchCleaningQueue();
     };
 
-    const handleBedUpdate = (data) => {
-      // Refetch if any bed status changed to/from cleaning
-      if (data.bed.status === 'cleaning' || data.previousStatus === 'cleaning') {
-        fetchCleaningQueue();
-      }
-    };
-
     const handleBedStatusChanged = (data) => {
-      // Also listen to bedStatusChanged events for cleaning transitions
+      // Refresh if any bed status changed to/from cleaning
       if (data.bed.status === 'cleaning' || data.previousStatus === 'cleaning') {
         fetchCleaningQueue();
       }
@@ -85,23 +74,41 @@ const CleaningQueuePanel = ({ ward }) => {
     // Listen for cleaning events
     socket.on('bedCleaningStarted', handleCleaningStarted);
     socket.on('bedCleaningCompleted', handleCleaningCompleted);
-    socket.on('bedUpdate', handleBedUpdate);
     socket.on('bedStatusChanged', handleBedStatusChanged);
 
     return () => {
       socket.off('bedCleaningStarted', handleCleaningStarted);
       socket.off('bedCleaningCompleted', handleCleaningCompleted);
-      socket.off('bedUpdate', handleBedUpdate);
       socket.off('bedStatusChanged', handleBedStatusChanged);
     };
   }, [currentUser]);
 
+  // Mark cleaning as complete (Ward staff only)
+  const handleMarkComplete = async (bedId) => {
+    try {
+      setMarkingComplete(bedId);
+      const response = await api.put(`/beds/${bedId}/cleaning/mark-complete`, {
+        notes: 'Completed by ward staff'
+      });
+      
+      if (response.data.success) {
+        // Refetch queue to remove the completed bed
+        await fetchCleaningQueue();
+      }
+    } catch (err) {
+      console.error('Error marking cleaning complete:', err);
+      alert(err.response?.data?.message || 'Failed to mark cleaning as complete');
+    } finally {
+      setMarkingComplete(null);
+    }
+  };
+
   if (loading && !queueData) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
         <div className="flex items-center gap-3 mb-4">
           <Sparkles className="w-6 h-6 text-purple-500" />
-          <h2 className="text-2xl font-bold text-white">Cleaning Queue</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Cleaning Queue</h2>
         </div>
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
@@ -112,10 +119,10 @@ const CleaningQueuePanel = ({ ward }) => {
 
   if (error) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
         <div className="flex items-center gap-3 mb-4">
           <Sparkles className="w-6 h-6 text-purple-500" />
-          <h2 className="text-2xl font-bold text-white">Cleaning Queue</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Cleaning Queue</h2>
         </div>
         <div className="text-red-400 text-center py-8">
           <AlertCircle className="w-12 h-12 mx-auto mb-2" />
@@ -127,29 +134,29 @@ const CleaningQueuePanel = ({ ward }) => {
 
   if (!queueData || queueData.beds.length === 0) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <Sparkles className="w-6 h-6 text-purple-500" />
-            <h2 className="text-2xl font-bold text-white">Cleaning Queue</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Cleaning Queue</h2>
           </div>
           <span className="text-2xl font-bold text-green-400">0</span>
         </div>
         <div className="text-center py-8">
           <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
-          <p className="text-zinc-400">No beds currently need cleaning</p>
+          <p className="text-slate-400">No beds currently need cleaning</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
       {/* Header with bed count */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Sparkles className="w-6 h-6 text-purple-500" />
-          <h2 className="text-2xl font-bold text-white">Cleaning Queue</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Cleaning Queue</h2>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-2xl font-bold text-orange-400">{queueData.summary.total}</span>
@@ -163,27 +170,38 @@ const CleaningQueuePanel = ({ ward }) => {
         </div>
       </div>
 
-      {/* Simple list of beds needing cleaning */}
+      {/* List of beds needing cleaning with Mark Clean button */}
       <div className="space-y-3">
         {queueData.beds.map((bed) => (
           <div
             key={bed._id}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 hover:border-purple-500 transition-colors"
+            className="bg-slate-700/50 border border-slate-600 rounded-lg p-4 hover:border-purple-500 transition-colors"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-white">
                   Bed {bed.bedId}
                 </h3>
-                <p className="text-sm text-zinc-400">Ward: {bed.ward}</p>
+                <p className="text-sm text-slate-400">Ward: {bed.ward}</p>
               </div>
               
-              {/* Show status badge for managers (view-only) */}
-              {!isWardStaff && (
-                <span className="px-4 py-2 bg-orange-500/20 border border-orange-500/50 rounded text-orange-400 font-medium">
-                  Needs Cleaning
-                </span>
-              )}
+              <button
+                onClick={() => handleMarkComplete(bed.bedId)}
+                disabled={markingComplete === bed.bedId}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
+              >
+                {markingComplete === bed.bedId ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Cleaning...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Mark Clean
+                  </>
+                )}
+              </button>
             </div>
           </div>
         ))}

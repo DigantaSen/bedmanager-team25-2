@@ -2,20 +2,104 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchRequests, approveRequest, rejectRequest } from '@/features/requests/requestsSlice';
 import { AlertOctagon, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { getSocket } from '@/services/socketService';
+import Toast from '@/components/ui/Toast';
+import api from '@/services/api';
 
 const EmergencyRequestsQueue = ({ ward }) => {
   const dispatch = useDispatch();
   const { requests, status } = useSelector((state) => state.requests);
   const currentUser = useSelector((state) => state.auth.user);
   const [processingId, setProcessingId] = useState(null);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     dispatch(fetchRequests());
   }, [dispatch]);
 
+  // Calculate filtered requests
   const filteredRequests = ward || currentUser?.ward
     ? (Array.isArray(requests) ? requests : []).filter((req) => req.ward === (ward || currentUser?.ward))
     : (Array.isArray(requests) ? requests : []);
+
+  // Socket.IO listener for new emergency requests
+  useEffect(() => {
+    const socket = getSocket();
+    
+    if (socket && socket.connected) {
+      const handleNewRequest = async (data) => {
+        const managerWard = ward || currentUser?.ward;
+        
+        // Only process if request is for this manager's ward
+        if (data.ward === managerWard) {
+          // Play notification sound
+          const playNotificationSound = () => {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+            
+            // Try to play mp3 if available
+            const audio = new Audio('/notification.mp3');
+            audio.volume = 0.5;
+            audio.play().catch(() => {});
+          };
+          
+          playNotificationSound();
+          
+          // Show toast notification
+          setToast({
+            type: 'emergency',
+            title: '🚨 New Emergency Request',
+            message: `Priority: ${data.priority.toUpperCase()} - ${data.patientName} needs ${data.ward} bed from ${data.location}`,
+          });
+          
+          // Create an alert in the Alerts & Notifications panel
+          try {
+            await api.post('/alerts', {
+              type: 'emergency_request',
+              message: `New emergency request: ${data.patientName} (${data.priority.toUpperCase()}) needs ${data.ward} bed`,
+              severity: data.priority === 'critical' ? 'critical' : data.priority === 'high' ? 'high' : 'medium',
+              ward: data.ward,
+              targetRole: 'manager'
+            });
+          } catch (error) {
+            // Silently fail - alert creation is not critical
+          }
+          
+          // Show browser notification if permission granted
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('🚨 New Emergency Request', {
+              body: `Priority: ${data.priority.toUpperCase()} - ${data.patientName} needs ${data.ward} bed`,
+              icon: '/hospital-icon.png',
+              tag: `emergency-${data.requestId}`,
+              requireInteraction: true
+            });
+          }
+          
+          // Refresh the requests list
+          dispatch(fetchRequests());
+        }
+      };
+      
+      socket.on('emergencyRequestCreated', handleNewRequest);
+      
+      return () => {
+        socket.off('emergencyRequestCreated', handleNewRequest);
+      };
+    }
+  }, [dispatch, ward, currentUser?.ward]);
 
   const handleApprove = async (requestId) => {
     if (window.confirm('Are you sure you want to approve this emergency request?')) {
@@ -33,7 +117,7 @@ const EmergencyRequestsQueue = ({ ward }) => {
 
   const handleReject = async (requestId) => {
     const reason = window.prompt('Please provide a reason for rejection (optional):');
-    if (reason !== null) { // User didn't cancel
+    if (reason !== null) {
       setProcessingId(requestId);
       try {
         await dispatch(rejectRequest({ id: requestId, rejectionReason: reason })).unwrap();
@@ -142,10 +226,15 @@ const EmergencyRequestsQueue = ({ ward }) => {
                     </span>
                   </div>
                   <p className="text-white font-semibold mb-1">
-                    Patient ID: {request.patientId}
+                    {request.patientName || `Patient ID: ${request.patientId}`}
                   </p>
+                  {request.patientContact && (
+                    <p className="text-zinc-400 text-sm mb-1">
+                      Contact: {request.patientContact}
+                    </p>
+                  )}
                   <p className="text-zinc-300 text-sm mb-2">
-                    {request.reason || request.description}
+                    {request.reason || request.description || 'No details provided'}
                   </p>
                   {request.location && (
                     <p className="text-zinc-400 text-xs">Location: {request.location}</p>
@@ -177,6 +266,17 @@ const EmergencyRequestsQueue = ({ ward }) => {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() => setToast(null)}
+          duration={8000}
+        />
       )}
     </div>
   );

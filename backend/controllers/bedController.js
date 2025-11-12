@@ -120,8 +120,8 @@ exports.updateBedStatus = async (req, res) => {
       });
     }
 
-    // Validate cleaningDuration for maintenance status
-    if (status === 'maintenance' && cleaningDuration) {
+    // Validate cleaningDuration for cleaning status
+    if (status === 'cleaning' && cleaningDuration) {
       if (typeof cleaningDuration !== 'number' || cleaningDuration <= 0) {
         return res.status(400).json({
           success: false,
@@ -172,11 +172,11 @@ exports.updateBedStatus = async (req, res) => {
       bed.notes = notes ? notes.trim() : null;
     }
     
-    // Handle cleaning start time
-    if (finalStatus === 'cleaning' && previousStatus === 'occupied') {
+    // Handle cleaning start time - set for any transition TO cleaning status
+    if (finalStatus === 'cleaning' && previousStatus !== 'cleaning') {
       bed.cleaningStartTime = new Date();
       bed.estimatedCleaningDuration = cleaningDuration || 30; // Default 30 minutes
-      bed.estimatedCleaningEndTime = new Date(Date.now() + (cleaningDuration || 30) * 60 * 1000);
+      bed.estimatedCleaningEndTime = new Date(Date.now() + (bed.estimatedCleaningDuration) * 60 * 1000);
     }
     
     await bed.save();
@@ -209,14 +209,14 @@ exports.updateBedStatus = async (req, res) => {
       // Continue even if logging fails - don't block the main operation
     }
 
-    // Create cleaning log entry when starting maintenance
-    if (status === 'maintenance' && cleaningDuration) {
+    // Create cleaning log entry when starting cleaning (any transition TO cleaning status)
+    if (finalStatus === 'cleaning' && previousStatus !== 'cleaning' && bed.cleaningStartTime) {
       try {
         await CleaningLog.create({
           bedId: bed._id,
           ward: bed.ward,
           startTime: bed.cleaningStartTime,
-          estimatedDuration: cleaningDuration,
+          estimatedDuration: bed.estimatedCleaningDuration,
           status: 'in_progress',
           assignedTo: req.user._id
         });
@@ -226,7 +226,7 @@ exports.updateBedStatus = async (req, res) => {
         if (req.io) {
           req.io.to(`ward-${bed.ward}`).emit('bedCleaningStarted', {
             bed: bed.toObject(),
-            estimatedDuration: cleaningDuration,
+            estimatedDuration: bed.estimatedCleaningDuration,
             estimatedEndTime: bed.estimatedCleaningEndTime,
             timestamp: new Date()
           });
@@ -258,24 +258,13 @@ exports.updateBedStatus = async (req, res) => {
       
       console.log(`✅ bedStatusChanged event emitted via socket.io (Ward: ${bed.ward})`);
     }
-    
-    // Task 2.6: Emit bedMaintenanceNeeded if bed is being marked for maintenance
-    if (status === 'maintenance' && req.io) {
-      req.io.to(`ward-${bed.ward}`).emit('bedMaintenanceNeeded', {
-        bed: bed.toObject(),
-        cleaningDuration: cleaningDuration || bed.estimatedCleaningDuration,
-        priority: 'normal',
-        timestamp: new Date()
-      });
-      console.log(`✅ bedMaintenanceNeeded event emitted for bed ${bed.bedId} in ${bed.ward}`);
-    }
 
     // Check occupancy and trigger alerts if > 90%
     await checkOccupancyAndCreateAlerts(bed.ward, req.io);
 
     res.status(200).json({
       success: true,
-      message: `Bed status updated to ${status}`,
+      message: `Bed status updated to ${finalStatus}`,
       data: { bed }
     });
   } catch (error) {
@@ -605,8 +594,8 @@ exports.getCleaningQueue = async (req, res) => {
   try {
     const { ward } = req.query;
     
-    // Build filter
-    const filter = { status: 'maintenance' };
+    // Build filter - only include 'cleaning' status (not maintenance)
+    const filter = { status: 'cleaning' };
     
     // Apply ward filter for managers
     if (req.user.role === 'manager' && req.user.ward) {
@@ -615,7 +604,7 @@ exports.getCleaningQueue = async (req, res) => {
       filter.ward = ward;
     }
     
-    // Find all beds in maintenance
+    // Find all beds in cleaning status
     const beds = await Bed.find(filter)
       .select('bedId ward status cleaningStartTime estimatedCleaningDuration estimatedCleaningEndTime')
       .lean();
@@ -749,11 +738,11 @@ exports.markCleaningComplete = async (req, res) => {
       });
     }
     
-    // Verify bed is in maintenance
-    if (bed.status !== 'maintenance') {
+    // Verify bed is in cleaning status
+    if (bed.status !== 'cleaning') {
       return res.status(400).json({
         success: false,
-        message: 'Bed is not currently in maintenance'
+        message: 'Bed is not currently in cleaning status'
       });
     }
     
@@ -815,7 +804,7 @@ exports.markCleaningComplete = async (req, res) => {
     if (req.io) {
       req.io.to(`ward-${bed.ward}`).emit('bedStatusChanged', {
         bed: bed.toObject(),
-        previousStatus: 'maintenance',
+        previousStatus: 'cleaning',
         newStatus: 'available',
         timestamp: new Date()
       });
@@ -823,12 +812,12 @@ exports.markCleaningComplete = async (req, res) => {
       // Global emit for hospital admins
       req.io.emit('bedStatusChanged', {
         bed: bed.toObject(),
-        previousStatus: 'maintenance',
+        previousStatus: 'cleaning',
         newStatus: 'available',
         timestamp: new Date()
       });
     }
-    
+
     res.status(200).json({
       success: true,
       message: 'Cleaning marked as complete',

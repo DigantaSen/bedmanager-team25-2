@@ -51,7 +51,10 @@ const requestsSlice = createSlice({
       })
       .addCase(fetchRequests.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.requests = Array.isArray(action.payload) ? action.payload : [];
+        // Handle backend response structure: { success, count, data: { emergencyRequests } }
+        const requests = action.payload?.data?.emergencyRequests || action.payload?.emergencyRequests || action.payload || [];
+        state.requests = Array.isArray(requests) ? requests : [];
+        console.log('✅ Emergency requests loaded:', state.requests.length);
       })
       .addCase(fetchRequests.rejected, (state, action) => {
         state.status = 'failed';

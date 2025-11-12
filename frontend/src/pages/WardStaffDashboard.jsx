@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { fetchBeds } from '@/features/beds/bedsSlice';
 import WardBedGrid from '@/components/WardBedGrid';
 import AvailableBedsList from '@/components/AvailableBedsList';
+import CleaningQueuePanel from '@/components/wardstaff/CleaningQueuePanel';
 import api from '@/services/api';
 import DashboardLayout from '@/components/DashboardLayout';
 // Task 4.3: Import offline cache utilities for mobile optimization
@@ -172,6 +173,9 @@ const WardStaffDashboard = () => {
             <AvailableBedsList beds={wardBeds} />
           </div>
         </div>
+
+        {/* Cleaning Queue for Ward Staff */}
+        <CleaningQueuePanel ward={assignedWard} />
       </div>
     </DashboardLayout>
   );

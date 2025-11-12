@@ -5,7 +5,11 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "cleanup:db": "node comprehensiveCleanup.js",
+    "check:logs": "node checkOccupancyLogs.js && node checkCleaningLogs.js",
+    "check:cleaning": "node checkCleaningBeds.js",
+    "fix:cleaning": "node fixCleaningBeds.js"
   },
   "keywords": [],
   "author": "",
