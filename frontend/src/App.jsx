@@ -15,6 +15,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import AdminDashboard from './pages/AdminDashboard'
 import ManagerDashboard from './pages/ManagerDashboard'
 import StaffDashboard from './pages/StaffDashboard'
+import OccupantStatusDashboard from './pages/OccupantStatusDashboard'
 import Unauthorized from './pages/Unauthorized'
 
 function App() {
@@ -101,6 +102,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['manager']}>
               <ManagerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/occupants"
+          element={
+            <ProtectedRoute allowedRoles={['manager', 'hospital_admin']}>
+              <OccupantStatusDashboard />
             </ProtectedRoute>
           }
         />

@@ -281,3 +281,241 @@ const checkOccupancyAndCreateAlerts = async (ward, io) => {
     // Don't throw - this is a background check, shouldn't break main operation
   }
 };
+
+/**
+ * @desc    Get all occupied beds with patient details
+ * @route   GET /api/beds/occupied
+ * @access  Private (Manager, Hospital Admin)
+ * @query   ward (optional - filter by specific ward)
+ * 
+ * Task 2.5: Returns detailed information about all occupied beds including:
+ * - Patient information (name, ID)
+ * - Admission time (using updatedAt as proxy)
+ * - Time in bed calculation
+ * - Ward information
+ */
+exports.getOccupiedBeds = async (req, res) => {
+  try {
+    const { ward } = req.query;
+    const userRole = req.user?.role;
+    const userWard = req.user?.ward;
+
+    // Build filter for occupied beds
+    const filter = { status: 'occupied' };
+
+    // Apply ward filtering based on role
+    if (userRole === 'manager' && userWard) {
+      // Managers can only see their assigned ward
+      filter.ward = userWard;
+    } else if (ward) {
+      // Hospital admin can filter by specific ward
+      filter.ward = ward;
+    }
+
+    // Fetch occupied beds
+    const occupiedBeds = await Bed.find(filter)
+      .sort({ ward: 1, bedId: 1 })
+      .lean();
+
+    // Enrich each bed with calculated fields
+    const now = new Date();
+    const enrichedBeds = occupiedBeds.map(bed => {
+      // Calculate time in bed (using updatedAt as admission time proxy)
+      const admissionTime = bed.updatedAt || bed.createdAt;
+      const timeInBedMs = now - admissionTime;
+      const timeInBedHours = timeInBedMs / (1000 * 60 * 60);
+      const timeInBedDays = timeInBedMs / (1000 * 60 * 60 * 24);
+
+      return {
+        ...bed,
+        admissionTime,
+        timeInBed: {
+          hours: Math.round(timeInBedHours * 10) / 10,
+          days: Math.round(timeInBedDays * 10) / 10,
+          formatted: timeInBedDays >= 1 
+            ? `${Math.floor(timeInBedDays)}d ${Math.floor(timeInBedHours % 24)}h`
+            : `${Math.floor(timeInBedHours)}h`
+        }
+      };
+    });
+
+    // Group by ward for summary
+    const wardSummary = enrichedBeds.reduce((acc, bed) => {
+      if (!acc[bed.ward]) {
+        acc[bed.ward] = {
+          ward: bed.ward,
+          occupiedCount: 0,
+          patients: []
+        };
+      }
+      acc[bed.ward].occupiedCount++;
+      acc[bed.ward].patients.push({
+        bedId: bed.bedId,
+        patientName: bed.patientName,
+        patientId: bed.patientId
+      });
+      return acc;
+    }, {});
+
+    res.status(200).json({
+      success: true,
+      count: enrichedBeds.length,
+      data: {
+        beds: enrichedBeds,
+        summary: Object.values(wardSummary)
+      }
+    });
+  } catch (error) {
+    console.error('Get occupied beds error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching occupied beds',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * @desc    Get occupant history for a specific bed
+ * @route   GET /api/beds/:id/occupant-history
+ * @access  Private (Manager, Hospital Admin)
+ * @param   id - Bed MongoDB ObjectId or bedId string
+ * 
+ * Task 2.5: Returns timeline of bed occupancy changes including:
+ * - All status changes from OccupancyLog
+ * - Patient assignments and releases
+ * - Maintenance periods
+ * - Duration calculations for each occupancy
+ */
+exports.getOccupantHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    let bed;
+
+    // Find bed by MongoDB ObjectId or bedId string
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      bed = await Bed.findById(id);
+    } else {
+      bed = await Bed.findOne({ bedId: id });
+    }
+
+    if (!bed) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bed not found'
+      });
+    }
+
+    // Check authorization - managers can only view their ward's beds
+    const userRole = req.user?.role;
+    const userWard = req.user?.ward;
+    if (userRole === 'manager' && userWard && bed.ward !== userWard) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You can only view beds in your assigned ward'
+      });
+    }
+
+    // Fetch occupancy logs for this bed
+    const occupancyLogs = await OccupancyLog.find({ bedId: bed._id })
+      .populate('userId', 'name email role')
+      .sort({ timestamp: -1 })
+      .lean();
+
+    // Calculate occupancy periods (paired assigned -> released)
+    const occupancyPeriods = [];
+    let currentAssignment = null;
+
+    // Process logs in chronological order (reverse the array)
+    const chronologicalLogs = [...occupancyLogs].reverse();
+    
+    chronologicalLogs.forEach(log => {
+      if (log.statusChange === 'assigned') {
+        currentAssignment = {
+          startTime: log.timestamp,
+          startLog: log,
+          status: 'ongoing'
+        };
+      } else if (log.statusChange === 'released' && currentAssignment) {
+        currentAssignment.endTime = log.timestamp;
+        currentAssignment.endLog = log;
+        currentAssignment.status = 'completed';
+        
+        // Calculate duration
+        const durationMs = currentAssignment.endTime - currentAssignment.startTime;
+        const durationHours = durationMs / (1000 * 60 * 60);
+        const durationDays = durationMs / (1000 * 60 * 60 * 24);
+        
+        currentAssignment.duration = {
+          hours: Math.round(durationHours * 10) / 10,
+          days: Math.round(durationDays * 10) / 10,
+          formatted: durationDays >= 1
+            ? `${Math.floor(durationDays)}d ${Math.floor(durationHours % 24)}h`
+            : `${Math.floor(durationHours)}h`
+        };
+        
+        occupancyPeriods.push(currentAssignment);
+        currentAssignment = null;
+      }
+    });
+
+    // If there's an ongoing assignment, add it with current time as end
+    if (currentAssignment) {
+      const now = new Date();
+      const durationMs = now - currentAssignment.startTime;
+      const durationHours = durationMs / (1000 * 60 * 60);
+      const durationDays = durationMs / (1000 * 60 * 60 * 24);
+      
+      currentAssignment.duration = {
+        hours: Math.round(durationHours * 10) / 10,
+        days: Math.round(durationDays * 10) / 10,
+        formatted: durationDays >= 1
+          ? `${Math.floor(durationDays)}d ${Math.floor(durationHours % 24)}h`
+          : `${Math.floor(durationHours)}h`,
+        ongoing: true
+      };
+      
+      occupancyPeriods.push(currentAssignment);
+    }
+
+    // Calculate statistics
+    const completedPeriods = occupancyPeriods.filter(p => p.status === 'completed');
+    const totalOccupancies = completedPeriods.length;
+    const averageDuration = totalOccupancies > 0
+      ? completedPeriods.reduce((sum, p) => sum + p.duration.days, 0) / totalOccupancies
+      : 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        bed: {
+          _id: bed._id,
+          bedId: bed.bedId,
+          ward: bed.ward,
+          status: bed.status,
+          currentPatient: bed.status === 'occupied' ? {
+            patientName: bed.patientName,
+            patientId: bed.patientId
+          } : null
+        },
+        history: {
+          allLogs: occupancyLogs,
+          occupancyPeriods: occupancyPeriods.reverse(), // Most recent first
+          statistics: {
+            totalOccupancies,
+            averageDuration: Math.round(averageDuration * 10) / 10,
+            currentlyOccupied: bed.status === 'occupied',
+            totalLogs: occupancyLogs.length
+          }
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get occupant history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching occupant history',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};

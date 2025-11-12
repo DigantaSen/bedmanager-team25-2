@@ -106,7 +106,7 @@
 
 ---
 
-### Task 1.7: Setup Role-Based Route Middleware (Frontend)
+### Task 1.7: Setup Role-Based Route Middleware (Frontend).   ✅
 
 **Assignee:** Abhinav (Frontend)  
 **Priority:** High  
@@ -121,7 +121,7 @@
 
 ---
 
-## Phase 2: Manager Dashboard (Ward-Specific: ICU/General/Emergency)
+## Phase 2: Manager Dashboard (Ward-Specific: ICU/General/Emergency)                  ✅
 
 ### Task 2.1: Create Manager Dashboard Layout
 
@@ -142,7 +142,7 @@
 
 ---
 
-### Task 2.2: Implement Real-time Alert System
+### Task 2.2: Implement Real-time Alert System ✅
 
 **Assignee:** Diganta (Backend)  
 **Priority:** High  
@@ -157,7 +157,7 @@
 
 ---
 
-### Task 2.3: Emergency Request Management Workflow
+### Task 2.3: Emergency Request Management Workflow ✅
 
 **Assignee:** Nilkanta (Backend)  
 **Priority:** High  
@@ -174,7 +174,7 @@
 
 ---
 
-### Task 2.4: Forecasting Data & Display
+### Task 2.4: Forecasting Data & Display.                       ✅
 
 **Assignee:** Shubham (Backend)  
 **Priority:** Medium  
