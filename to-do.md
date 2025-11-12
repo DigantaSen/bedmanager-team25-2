@@ -191,7 +191,7 @@
 
 ---
 
-### Task 2.5: Bed Occupant Details & Patient Status Dashboard
+### Task 2.5: Bed Occupant Details & Patient Status Dashboard                ✅
 
 **Assignee:** Abhinav (Frontend - Dashboard Integration)  
 **Priority:** High  
@@ -210,7 +210,7 @@
 
 ---
 
-### Task 2.5b: Bed Cleaning Duration & Timeout Tracking
+### Task 2.5b: Bed Cleaning Duration & Timeout Tracking ✅
 
 **Assignee:** Surjit (Backend & Frontend)  
 **Priority:** High  
@@ -229,7 +229,7 @@
 
 ---
 
-### Task 2.5c: Bed Metadata & Editing
+### Task 2.5c: Bed Metadata & Editing                    ✅
 
 **Assignee:** Diganta (Frontend)  
 **Priority:** Medium  
@@ -247,8 +247,7 @@
 
 ---
 
-### Task 2.6: WebSocket Events for Real-time Sync
-
+### Task 2.6: WebSocket Events for Real-time Sync         ✅     
 **Assignee:** Nilkanta (Backend)  
 **Priority:** High  
 **Dependencies:** Task 1.2, 1.3, 2.2, 2.3, 2.5b  

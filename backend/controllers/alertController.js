@@ -75,10 +75,21 @@ exports.dismissAlert = async (req, res) => {
       });
     }
 
-    // Emit socket event for alert dismissal
+    // Task 2.6: Emit socket event for alert dismissal (ward-specific if applicable)
     if (req.io) {
+      // If alert has a ward, emit to that ward's room
+      if (alert.ward) {
+        req.io.to(`ward-${alert.ward}`).emit('alertDismissed', {
+          alertId: alert._id,
+          ward: alert.ward,
+          timestamp: new Date()
+        });
+      }
+      
+      // Also emit globally for hospital admins
       req.io.emit('alertDismissed', {
         alertId: alert._id,
+        ward: alert.ward,
         timestamp: new Date()
       });
       console.log('✅ alertDismissed event emitted via socket.io');

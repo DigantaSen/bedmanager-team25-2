@@ -222,15 +222,15 @@ exports.updateBedStatus = async (req, res) => {
         });
         console.log('✅ CleaningLog entry created successfully');
         
-        // Emit bedCleaningStarted event via socket.io
+        // Emit bedCleaningStarted event via socket.io (ward-specific)
         if (req.io) {
-          req.io.to(bed.ward).emit('bedCleaningStarted', {
+          req.io.to(`ward-${bed.ward}`).emit('bedCleaningStarted', {
             bed: bed.toObject(),
             estimatedDuration: cleaningDuration,
             estimatedEndTime: bed.estimatedCleaningEndTime,
             timestamp: new Date()
           });
-          console.log('✅ bedCleaningStarted event emitted via socket.io');
+          console.log(`✅ bedCleaningStarted event emitted via socket.io (Ward: ${bed.ward})`);
         }
       } catch (cleaningLogError) {
         console.error('Error creating cleaning log:', cleaningLogError);
@@ -238,14 +238,36 @@ exports.updateBedStatus = async (req, res) => {
       }
     }
 
-    // Emit bedUpdate event via socket.io
+    // Task 2.6: Emit bedStatusChanged event via socket.io (ward-specific for managers)
     if (req.io) {
-      req.io.emit('bedUpdate', {
+      // Emit to specific ward for managers
+      req.io.to(`ward-${bed.ward}`).emit('bedStatusChanged', {
         bed: bed.toObject(),
         previousStatus,
+        newStatus: status,
         timestamp: new Date()
       });
-      console.log('✅ bedUpdate event emitted via socket.io');
+      
+      // Also emit globally for hospital admins
+      req.io.emit('bedStatusChanged', {
+        bed: bed.toObject(),
+        previousStatus,
+        newStatus: status,
+        timestamp: new Date()
+      });
+      
+      console.log(`✅ bedStatusChanged event emitted via socket.io (Ward: ${bed.ward})`);
+    }
+    
+    // Task 2.6: Emit bedMaintenanceNeeded if bed is being marked for maintenance
+    if (status === 'maintenance' && req.io) {
+      req.io.to(`ward-${bed.ward}`).emit('bedMaintenanceNeeded', {
+        bed: bed.toObject(),
+        cleaningDuration: cleaningDuration || bed.estimatedCleaningDuration,
+        priority: 'normal',
+        timestamp: new Date()
+      });
+      console.log(`✅ bedMaintenanceNeeded event emitted for bed ${bed.bedId} in ${bed.ward}`);
     }
 
     // Check occupancy and trigger alerts if > 90%
@@ -774,9 +796,9 @@ exports.markCleaningComplete = async (req, res) => {
       console.error('Error creating occupancy log:', logError);
     }
     
-    // Emit bedCleaningCompleted event via socket.io
+    // Emit bedCleaningCompleted event via socket.io (ward-specific)
     if (req.io) {
-      req.io.to(bed.ward).emit('bedCleaningCompleted', {
+      req.io.to(`ward-${bed.ward}`).emit('bedCleaningCompleted', {
         bed: bed.toObject(),
         cleaningLog: {
           duration: cleaningLog.actualDuration,
@@ -789,11 +811,20 @@ exports.markCleaningComplete = async (req, res) => {
       console.log('✅ bedCleaningCompleted event emitted via socket.io');
     }
     
-    // Also emit general bedUpdate event
+    // Task 2.6: Also emit bedStatusChanged event
     if (req.io) {
-      req.io.emit('bedUpdate', {
+      req.io.to(`ward-${bed.ward}`).emit('bedStatusChanged', {
         bed: bed.toObject(),
         previousStatus: 'maintenance',
+        newStatus: 'available',
+        timestamp: new Date()
+      });
+      
+      // Global emit for hospital admins
+      req.io.emit('bedStatusChanged', {
+        bed: bed.toObject(),
+        previousStatus: 'maintenance',
+        newStatus: 'available',
         timestamp: new Date()
       });
     }
