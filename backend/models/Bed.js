@@ -40,6 +40,20 @@ const bedSchema = new mongoose.Schema(
       default: null,
       trim: true,
       maxlength: [50, 'Patient ID cannot exceed 50 characters']
+    },
+    // Task 2.5b: Cleaning/Maintenance tracking fields
+    cleaningStartTime: {
+      type: Date,
+      default: null
+    },
+    estimatedCleaningDuration: {
+      type: Number, // Duration in minutes
+      default: null,
+      min: [0, 'Estimated cleaning duration cannot be negative']
+    },
+    estimatedCleaningEndTime: {
+      type: Date,
+      default: null
     }
   },
   {
@@ -69,6 +83,14 @@ bedSchema.pre('save', function(next) {
     this.patientName = null;
     this.patientId = null; // Clear patient info if bed is not occupied
   }
+  
+  // Task 2.5b: Clear cleaning fields if not in maintenance
+  if (this.status !== 'maintenance') {
+    this.cleaningStartTime = null;
+    this.estimatedCleaningDuration = null;
+    this.estimatedCleaningEndTime = null;
+  }
+  
   next();
 });
 

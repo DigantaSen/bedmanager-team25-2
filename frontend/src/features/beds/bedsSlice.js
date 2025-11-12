@@ -15,7 +15,8 @@ export const fetchBeds = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get('/beds');
-      return response.data; // Returns array of bed objects
+      // API returns { success: true, data: { beds: [...] } }
+      return response.data.data?.beds || response.data.data || response.data;
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch beds';
       return rejectWithValue(errorMessage);

@@ -1,6 +1,7 @@
 // backend/controllers/bedController.js
 const Bed = require('../models/Bed');
 const OccupancyLog = require('../models/OccupancyLog');
+const CleaningLog = require('../models/CleaningLog');
 const Alert = require('../models/Alert');
 const mongoose = require('mongoose');
 const { AppError } = require('../middleware/errorHandler');
@@ -101,7 +102,7 @@ exports.getBedById = async (req, res) => {
 exports.updateBedStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, patientName, patientId } = req.body;
+    const { status, patientName, patientId, cleaningDuration } = req.body;
 
     // Validate status
     const validStatuses = ['available', 'occupied', 'maintenance', 'reserved'];
@@ -117,6 +118,16 @@ exports.updateBedStatus = async (req, res) => {
         success: false,
         message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
       });
+    }
+
+    // Validate cleaningDuration for maintenance status
+    if (status === 'maintenance' && cleaningDuration) {
+      if (typeof cleaningDuration !== 'number' || cleaningDuration <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'cleaningDuration must be a positive number (in minutes)'
+        });
+      }
     }
 
     // Find bed
@@ -149,6 +160,14 @@ exports.updateBedStatus = async (req, res) => {
     bed.status = status;
     bed.patientName = status === 'occupied' ? (patientName || null) : null;
     bed.patientId = status === 'occupied' ? (patientId || null) : null;
+    
+    // Handle cleaning duration for maintenance status
+    if (status === 'maintenance' && cleaningDuration) {
+      bed.cleaningStartTime = new Date();
+      bed.estimatedCleaningDuration = cleaningDuration;
+      bed.estimatedCleaningEndTime = new Date(Date.now() + cleaningDuration * 60 * 1000);
+    }
+    
     await bed.save();
 
     // Determine status change type for logging
@@ -183,6 +202,35 @@ exports.updateBedStatus = async (req, res) => {
     } catch (logError) {
       console.error('Error creating occupancy log:', logError);
       // Continue even if logging fails - don't block the main operation
+    }
+
+    // Create cleaning log entry when starting maintenance
+    if (status === 'maintenance' && cleaningDuration) {
+      try {
+        await CleaningLog.create({
+          bedId: bed._id,
+          ward: bed.ward,
+          startTime: bed.cleaningStartTime,
+          estimatedDuration: cleaningDuration,
+          status: 'in_progress',
+          assignedTo: req.user._id
+        });
+        console.log('✅ CleaningLog entry created successfully');
+        
+        // Emit bedCleaningStarted event via socket.io
+        if (req.io) {
+          req.io.to(bed.ward).emit('bedCleaningStarted', {
+            bed: bed.toObject(),
+            estimatedDuration: cleaningDuration,
+            estimatedEndTime: bed.estimatedCleaningEndTime,
+            timestamp: new Date()
+          });
+          console.log('✅ bedCleaningStarted event emitted via socket.io');
+        }
+      } catch (cleaningLogError) {
+        console.error('Error creating cleaning log:', cleaningLogError);
+        // Continue even if logging fails
+      }
     }
 
     // Emit bedUpdate event via socket.io
@@ -519,3 +567,247 @@ exports.getOccupantHistory = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Get cleaning queue (all beds in maintenance with progress)
+ * @route   GET /api/beds/cleaning-queue
+ * @access  Private (Manager, Hospital Admin)
+ * @query   ward (optional - filter by ward)
+ */
+exports.getCleaningQueue = async (req, res) => {
+  try {
+    const { ward } = req.query;
+    
+    // Build filter
+    const filter = { status: 'maintenance' };
+    
+    // Apply ward filter for managers
+    if (req.user.role === 'manager' && req.user.ward) {
+      filter.ward = req.user.ward;
+    } else if (ward) {
+      filter.ward = ward;
+    }
+    
+    // Find all beds in maintenance
+    const beds = await Bed.find(filter)
+      .select('bedId ward status cleaningStartTime estimatedCleaningDuration estimatedCleaningEndTime')
+      .lean();
+    
+    // Get active cleaning logs for these beds
+    const bedIds = beds.map(b => b._id);
+    const cleaningLogs = await CleaningLog.find({
+      bedId: { $in: bedIds },
+      status: 'in_progress'
+    })
+      .populate('assignedTo', 'name email')
+      .sort({ startTime: 1 })
+      .lean();
+    
+    // Create a map of bedId to cleaning log
+    const cleaningLogMap = new Map();
+    cleaningLogs.forEach(log => {
+      cleaningLogMap.set(log.bedId.toString(), log);
+    });
+    
+    // Enrich beds with cleaning progress
+    const enrichedBeds = beds.map(bed => {
+      const log = cleaningLogMap.get(bed._id.toString());
+      
+      // Calculate progress
+      let progress = null;
+      if (bed.cleaningStartTime && bed.estimatedCleaningDuration) {
+        const now = new Date();
+        const elapsedMs = now - new Date(bed.cleaningStartTime);
+        const elapsedMinutes = elapsedMs / (1000 * 60);
+        const progressPercentage = Math.min(
+          Math.round((elapsedMinutes / bed.estimatedCleaningDuration) * 100),
+          100
+        );
+        
+        const timeRemainingMinutes = Math.max(
+          0,
+          bed.estimatedCleaningDuration - elapsedMinutes
+        );
+        
+        const isOverdue = elapsedMinutes > bed.estimatedCleaningDuration;
+        
+        progress = {
+          percentage: progressPercentage,
+          elapsedMinutes: Math.round(elapsedMinutes),
+          timeRemainingMinutes: Math.round(timeRemainingMinutes),
+          isOverdue
+        };
+      }
+      
+      return {
+        ...bed,
+        cleaningLog: log || null,
+        progress
+      };
+    });
+    
+    // Sort by urgency (most urgent first)
+    // Priority: overdue first, then by time remaining (ascending)
+    enrichedBeds.sort((a, b) => {
+      if (a.progress && b.progress) {
+        // Both overdue or both not overdue
+        if (a.progress.isOverdue && !b.progress.isOverdue) return -1;
+        if (!a.progress.isOverdue && b.progress.isOverdue) return 1;
+        
+        // Sort by time remaining (ascending)
+        return a.progress.timeRemainingMinutes - b.progress.timeRemainingMinutes;
+      }
+      return 0;
+    });
+    
+    // Calculate summary statistics
+    const summary = {
+      total: enrichedBeds.length,
+      overdue: enrichedBeds.filter(b => b.progress?.isOverdue).length,
+      onTrack: enrichedBeds.filter(b => b.progress && !b.progress.isOverdue).length,
+      byWard: {}
+    };
+    
+    enrichedBeds.forEach(bed => {
+      if (!summary.byWard[bed.ward]) {
+        summary.byWard[bed.ward] = { total: 0, overdue: 0 };
+      }
+      summary.byWard[bed.ward].total++;
+      if (bed.progress?.isOverdue) {
+        summary.byWard[bed.ward].overdue++;
+      }
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        summary,
+        beds: enrichedBeds
+      }
+    });
+  } catch (error) {
+    console.error('Get cleaning queue error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching cleaning queue',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * @desc    Mark bed cleaning as complete
+ * @route   PUT /api/beds/:id/cleaning/mark-complete
+ * @access  Private (Manager, Hospital Admin)
+ * @param   id - MongoDB ObjectId or bedId
+ * @body    notes (optional)
+ */
+exports.markCleaningComplete = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+    
+    // Find bed
+    let bed;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      bed = await Bed.findById(id);
+    } else {
+      bed = await Bed.findOne({ bedId: id });
+    }
+    
+    if (!bed) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bed not found'
+      });
+    }
+    
+    // Verify bed is in maintenance
+    if (bed.status !== 'maintenance') {
+      return res.status(400).json({
+        success: false,
+        message: 'Bed is not currently in maintenance'
+      });
+    }
+    
+    // Find active cleaning log
+    const cleaningLog = await CleaningLog.findOne({
+      bedId: bed._id,
+      status: 'in_progress'
+    });
+    
+    if (!cleaningLog) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active cleaning log found for this bed'
+      });
+    }
+    
+    // Update cleaning log
+    cleaningLog.endTime = new Date();
+    cleaningLog.status = 'completed';
+    cleaningLog.completedBy = req.user._id;
+    if (notes) {
+      cleaningLog.notes = notes;
+    }
+    await cleaningLog.save();
+    
+    // Update bed status back to available
+    bed.status = 'available';
+    // Cleaning fields will be auto-cleared by pre-save middleware
+    await bed.save();
+    
+    // Create occupancy log entry for maintenance end
+    try {
+      await OccupancyLog.create({
+        bedId: bed._id,
+        userId: req.user._id,
+        statusChange: 'maintenance_end',
+        timestamp: new Date()
+      });
+    } catch (logError) {
+      console.error('Error creating occupancy log:', logError);
+    }
+    
+    // Emit bedCleaningCompleted event via socket.io
+    if (req.io) {
+      req.io.to(bed.ward).emit('bedCleaningCompleted', {
+        bed: bed.toObject(),
+        cleaningLog: {
+          duration: cleaningLog.actualDuration,
+          wasOverdue: cleaningLog.status === 'overdue' || 
+                     cleaningLog.actualDuration > cleaningLog.estimatedDuration,
+          completedBy: req.user.name || req.user.email
+        },
+        timestamp: new Date()
+      });
+      console.log('✅ bedCleaningCompleted event emitted via socket.io');
+    }
+    
+    // Also emit general bedUpdate event
+    if (req.io) {
+      req.io.emit('bedUpdate', {
+        bed: bed.toObject(),
+        previousStatus: 'maintenance',
+        timestamp: new Date()
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Cleaning marked as complete',
+      data: {
+        bed: bed.toObject(),
+        cleaningLog: cleaningLog.toObject()
+      }
+    });
+  } catch (error) {
+    console.error('Mark cleaning complete error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error marking cleaning as complete',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
