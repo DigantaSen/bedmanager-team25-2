@@ -19,8 +19,15 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
   useEffect(() => {
     if (!bed) return;
 
-    // Reset form when bed changes
-    setStatus(bed.status || 'available');
+    // Set the action status based on current bed status
+    if (bed.status === 'available') {
+      setStatus('occupied'); // Action: Assign Patient
+    } else if (bed.status === 'occupied') {
+      setStatus('cleaning'); // Action: Release (Mark as Cleaning)
+    } else {
+      setStatus('available'); // Fallback
+    }
+    
     setPatientName(bed.patientName || '');
     setPatientId(bed.patientId || '');
     setNotes(bed.notes || '');
@@ -302,21 +309,34 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
 
             <h3 className="text-sm font-semibold text-zinc-400">Update Bed Information</h3>
 
-          {/* Status Dropdown - Managers can only set occupied or available */}
+          {/* Status Dropdown - Single action option based on current bed status */}
           <div>
-            <label className="block text-sm text-zinc-400 mb-2">Status</label>
+            <label className="block text-sm text-zinc-400 mb-2">Action</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-cyan-500"
               disabled={isUpdating}
             >
-              <option value="available">Release Bed (Mark as Available)</option>
-              <option value="occupied">Assign to Patient (Occupied)</option>
+              {bed.status === 'available' ? (
+                <option value="occupied">Assign Patient</option>
+              ) : bed.status === 'occupied' ? (
+                <option value="cleaning">Release (Mark as Cleaning)</option>
+              ) : (
+                <option value="available">Mark as Available</option>
+              )}
             </select>
-            <p className="text-xs text-zinc-500 mt-1">
-              Note: When patient leaves, bed status will automatically change to "Cleaning"
-            </p>
+            {bed.status === 'occupied' && (
+              <p className="text-xs text-yellow-400 mt-2 flex items-start gap-1">
+                <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <span>This will release the patient and mark the bed for cleaning by ward staff.</span>
+              </p>
+            )}
+            {bed.status === 'available' && (
+              <p className="text-xs text-blue-400 mt-2">
+                This will assign the bed to a patient. Please enter patient details below.
+              </p>
+            )}
           </div>
 
           {/* Patient Info - Only for Occupied */}
@@ -381,7 +401,11 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className={`flex-1 px-4 py-2 rounded-lg text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                bed.status === 'occupied' 
+                  ? 'bg-orange-600 hover:bg-orange-700' 
+                  : 'bg-cyan-600 hover:bg-cyan-700'
+              }`}
               disabled={isUpdating}
             >
               {isUpdating ? (
@@ -389,6 +413,10 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Updating...
                 </>
+              ) : bed.status === 'available' ? (
+                'Assign Patient'
+              ) : bed.status === 'occupied' ? (
+                'Release Patient'
               ) : (
                 'Update Bed'
               )}
