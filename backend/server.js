@@ -37,8 +37,10 @@ const logRoutes = require('./routes/logRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const emergencyRequestRoutes = require('./routes/emergencyRequestRoutes');
 const alertRoutes = require('./routes/alertRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 const initializeSocket = require('./socketHandler');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
+const scheduledReportService = require('./services/scheduledReportService');
 
 const app = express();
 const server = http.createServer(app);
@@ -97,9 +99,13 @@ app.use('/api/logs', logRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/emergency-requests', emergencyRequestRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Initialize socket connections
 initializeSocket(io);
+
+// Initialize scheduled reports
+scheduledReportService.initialize();
 
 // Test endpoint to broadcast dummy event
 app.get('/api/test/broadcast', (req, res) => {
@@ -132,4 +138,23 @@ const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
   server.listen(PORT, () => console.log(`Backend: listening on port ${PORT}`));
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  scheduledReportService.shutdown();
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  scheduledReportService.shutdown();
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });

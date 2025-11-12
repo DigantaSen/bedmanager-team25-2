@@ -5,9 +5,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Calendar } from 'lucide-react';
 import { FileText, Download, Mail, Printer, CheckCircle } from 'lucide-react';
+import api from '@/services/api';
 
 const ReportGenerator = () => {
   const dispatch = useDispatch();
@@ -19,6 +21,9 @@ const ReportGenerator = () => {
   const [reportGenerated, setReportGenerated] = useState(false);
   const [wards, setWards] = useState(['All Wards']);
   const [recentReports, setRecentReports] = useState([]);
+  const [emailAddress, setEmailAddress] = useState('');
+  const [isEmailing, setIsEmailing] = useState(false);
+  const [emailFormat, setEmailFormat] = useState('pdf');
 
   useEffect(() => {
     if (status === 'idle') {
@@ -62,18 +67,36 @@ const ReportGenerator = () => {
     { id: 'cleaning', label: 'Cleaning & Maintenance' },
   ];
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     setIsGenerating(true);
     
     try {
-      // Generate report data
+      const wardsToSend = selectedWards.length > 0 && !selectedWards.includes('All Wards') 
+        ? selectedWards 
+        : [];
+
+      // Generate PDF from backend
+      const response = await api.post('/reports/generate/pdf', {
+        reportType,
+        dateRange,
+        wards: wardsToSend
+      }, {
+        responseType: 'blob'
+      });
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report_${Date.now()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      // Save to history
       const reportData = generateReportData();
-      
-      // Save to recent reports history
       saveReportToHistory(reportData);
-      
-      // Create and download the report
-      downloadReport(reportData);
       
       setIsGenerating(false);
       setReportGenerated(true);
@@ -360,6 +383,42 @@ const ReportGenerator = () => {
     );
   };
 
+  const handleEmailReport = async () => {
+    if (!emailAddress) {
+      alert('Please enter an email address');
+      return;
+    }
+
+    if (!emailAddress.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    setIsEmailing(true);
+
+    try {
+      const wardsToSend = selectedWards.length > 0 && !selectedWards.includes('All Wards') 
+        ? selectedWards 
+        : [];
+
+      await api.post('/reports/email', {
+        reportType,
+        dateRange,
+        wards: wardsToSend,
+        email: emailAddress,
+        format: emailFormat
+      });
+
+      alert(`Report sent successfully to ${emailAddress}!`);
+      setEmailAddress('');
+      setIsEmailing(false);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Failed to send email. Please check your email configuration in the backend.');
+      setIsEmailing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Report Configuration */}
@@ -495,31 +554,100 @@ const ReportGenerator = () => {
         </CardContent>
       </Card>
 
+      {/* Email Report Section */}
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Mail className="w-5 h-5 text-green-400" />
+            Email Report
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-slate-300 mb-2 block">Email Address</Label>
+              <Input
+                type="email"
+                placeholder="recipient@example.com"
+                value={emailAddress}
+                onChange={(e) => setEmailAddress(e.target.value)}
+                className="border-slate-600 bg-slate-900/50 text-white"
+                disabled={isEmailing}
+              />
+            </div>
+            <div>
+              <Label className="text-slate-300 mb-2 block">Format</Label>
+              <Select value={emailFormat} onValueChange={setEmailFormat} disabled={isEmailing}>
+                <SelectTrigger className="border-slate-600 bg-slate-900/50 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="csv">CSV</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Button
+            onClick={handleEmailReport}
+            disabled={isEmailing || !emailAddress}
+            className="w-full bg-green-600 hover:bg-green-700"
+          >
+            {isEmailing ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2" />
+                Sending Email...
+              </>
+            ) : (
+              <>
+                <Mail className="w-5 h-5 mr-2" />
+                Send Report via Email
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Quick Actions */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
-          <CardTitle className="text-lg">Export & Share</CardTitle>
+          <CardTitle className="text-lg">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Button 
               variant="outline" 
               className="h-auto flex-col gap-2 py-4 border-slate-600 hover:bg-slate-700"
-              onClick={() => {
-                const data = generateReportData();
-                downloadReport(data);
+              onClick={async () => {
+                try {
+                  const wardsToSend = selectedWards.length > 0 && !selectedWards.includes('All Wards') 
+                    ? selectedWards 
+                    : [];
+
+                  const response = await api.post('/reports/generate/csv', {
+                    reportType,
+                    dateRange,
+                    wards: wardsToSend
+                  }, {
+                    responseType: 'blob'
+                  });
+
+                  const url = window.URL.createObjectURL(new Blob([response.data]));
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.setAttribute('download', `report_${Date.now()}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  window.URL.revokeObjectURL(url);
+                } catch (error) {
+                  console.error('Error downloading CSV:', error);
+                  alert('Failed to download CSV report');
+                }
               }}
             >
               <Download className="w-6 h-6 text-blue-400" />
-              <span className="text-sm">Download Report</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto flex-col gap-2 py-4 border-slate-600 hover:bg-slate-700"
-              onClick={() => alert('Email functionality will be implemented with backend integration')}
-            >
-              <Mail className="w-6 h-6 text-green-400" />
-              <span className="text-sm">Email Report</span>
+              <span className="text-sm">Download CSV</span>
             </Button>
             <Button 
               variant="outline" 
