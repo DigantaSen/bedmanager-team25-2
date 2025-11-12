@@ -54,6 +54,13 @@ const bedSchema = new mongoose.Schema(
     estimatedCleaningEndTime: {
       type: Date,
       default: null
+    },
+    // Task 2.5c: Notes field for additional information
+    notes: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: [500, 'Notes cannot exceed 500 characters']
     }
   },
   {

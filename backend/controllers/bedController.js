@@ -102,7 +102,7 @@ exports.getBedById = async (req, res) => {
 exports.updateBedStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, patientName, patientId, cleaningDuration } = req.body;
+    const { status, patientName, patientId, cleaningDuration, notes } = req.body;
 
     // Validate status
     const validStatuses = ['available', 'occupied', 'maintenance', 'reserved'];
@@ -160,6 +160,11 @@ exports.updateBedStatus = async (req, res) => {
     bed.status = status;
     bed.patientName = status === 'occupied' ? (patientName || null) : null;
     bed.patientId = status === 'occupied' ? (patientId || null) : null;
+    
+    // Task 2.5c: Update notes if provided
+    if (notes !== undefined) {
+      bed.notes = notes ? notes.trim() : null;
+    }
     
     // Handle cleaning duration for maintenance status
     if (status === 'maintenance' && cleaningDuration) {
