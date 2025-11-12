@@ -1,7 +1,25 @@
-import React from 'react';
-import { BedDouble, Activity, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, memo } from 'react';
+import { BedDouble, Activity, AlertTriangle, Clock } from 'lucide-react';
 
-const AvailabilitySummary = ({ data, loading }) => {
+const AvailabilitySummary = memo(({ data, loading, lastUpdated }) => {
+  const [secondsAgo, setSecondsAgo] = useState(0);
+  
+  // Update "seconds ago" every second
+  useEffect(() => {
+    if (!lastUpdated) return;
+    
+    const updateSecondsAgo = () => {
+      const now = new Date();
+      const diff = Math.floor((now - lastUpdated) / 1000);
+      setSecondsAgo(diff);
+    };
+    
+    updateSecondsAgo();
+    const interval = setInterval(updateSecondsAgo, 1000);
+    
+    return () => clearInterval(interval);
+  }, [lastUpdated]);
+  
   console.log('AvailabilitySummary rendering with data:', data);
   
   if (!data) {
@@ -28,10 +46,21 @@ const AvailabilitySummary = ({ data, loading }) => {
 
     return (
       <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          <BedDouble className="w-6 h-6" />
-          Available Beds by Ward (Read-Only)
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <BedDouble className="w-6 h-6" />
+            Available Beds by Ward (Read-Only)
+          </h2>
+          {lastUpdated && (
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Clock className="w-4 h-4" />
+              <span>
+                Last updated: {secondsAgo === 0 ? 'just now' : `${secondsAgo} second${secondsAgo !== 1 ? 's' : ''} ago`}
+              </span>
+              {loading && <Activity className="w-4 h-4 animate-spin text-cyan-400" />}
+            </div>
+          )}
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {wards.map((ward) => {
@@ -120,6 +149,8 @@ const AvailabilitySummary = ({ data, loading }) => {
       </div>
     );
   }
-};
+});
+
+AvailabilitySummary.displayName = 'AvailabilitySummary';
 
 export default AvailabilitySummary;

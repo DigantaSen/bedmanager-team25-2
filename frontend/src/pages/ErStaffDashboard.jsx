@@ -117,7 +117,11 @@ const ErStaffDashboard = () => {
 
           {/* Availability Summary */}
           {availabilityData ? (
-            <AvailabilitySummary data={availabilityData} loading={refreshing} />
+            <AvailabilitySummary 
+              data={availabilityData} 
+              loading={refreshing} 
+              lastUpdated={lastUpdated}
+            />
           ) : (
             <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6 text-center">
               <RefreshCw className="w-8 h-8 text-slate-400 animate-spin mx-auto mb-2" />
