@@ -3,6 +3,7 @@ import { Users, Bed, RefreshCw, TrendingUp, AlertCircle } from 'lucide-react';
 import api from '@/services/api';
 import OccupantTable from '@/components/manager/OccupantTable';
 import OccupantDetailsModal from '@/components/manager/OccupantDetailsModal';
+import DashboardLayout from '@/components/DashboardLayout';
 
 const OccupantStatusDashboard = () => {
   const [occupiedBeds, setOccupiedBeds] = useState([]);
@@ -58,7 +59,7 @@ const OccupantStatusDashboard = () => {
 
   if (loading && occupiedBeds.length === 0) {
     return (
-      <div className="min-h-screen bg-black p-6">
+      <DashboardLayout>
         <div className="max-w-7xl mx-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-12 flex items-center justify-center">
             <div className="text-center">
@@ -67,12 +68,12 @@ const OccupantStatusDashboard = () => {
             </div>
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black p-6">
+    <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -212,7 +213,7 @@ const OccupantStatusDashboard = () => {
       {selectedBed && (
         <OccupantDetailsModal bed={selectedBed} onClose={handleCloseModal} />
       )}
-    </div>
+    </DashboardLayout>
   );
 };
 

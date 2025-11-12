@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { FileText, Download, Mail, Trash2, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import api from '@/services/api';
+import DashboardLayout from '@/components/DashboardLayout';
 
 const ReportsPage = () => {
   const [reportType, setReportType] = useState('comprehensive');
@@ -172,7 +173,7 @@ const ReportsPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
+    <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -409,7 +410,7 @@ const ReportsPage = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 

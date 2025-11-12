@@ -20,7 +20,7 @@ exports.getAllBeds = async (req, res) => {
     const filter = {};
     if (status) {
       // Validate status
-      const validStatuses = ['available', 'occupied', 'maintenance', 'reserved'];
+      const validStatuses = ['available', 'cleaning', 'occupied'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
@@ -105,7 +105,7 @@ exports.updateBedStatus = async (req, res) => {
     const { status, patientName, patientId, cleaningDuration, notes } = req.body;
 
     // Validate status
-    const validStatuses = ['available', 'occupied', 'maintenance', 'reserved'];
+    const validStatuses = ['available', 'cleaning', 'occupied'];
     if (!status) {
       return res.status(400).json({
         success: false,
@@ -156,39 +156,39 @@ exports.updateBedStatus = async (req, res) => {
     // Store previous status for logging
     const previousStatus = bed.status;
 
+    // Auto-transition: When patient leaves (occupied -> available), set to cleaning instead
+    let finalStatus = status;
+    if (previousStatus === 'occupied' && status === 'available') {
+      finalStatus = 'cleaning';
+    }
+
     // Update bed
-    bed.status = status;
-    bed.patientName = status === 'occupied' ? (patientName || null) : null;
-    bed.patientId = status === 'occupied' ? (patientId || null) : null;
+    bed.status = finalStatus;
+    bed.patientName = finalStatus === 'occupied' ? (patientName || null) : null;
+    bed.patientId = finalStatus === 'occupied' ? (patientId || null) : null;
     
     // Task 2.5c: Update notes if provided
     if (notes !== undefined) {
       bed.notes = notes ? notes.trim() : null;
     }
     
-    // Handle cleaning duration for maintenance status
-    if (status === 'maintenance' && cleaningDuration) {
+    // Handle cleaning start time
+    if (finalStatus === 'cleaning' && previousStatus === 'occupied') {
       bed.cleaningStartTime = new Date();
-      bed.estimatedCleaningDuration = cleaningDuration;
-      bed.estimatedCleaningEndTime = new Date(Date.now() + cleaningDuration * 60 * 1000);
+      bed.estimatedCleaningDuration = cleaningDuration || 30; // Default 30 minutes
+      bed.estimatedCleaningEndTime = new Date(Date.now() + (cleaningDuration || 30) * 60 * 1000);
     }
     
     await bed.save();
 
     // Determine status change type for logging
     let statusChangeType;
-    if (status === 'occupied') {
+    if (finalStatus === 'occupied') {
       statusChangeType = 'assigned';
-    } else if (previousStatus === 'occupied' && status === 'available') {
-      statusChangeType = 'released';
-    } else if (status === 'maintenance') {
-      statusChangeType = 'maintenance_start';
-    } else if (previousStatus === 'maintenance' && status === 'available') {
-      statusChangeType = 'maintenance_end';
-    } else if (status === 'reserved') {
-      statusChangeType = 'reserved';
-    } else if (previousStatus === 'reserved' && status === 'available') {
-      statusChangeType = 'reservation_cancelled';
+    } else if (previousStatus === 'occupied' && finalStatus === 'cleaning') {
+      statusChangeType = 'released'; // Patient left, now needs cleaning
+    } else if (previousStatus === 'cleaning' && finalStatus === 'available') {
+      statusChangeType = 'maintenance_end'; // Cleaning completed
     } else {
       // Default to assigned for any other transitions
       statusChangeType = 'assigned';

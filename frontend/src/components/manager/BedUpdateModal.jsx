@@ -42,7 +42,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
     }
 
     // Calculate cleaning progress
-    if (bed.status === 'maintenance' && bed.cleaningStartTime && bed.estimatedCleaningDuration) {
+    if (bed.status === 'cleaning' && bed.cleaningStartTime && bed.estimatedCleaningDuration) {
       const now = new Date();
       const startTime = new Date(bed.cleaningStartTime);
       const elapsedMs = now - startTime;
@@ -79,11 +79,6 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
       return;
     }
     
-    if (status === 'maintenance' && (!cleaningDuration || cleaningDuration <= 0)) {
-      setError('Cleaning duration is required for maintenance status');
-      return;
-    }
-    
     setIsUpdating(true);
     
     try {
@@ -93,9 +88,6 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
         ...(status === 'occupied' && {
           patientName: patientName.trim(),
           patientId: patientId.trim() || null
-        }),
-        ...(status === 'maintenance' && {
-          cleaningDuration: parseInt(cleaningDuration)
         })
       };
       
@@ -128,8 +120,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
     switch (status) {
       case 'available': return 'text-green-400 bg-green-900/20';
       case 'occupied': return 'text-red-400 bg-red-900/20';
-      case 'maintenance': return 'text-yellow-400 bg-yellow-900/20';
-      case 'reserved': return 'text-blue-400 bg-blue-900/20';
+      case 'cleaning': return 'text-orange-400 bg-orange-900/20';
       default: return 'text-zinc-400 bg-zinc-800';
     }
   };
@@ -217,8 +208,8 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
               </>
             )}
 
-            {/* Cleaning Progress (if maintenance) */}
-            {bed.status === 'maintenance' && cleaningProgress && (
+            {/* Cleaning Progress (if cleaning) */}
+            {bed.status === 'cleaning' && cleaningProgress && (
               <>
                 <div className="col-span-2">
                   <div className="flex items-start gap-3 mb-2">
@@ -273,18 +264,45 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
           </div>
         </div>
 
-        {/* Edit Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/50 rounded text-red-400 text-sm flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>{error}</span>
+        {/* Cleaning Status Warning - Managers cannot update beds being cleaned */}
+        {bed.status === 'cleaning' ? (
+          <div className="p-6 space-y-4">
+            <div className="p-4 bg-orange-500/10 border border-orange-500/50 rounded-lg text-orange-400 text-sm flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-semibold mb-2">Bed Currently Being Cleaned</p>
+                <p className="text-orange-300">
+                  This bed is assigned to ward staff for cleaning. Only ward staff members can update the status to "Available" once cleaning is complete.
+                </p>
+                {bed.cleaningStartTime && (
+                  <p className="text-orange-300 mt-2">
+                    Cleaning started: {formatDateTime(bed.cleaningStartTime)}
+                  </p>
+                )}
+              </div>
             </div>
-          )}
 
-          <h3 className="text-sm font-semibold text-zinc-400">Update Bed Information</h3>
+            <button
+              onClick={onClose}
+              type="button"
+              className="w-full py-3 px-4 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-medium"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          /* Edit Form - Only shown if not in cleaning status */
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/50 rounded text-red-400 text-sm flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
-          {/* Status Dropdown */}
+            <h3 className="text-sm font-semibold text-zinc-400">Update Bed Information</h3>
+
+          {/* Status Dropdown - Managers can only set occupied or available */}
           <div>
             <label className="block text-sm text-zinc-400 mb-2">Status</label>
             <select
@@ -293,11 +311,12 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
               className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-cyan-500"
               disabled={isUpdating}
             >
-              <option value="available">Available</option>
-              <option value="occupied">Occupied</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="reserved">Reserved</option>
+              <option value="available">Release Bed (Mark as Available)</option>
+              <option value="occupied">Assign to Patient (Occupied)</option>
             </select>
+            <p className="text-xs text-zinc-500 mt-1">
+              Note: When patient leaves, bed status will automatically change to "Cleaning"
+            </p>
           </div>
 
           {/* Patient Info - Only for Occupied */}
@@ -329,31 +348,6 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
                 />
               </div>
             </>
-          )}
-
-          {/* Cleaning Duration - Only for Maintenance */}
-          {status === 'maintenance' && (
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">
-                Cleaning Duration (minutes) <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="number"
-                value={cleaningDuration}
-                onChange={(e) => setCleaningDuration(e.target.value)}
-                placeholder="Enter duration in minutes"
-                min="1"
-                className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500"
-                disabled={isUpdating}
-                required
-              />
-              <p className="text-xs text-zinc-500 mt-1">
-                {bed.status === 'maintenance' ? 
-                  'Adjust estimated cleaning duration' : 
-                  'Estimated time to complete cleaning'
-                }
-              </p>
-            </div>
           )}
 
           {/* Notes Field - Task 2.5c */}
@@ -401,6 +395,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

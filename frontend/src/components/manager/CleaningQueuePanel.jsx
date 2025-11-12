@@ -62,8 +62,8 @@ const CleaningQueuePanel = ({ ward }) => {
     };
 
     const handleBedUpdate = (data) => {
-      // Refetch if any bed status changed to/from maintenance
-      if (data.bed.status === 'maintenance' || data.previousStatus === 'maintenance') {
+      // Refetch if any bed status changed to/from cleaning
+      if (data.bed.status === 'cleaning' || data.previousStatus === 'cleaning') {
         fetchCleaningQueue();
       }
     };
@@ -198,7 +198,7 @@ const CleaningQueuePanel = ({ ward }) => {
         </div>
         <div className="text-center py-12">
           <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
-          <p className="text-zinc-400">No beds currently in maintenance</p>
+          <p className="text-zinc-400">No beds currently need cleaning</p>
         </div>
       </div>
     );
