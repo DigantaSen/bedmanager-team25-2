@@ -3,6 +3,7 @@
 
 const Bed = require('../models/Bed');
 const OccupancyLog = require('../models/OccupancyLog');
+const CleaningLog = require('../models/CleaningLog');
 const mongoose = require('mongoose');
 
 /**
@@ -500,3 +501,227 @@ exports.getForecasting = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Get cleaning performance analytics
+ * @route   GET /api/analytics/cleaning-performance
+ * @access  Private (Manager, Hospital Admin)
+ * @query   ward (optional), startDate, endDate, period (default: 7 days)
+ */
+exports.getCleaningPerformance = async (req, res) => {
+  try {
+    const { ward, startDate, endDate, period = 7 } = req.query;
+    
+    // Build date filter
+    const dateFilter = {};
+    if (startDate && endDate) {
+      dateFilter.startTime = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    } else {
+      // Default to last N days based on period
+      const daysAgo = parseInt(period) || 7;
+      dateFilter.startTime = {
+        $gte: new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)
+      };
+    }
+    
+    // Build filter
+    const filter = { ...dateFilter };
+    
+    // Apply ward filter for managers
+    if (req.user.role === 'manager' && req.user.ward) {
+      filter.ward = req.user.ward;
+    } else if (ward) {
+      filter.ward = ward;
+    }
+    
+    // Get all cleaning logs
+    const allCleanings = await CleaningLog.find(filter)
+      .populate('assignedTo', 'name email')
+      .populate('completedBy', 'name email')
+      .sort({ startTime: -1 })
+      .lean();
+    
+    // Filter completed cleanings for detailed stats
+    const completedCleanings = allCleanings.filter(log => log.status === 'completed');
+    const overdueCleanings = completedCleanings.filter(log => 
+      log.actualDuration > log.estimatedDuration
+    );
+    const inProgressCleanings = allCleanings.filter(log => log.status === 'in_progress');
+    
+    // Calculate statistics
+    const totalCleanings = allCleanings.length;
+    const totalCompleted = completedCleanings.length;
+    const totalOverdue = overdueCleanings.length;
+    const totalInProgress = inProgressCleanings.length;
+    
+    // Average durations
+    const avgActualDuration = completedCleanings.length > 0
+      ? completedCleanings.reduce((sum, log) => sum + log.actualDuration, 0) / completedCleanings.length
+      : 0;
+    
+    const avgEstimatedDuration = allCleanings.length > 0
+      ? allCleanings.reduce((sum, log) => sum + log.estimatedDuration, 0) / allCleanings.length
+      : 0;
+    
+    // Fastest and slowest cleanings
+    const sortedByDuration = [...completedCleanings].sort((a, b) => a.actualDuration - b.actualDuration);
+    const fastestCleaning = sortedByDuration[0] || null;
+    const slowestCleaning = sortedByDuration[sortedByDuration.length - 1] || null;
+    
+    // Overdue rate
+    const overdueRate = totalCompleted > 0
+      ? Math.round((totalOverdue / totalCompleted) * 100)
+      : 0;
+    
+    // On-time rate
+    const onTimeRate = totalCompleted > 0
+      ? Math.round(((totalCompleted - totalOverdue) / totalCompleted) * 100)
+      : 0;
+    
+    // Group by ward
+    const byWard = {};
+    allCleanings.forEach(log => {
+      if (!byWard[log.ward]) {
+        byWard[log.ward] = {
+          total: 0,
+          completed: 0,
+          overdue: 0,
+          inProgress: 0,
+          avgDuration: 0
+        };
+      }
+      
+      byWard[log.ward].total++;
+      if (log.status === 'completed') {
+        byWard[log.ward].completed++;
+        if (log.actualDuration > log.estimatedDuration) {
+          byWard[log.ward].overdue++;
+        }
+      } else if (log.status === 'in_progress') {
+        byWard[log.ward].inProgress++;
+      }
+    });
+    
+    // Calculate average duration per ward
+    Object.keys(byWard).forEach(wardName => {
+      const wardCleanings = completedCleanings.filter(log => log.ward === wardName);
+      if (wardCleanings.length > 0) {
+        byWard[wardName].avgDuration = Math.round(
+          wardCleanings.reduce((sum, log) => sum + log.actualDuration, 0) / wardCleanings.length
+        );
+      }
+    });
+    
+    // Group by staff member (only for completed cleanings)
+    const byStaff = {};
+    completedCleanings.forEach(log => {
+      if (log.completedBy) {
+        const staffId = log.completedBy._id.toString();
+        if (!byStaff[staffId]) {
+          byStaff[staffId] = {
+            name: log.completedBy.name || log.completedBy.email,
+            email: log.completedBy.email,
+            totalCompleted: 0,
+            avgDuration: 0,
+            overdue: 0
+          };
+        }
+        
+        byStaff[staffId].totalCompleted++;
+        if (log.actualDuration > log.estimatedDuration) {
+          byStaff[staffId].overdue++;
+        }
+      }
+    });
+    
+    // Calculate average duration per staff
+    Object.keys(byStaff).forEach(staffId => {
+      const staffCleanings = completedCleanings.filter(log => 
+        log.completedBy && log.completedBy._id.toString() === staffId
+      );
+      if (staffCleanings.length > 0) {
+        byStaff[staffId].avgDuration = Math.round(
+          staffCleanings.reduce((sum, log) => sum + log.actualDuration, 0) / staffCleanings.length
+        );
+      }
+    });
+    
+    // Convert to array and sort by total completed (descending)
+    const staffPerformance = Object.values(byStaff).sort((a, b) => b.totalCompleted - a.totalCompleted);
+    
+    // Daily breakdown
+    const dailyStats = {};
+    allCleanings.forEach(log => {
+      const dateKey = new Date(log.startTime).toISOString().split('T')[0];
+      if (!dailyStats[dateKey]) {
+        dailyStats[dateKey] = {
+          date: dateKey,
+          total: 0,
+          completed: 0,
+          overdue: 0,
+          inProgress: 0
+        };
+      }
+      
+      dailyStats[dateKey].total++;
+      if (log.status === 'completed') {
+        dailyStats[dateKey].completed++;
+        if (log.actualDuration > log.estimatedDuration) {
+          dailyStats[dateKey].overdue++;
+        }
+      } else if (log.status === 'in_progress') {
+        dailyStats[dateKey].inProgress++;
+      }
+    });
+    
+    // Convert to array and sort by date (ascending)
+    const dailyBreakdown = Object.values(dailyStats).sort((a, b) => 
+      new Date(a.date) - new Date(b.date)
+    );
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        summary: {
+          totalCleanings,
+          totalCompleted,
+          totalOverdue,
+          totalInProgress,
+          overdueRate,
+          onTimeRate,
+          avgActualDuration: Math.round(avgActualDuration),
+          avgEstimatedDuration: Math.round(avgEstimatedDuration)
+        },
+        performance: {
+          fastestCleaning: fastestCleaning ? {
+            bedId: fastestCleaning.bedId,
+            ward: fastestCleaning.ward,
+            duration: fastestCleaning.actualDuration,
+            completedBy: fastestCleaning.completedBy?.name || 'Unknown'
+          } : null,
+          slowestCleaning: slowestCleaning ? {
+            bedId: slowestCleaning.bedId,
+            ward: slowestCleaning.ward,
+            duration: slowestCleaning.actualDuration,
+            completedBy: slowestCleaning.completedBy?.name || 'Unknown'
+          } : null
+        },
+        byWard,
+        staffPerformance,
+        dailyBreakdown,
+        recentCleanings: allCleanings.slice(0, 10) // Last 10 cleanings
+      }
+    });
+  } catch (error) {
+    console.error('Get cleaning performance error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching cleaning performance',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+

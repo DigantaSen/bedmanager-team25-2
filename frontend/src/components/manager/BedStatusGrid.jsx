@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchBeds } from '@/features/beds/bedsSlice';
+import { fetchBeds, selectAllBeds, selectBedsStatus } from '@/features/beds/bedsSlice';
 
 const BedStatusGrid = ({ ward, onBedClick }) => {
   const dispatch = useDispatch();
-  const { beds, status } = useSelector((state) => state.beds);
+  const beds = useSelector(selectAllBeds);
+  const status = useSelector(selectBedsStatus);
   const currentUser = useSelector((state) => state.auth.user);
   const [filteredBeds, setFilteredBeds] = useState([]);
 

@@ -6,9 +6,11 @@ const {
   getOccupancyByWard,
   getBedHistory,
   getOccupancyTrends,
-  getForecasting
+  getForecasting,
+  getCleaningPerformance
 } = require('../controllers/analyticsController');
 const { validateObjectId } = require('../middleware/validators');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 // Public analytics routes (no authentication required for MVP)
 // TODO: Add protect middleware when role-based analytics is needed
@@ -45,4 +47,12 @@ router.get('/occupancy-trends', getOccupancyTrends);
  */
 router.get('/forecasting', getForecasting);
 
+/**
+ * GET /api/analytics/cleaning-performance
+ * Get cleaning performance analytics
+ * Task 2.5b: Cleaning duration tracking and analytics
+ */
+router.get('/cleaning-performance', protect, authorize('manager', 'hospital_admin'), getCleaningPerformance);
+
 module.exports = router;
+

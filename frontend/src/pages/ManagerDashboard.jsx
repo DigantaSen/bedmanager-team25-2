@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { selectCurrentUser } from '@/features/auth/authSlice';
+import { fetchBeds } from '@/features/beds/bedsSlice';
 import { Briefcase } from 'lucide-react';
 import KPISummaryCard from '@/components/manager/KPISummaryCard';
 import BedStatusGrid from '@/components/manager/BedStatusGrid';
 import AlertNotificationPanel from '@/components/manager/AlertNotificationPanel';
 import EmergencyRequestsQueue from '@/components/manager/EmergencyRequestsQueue';
 import ForecastingPanel from '@/components/manager/ForecastingPanel';
-import BedDetailsModal from '@/components/manager/BedDetailsModal';
+import CleaningQueuePanel from '@/components/manager/CleaningQueuePanel';
+import BedUpdateModal from '@/components/manager/BedUpdateModal';
 
 const ManagerDashboard = () => {
   const currentUser = useSelector(selectCurrentUser);
+  const dispatch = useDispatch();
   const [selectedBed, setSelectedBed] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -31,6 +34,11 @@ const ManagerDashboard = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedBed(null);
+  };
+
+  const handleUpdateSuccess = () => {
+    // Refresh beds after successful update
+    dispatch(fetchBeds());
   };
 
   return (
@@ -64,14 +72,18 @@ const ManagerDashboard = () => {
           <EmergencyRequestsQueue ward={currentUser?.ward} />
         </div>
 
+        {/* Cleaning Queue Panel - Task 2.5b */}
+        <CleaningQueuePanel ward={currentUser?.ward} />
+
         {/* Forecasting Panel */}
         <ForecastingPanel ward={currentUser?.ward} />
 
-        {/* Bed Details Modal */}
-        <BedDetailsModal
+        {/* Bed Update Modal */}
+        <BedUpdateModal
           bed={selectedBed}
           isOpen={isModalOpen}
           onClose={handleCloseModal}
+          onSuccess={handleUpdateSuccess}
         />
       </div>
     </div>
