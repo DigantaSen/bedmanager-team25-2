@@ -88,37 +88,54 @@ export const MobileSidebar = ({
   const { open, setOpen } = useSidebar();
   return (
     <>
-      {/* Floating hamburger button - fixed so it doesn't affect layout */}
+      {/* Task 4.3: Mobile-optimized hamburger menu - top right corner, larger touch target */}
       <button
         onClick={() => setOpen(!open)}
-        aria-label="Open menu"
-        className="fixed top-4 right-4 z-50 md:hidden bg-neutral-100 dark:bg-neutral-900 p-2 rounded-md shadow-sm"
+        aria-label={open ? "Close menu" : "Open menu"}
+        className="fixed top-4 right-4 z-50 md:hidden bg-neutral-800 dark:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 p-3 rounded-lg shadow-lg transition-all min-h-[48px] min-w-[48px] flex items-center justify-center touch-manipulation"
         {...props}
       >
-        <Menu className="text-neutral-800 dark:text-neutral-200" />
+        <Menu className="text-white h-6 w-6" />
       </button>
 
+      {/* Task 4.3: Backdrop overlay when sidebar is open on mobile */}
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ x: "-100%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "-100%", opacity: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: "easeInOut",
-            }}
-            className={cn(
-              "fixed h-full w-full inset-0 bg-white dark:bg-neutral-900 p-10 z-[100] flex flex-col justify-between md:hidden",
-              className
-            )}>
-            <div
-              className="absolute right-6 top-6 z-60 text-neutral-800 dark:text-neutral-200 cursor-pointer"
-              onClick={() => setOpen(false)}>
-              <X />
-            </div>
-            {children}
-          </motion.div>
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/60 z-[90] md:hidden"
+              onClick={() => setOpen(false)}
+            />
+            
+            {/* Sidebar panel */}
+            <motion.div
+              initial={{ x: "-100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "-100%", opacity: 0 }}
+              transition={{
+                duration: 0.3,
+                ease: "easeInOut",
+              }}
+              className={cn(
+                "fixed h-full w-[280px] left-0 top-0 bg-white dark:bg-neutral-900 p-6 z-[100] flex flex-col justify-between md:hidden shadow-2xl",
+                className
+              )}>
+              {/* Close button */}
+              <button
+                className="absolute right-4 top-4 z-60 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 p-2 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center touch-manipulation"
+                onClick={() => setOpen(false)}
+                aria-label="Close menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              {children}
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>
@@ -159,11 +176,17 @@ export const SidebarLink = ({
     </>
   );
 
+  // Task 4.3: Enhanced mobile touch targets with min height
+  const linkClassName = cn(
+    "flex items-center justify-start gap-2 group/sidebar py-3 px-3 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors active:scale-95 touch-manipulation md:min-h-0 min-h-[48px]",
+    className
+  );
+
   if (link.onClick) {
     return (
       <button
         onClick={link.onClick}
-        className={cn("flex items-center justify-start gap-2 group/sidebar py-3 px-3 w-full text-left", className)}
+        className={cn(linkClassName, "w-full text-left")}
         {...props}>
         {content}
       </button>
@@ -173,7 +196,7 @@ export const SidebarLink = ({
   return (
     <Link
       to={link.href}
-      className={cn("flex items-center justify-start gap-2 group/sidebar py-3 px-3", className)}
+      className={linkClassName}
       {...props}>
       {content}
     </Link>

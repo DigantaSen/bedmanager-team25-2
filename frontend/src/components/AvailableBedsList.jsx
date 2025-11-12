@@ -1,29 +1,44 @@
-import React from 'react';
+import React, { memo } from 'react';
+
+// Task 4.3: Memoize BedListItem to optimize rendering performance on mobile
+const BedListItem = memo(({ bed }) => (
+  <div
+    // Task 4.3: Larger touch targets with better spacing for mobile
+    className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 sm:p-4 flex justify-between items-center min-h-[60px] transition-colors hover:bg-green-500/20"
+  >
+    <div>
+      <div className="font-medium text-white text-sm sm:text-base">{bed.bedId}</div>
+      <div className="text-xs sm:text-sm text-slate-400">{bed.ward}</div>
+    </div>
+    <div className="text-green-400 font-medium text-xs sm:text-sm px-2 py-1 bg-green-500/20 rounded">
+      Available
+    </div>
+  </div>
+));
+
+BedListItem.displayName = 'BedListItem';
 
 const AvailableBedsList = ({ beds }) => {
   const availableBeds = beds.filter(bed => bed.status === 'available');
 
   return (
-    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-      <h3 className="text-lg font-bold text-white mb-4">
+    // Task 4.3: Mobile-optimized container with responsive padding
+    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 sm:p-4">
+      <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">
         Available Beds ({availableBeds.length})
       </h3>
       
       {availableBeds.length === 0 ? (
-        <p className="text-slate-400 text-center py-4">No available beds</p>
+        // Task 4.3: Better empty state with icon
+        <div className="text-slate-400 text-center py-6 sm:py-8">
+          <div className="text-3xl sm:text-4xl mb-2">🛏️</div>
+          <p className="text-xs sm:text-sm">No available beds</p>
+        </div>
       ) : (
-        <div className="space-y-2">
+        // Task 4.3: Optimized scrolling list with smaller gaps on mobile
+        <div className="space-y-2 max-h-[400px] sm:max-h-[500px] overflow-y-auto overscroll-contain">
           {availableBeds.map((bed) => (
-            <div
-              key={bed._id}
-              className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex justify-between items-center"
-            >
-              <div>
-                <div className="font-medium text-white">{bed.bedId}</div>
-                <div className="text-sm text-slate-400">{bed.ward}</div>
-              </div>
-              <div className="text-green-400 font-medium text-sm">Available</div>
-            </div>
+            <BedListItem key={bed._id} bed={bed} />
           ))}
         </div>
       )}

@@ -26,6 +26,7 @@ const DashboardLayout = ({ children }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const currentUser = useSelector(selectCurrentUser);
+  // Task 4.3: Sidebar starts closed on mobile, open on desktop
   const [open, setOpen] = useState(false);
 
   const handleLogout = () => {
