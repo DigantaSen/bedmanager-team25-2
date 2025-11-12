@@ -5,10 +5,20 @@ const mongoose = require('mongoose');
 
 const emergencyRequestSchema = new mongoose.Schema(
   {
+    patientName: {
+      type: String,
+      required: [true, 'Patient name is required'],
+      trim: true
+    },
+    patientContact: {
+      type: String,
+      trim: true,
+      default: null
+    },
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Patient ID is required']
+      default: null // Generated later if needed
     },
     location: {
       type: String,
@@ -59,8 +69,11 @@ const emergencyRequestSchema = new mongoose.Schema(
 // Index for faster queries by status
 emergencyRequestSchema.index({ status: 1 });
 
-// Index for faster queries by patientId
+// Index for faster queries by patientId (when it exists)
 emergencyRequestSchema.index({ patientId: 1 });
+
+// Index for searching by patient name
+emergencyRequestSchema.index({ patientName: 1 });
 
 // Compound index for status + createdAt queries
 emergencyRequestSchema.index({ status: 1, createdAt: -1 });

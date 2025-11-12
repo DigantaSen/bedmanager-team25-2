@@ -16,6 +16,8 @@ import AdminDashboard from './pages/AdminDashboard'
 import ManagerDashboard from './pages/ManagerDashboard'
 import StaffDashboard from './pages/StaffDashboard'
 import OccupantStatusDashboard from './pages/OccupantStatusDashboard'
+import ErStaffDashboard from './pages/ErStaffDashboard'
+import ErStaffDashboardTest from './pages/ErStaffDashboardTest'
 import Unauthorized from './pages/Unauthorized'
 
 function App() {
@@ -68,6 +70,8 @@ function App() {
         return '/manager/dashboard';
       case 'ward_staff':
         return '/staff/dashboard';
+      case 'er_staff':
+        return '/er/dashboard';
       default:
         return '/dashboard';
     }
@@ -118,6 +122,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['ward_staff']}>
               <StaffDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/er/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['er_staff']}>
+              <ErStaffDashboard />
             </ProtectedRoute>
           }
         />

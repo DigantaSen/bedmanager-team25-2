@@ -176,6 +176,8 @@ export default function LoginCardSection() {
                             navigate('/manager/dashboard');
                           } else if (userRole === 'ward_staff') {
                             navigate('/staff/dashboard');
+                          } else if (userRole === 'er_staff') {
+                            navigate('/er/dashboard');
                           } else {
                             navigate('/dashboard');
                           }
@@ -338,6 +340,8 @@ export default function LoginCardSection() {
                             navigate('/manager/dashboard');
                           } else if (userRole === 'ward_staff') {
                             navigate('/staff/dashboard');
+                          } else if (userRole === 'er_staff') {
+                            navigate('/er/dashboard');
                           } else {
                             navigate('/dashboard');
                           }

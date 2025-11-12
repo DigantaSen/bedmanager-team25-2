@@ -9,18 +9,18 @@ const mongoose = require('mongoose');
  */
 exports.createEmergencyRequest = async (req, res) => {
   try {
-    const { patientId, location, ward, priority, reason, description } = req.body;
+    const { patientName, patientContact, patientId, location, ward, priority, reason, description } = req.body;
 
     // Validate required fields
-    if (!patientId || !location || !ward) {
+    if (!patientName || !location || !ward) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide patientId, location, and ward'
+        message: 'Please provide patientName, location, and ward'
       });
     }
 
-    // Validate patientId format
-    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+    // Validate patientId format if provided
+    if (patientId && !mongoose.Types.ObjectId.isValid(patientId)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid patient ID format'
@@ -29,7 +29,9 @@ exports.createEmergencyRequest = async (req, res) => {
 
     // Create emergency request
     const emergencyRequest = await EmergencyRequest.create({
-      patientId,
+      patientName,
+      patientContact: patientContact || null,
+      patientId: patientId || null,
       location,
       ward,
       priority: priority || 'medium',
@@ -42,6 +44,8 @@ exports.createEmergencyRequest = async (req, res) => {
       // Emit to ward-specific room and all managers
       req.io.to(`ward-${ward}`).emit('emergencyRequestCreated', {
         requestId: emergencyRequest._id,
+        patientName: emergencyRequest.patientName,
+        patientContact: emergencyRequest.patientContact,
         patientId: emergencyRequest.patientId,
         location: emergencyRequest.location,
         ward: emergencyRequest.ward,
@@ -53,6 +57,8 @@ exports.createEmergencyRequest = async (req, res) => {
       // Also emit to all hospital admins
       req.io.to('role-hospital_admin').emit('emergencyRequestCreated', {
         requestId: emergencyRequest._id,
+        patientName: emergencyRequest.patientName,
+        patientContact: emergencyRequest.patientContact,
         patientId: emergencyRequest.patientId,
         location: emergencyRequest.location,
         ward: emergencyRequest.ward,
