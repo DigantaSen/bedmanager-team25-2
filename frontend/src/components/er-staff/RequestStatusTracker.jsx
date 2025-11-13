@@ -64,7 +64,7 @@ const RequestStatusTracker = forwardRef((props, ref) => {
       case 'rejected':
         return 'bg-red-500/10 border-red-500/30 text-red-400';
       default:
-        return 'bg-neutral-700/50 border-neutral-600 text-slate-400';
+        return 'bg-neutral-700/50 border-neutral-600 text-neutral-400';
     }
   };
 
@@ -77,7 +77,7 @@ const RequestStatusTracker = forwardRef((props, ref) => {
       case 'medium':
         return 'text-yellow-500';
       default:
-        return 'text-slate-400';
+        return 'text-neutral-400';
     }
   };
 
@@ -95,8 +95,8 @@ const RequestStatusTracker = forwardRef((props, ref) => {
     return (
       <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6">
         <div className="flex items-center justify-center">
-          <RefreshCw className="w-6 h-6 text-slate-400 animate-spin" />
-          <span className="ml-2 text-slate-400">Loading requests...</span>
+          <RefreshCw className="w-6 h-6 text-neutral-400 animate-spin" />
+          <span className="ml-2 text-neutral-400">Loading requests...</span>
         </div>
       </div>
     );
@@ -125,7 +125,7 @@ const RequestStatusTracker = forwardRef((props, ref) => {
       </h2>
 
       {requests.length === 0 ? (
-        <div className="text-center py-8 text-slate-400">
+        <div className="text-center py-8 text-neutral-400">
           <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p>No emergency requests found</p>
           <p className="text-sm text-slate-500 mt-1">Submit a request to track its status here</p>
@@ -148,14 +148,14 @@ const RequestStatusTracker = forwardRef((props, ref) => {
                   </div>
 
                   <div className="text-sm space-y-1">
-                    <p className="text-slate-400">
+                    <p className="text-neutral-400">
                       Ward: <span className="text-white">{request.ward || request.requestedWard}</span>
                     </p>
-                    <p className="text-slate-400">
+                    <p className="text-neutral-400">
                       Location: <span className="text-white">{request.location}</span>
                     </p>
                     {request.patientContact && (
-                      <p className="text-slate-400">Contact: {request.patientContact}</p>
+                      <p className="text-neutral-400">Contact: {request.patientContact}</p>
                     )}
                   </div>
                 </div>
@@ -174,12 +174,12 @@ const RequestStatusTracker = forwardRef((props, ref) => {
                 <div className="mt-3 pt-3 border-t border-neutral-700 space-y-1">
                   {request.reason && (
                     <p className="text-sm text-slate-300">
-                      <span className="text-slate-400">Reason:</span> {request.reason}
+                      <span className="text-neutral-400">Reason:</span> {request.reason}
                     </p>
                   )}
                   {request.description && (
                     <p className="text-sm text-slate-300">
-                      <span className="text-slate-400">Details:</span> {request.description}
+                      <span className="text-neutral-400">Details:</span> {request.description}
                     </p>
                   )}
                 </div>

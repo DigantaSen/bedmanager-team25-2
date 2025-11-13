@@ -144,7 +144,7 @@ const WardStaffDashboard = () => {
         {/* Task 4.3: Responsive stats grid - 2 cols mobile, 4 cols desktop with larger touch targets */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
           <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-3 sm:p-4 min-h-[80px] flex flex-col justify-center">
-            <div className="text-slate-400 text-xs sm:text-sm mb-1">Total Beds</div>
+            <div className="text-neutral-400 text-xs sm:text-sm mb-1">Total Beds</div>
             <div className="text-xl sm:text-2xl font-bold text-white">{stats.total}</div>
           </div>
           <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 sm:p-4 min-h-[80px] flex flex-col justify-center">

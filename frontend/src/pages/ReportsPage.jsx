@@ -310,7 +310,7 @@ const ReportsPage = () => {
           </CardHeader>
           <CardContent>
             {reportHistory.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
+              <div className="text-center py-8 text-neutral-400">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No reports generated yet</p>
               </div>
@@ -325,7 +325,7 @@ const ReportsPage = () => {
                       <FileText className="w-5 h-5 text-blue-400" />
                       <div>
                         <p className="font-medium text-white">{report.fileName}</p>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-neutral-400">
                           {new Date(report.createdAt).toLocaleString()} • {formatFileSize(report.size)} • {report.type}
                         </p>
                       </div>
@@ -373,12 +373,12 @@ const ReportsPage = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
                       <h4 className="font-medium text-white">{schedule.name}</h4>
-                      <span className={`text-xs px-2 py-1 rounded ${schedule.enabled ? 'bg-green-500/20 text-green-400' : 'bg-neutral-700 text-slate-400'
+                      <span className={`text-xs px-2 py-1 rounded ${schedule.enabled ? 'bg-green-500/20 text-green-400' : 'bg-neutral-700 text-neutral-400'
                         }`}>
                         {schedule.enabled ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-neutral-400 mt-1">
                       Schedule: {schedule.schedule}
                     </p>
                   </div>

@@ -116,7 +116,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
         </h2>
         <button
           onClick={onClose}
-          className="p-1 rounded hover:bg-neutral-700 transition-colors text-slate-400 hover:text-white"
+          className="p-1 rounded hover:bg-neutral-700 transition-colors text-neutral-400 hover:text-white"
         >
           <X className="w-5 h-5" />
         </button>
@@ -132,7 +132,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
 
         {/* Patient Name */}
         <div>
-          <label className="block text-sm text-slate-400 mb-2 flex items-center gap-2">
+          <label className="block text-sm text-neutral-400 mb-2 flex items-center gap-2">
             <User className="w-4 h-4" />
             Patient Name <span className="text-red-400">*</span>
           </label>
@@ -141,7 +141,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             value={formData.patientName}
             onChange={(e) => handleChange('patientName', e.target.value)}
             placeholder="Enter patient's full name"
-            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:border-neutral-400"
             disabled={isSubmitting}
             required
           />
@@ -149,7 +149,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
 
         {/* Patient Contact */}
         <div>
-          <label className="block text-sm text-slate-400 mb-2 flex items-center gap-2">
+          <label className="block text-sm text-neutral-400 mb-2 flex items-center gap-2">
             <Phone className="w-4 h-4" />
             Patient Contact (Optional)
           </label>
@@ -158,14 +158,14 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             value={formData.patientContact}
             onChange={(e) => handleChange('patientContact', e.target.value)}
             placeholder="Enter contact number"
-            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:border-neutral-400"
             disabled={isSubmitting}
           />
         </div>
 
         {/* Location */}
         <div>
-          <label className="block text-sm text-slate-400 mb-2">
+          <label className="block text-sm text-neutral-400 mb-2 text-left">
             Location <span className="text-red-400">*</span>
           </label>
           <input
@@ -173,7 +173,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             value={formData.location}
             onChange={(e) => handleChange('location', e.target.value)}
             placeholder="e.g., Emergency Room, Trauma Unit, etc."
-            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:border-neutral-400"
             disabled={isSubmitting}
             required
           />
@@ -182,13 +182,13 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
         {/* Priority Level and Ward - Two columns */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-slate-400 mb-2">
+            <label className="block text-sm text-neutral-400 mb-2 text-left">
               Priority Level <span className="text-red-400">*</span>
             </label>
             <select
               value={formData.priority}
               onChange={(e) => handleChange('priority', e.target.value)}
-              className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+              className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:border-neutral-400"
               disabled={isSubmitting}
             >
               {priorityLevels.map(level => (
@@ -200,13 +200,13 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
           </div>
 
           <div>
-            <label className="block text-sm text-slate-400 mb-2">
+            <label className="block text-sm text-neutral-400 mb-2 text-left">
               Requested Ward <span className="text-red-400">*</span>
             </label>
             <select
               value={formData.requestedWard}
               onChange={(e) => handleChange('requestedWard', e.target.value)}
-              className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+              className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:border-neutral-400"
               disabled={isSubmitting}
               required
             >
@@ -222,7 +222,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
 
         {/* Reason */}
         <div>
-          <label className="block text-sm text-slate-400 mb-2">
+          <label className="block text-sm text-neutral-400 mb-2 text-left">
             Reason (Optional)
           </label>
           <input
@@ -230,14 +230,14 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             value={formData.reason}
             onChange={(e) => handleChange('reason', e.target.value)}
             placeholder="Brief reason for emergency admission"
-            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:border-neutral-400"
             disabled={isSubmitting}
           />
         </div>
 
         {/* Description */}
         <div>
-          <label className="block text-sm text-slate-400 mb-2 flex items-center gap-2">
+          <label className="block text-sm text-neutral-400 mb-2 flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Description (Optional)
           </label>
@@ -247,10 +247,10 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             placeholder="Add any relevant medical information or special requirements..."
             rows="3"
             maxLength="500"
-            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
             disabled={isSubmitting}
           />
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             {formData.description.length}/500 characters
           </p>
         </div>

@@ -446,7 +446,7 @@ const ReportGenerator = () => {
                   <div className="flex items-start justify-between text-left">
                     <div className="text-left">
                       <h4 className="font-semibold text-white mb-1 text-left">{type.label}</h4>
-                      <p className="text-sm text-slate-400 text-left">{type.description}</p>
+                      <p className="text-sm text-neutral-400 text-left">{type.description}</p>
                     </div>
                     {reportType === type.value && (
                       <CheckCircle className="w-5 h-5 text-blue-400" />
@@ -670,7 +670,7 @@ const ReportGenerator = () => {
         </CardHeader>
         <CardContent>
           {recentReports.length === 0 ? (
-            <div className="text-left py-8 text-slate-400">
+            <div className="text-left py-8 text-neutral-400">
               <FileText className="w-12 h-12 mb-3 opacity-50" />
               <p>No reports generated yet</p>
               <p className="text-sm mt-1">Generate your first report to see it here</p>
@@ -686,7 +686,7 @@ const ReportGenerator = () => {
                     <FileText className="w-5 h-5 text-blue-400" />
                     <div>
                       <p className="font-medium text-white">{report.name}</p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-neutral-400">
                         {report.date} • {report.size}
                       </p>
                     </div>

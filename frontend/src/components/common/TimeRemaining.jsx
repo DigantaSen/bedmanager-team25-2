@@ -86,7 +86,7 @@ const TimeRemaining = ({ targetTime, label = 'Time remaining', compact = false }
         </span>
       </div>
       <div className="text-lg font-bold">{timeRemaining}</div>
-      <div className="flex items-center gap-2 text-xs text-slate-400">
+      <div className="flex items-center gap-2 text-xs text-neutral-400">
         <Calendar className="w-3 h-3" />
         <span>
           {formattedDate} at {formattedTime}

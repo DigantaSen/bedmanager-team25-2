@@ -26,8 +26,8 @@ const AvailabilitySummary = memo(({ data, loading, lastUpdated }) => {
     return (
       <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6">
         <div className="flex items-center justify-center">
-          <Activity className="w-6 h-6 text-slate-400 animate-spin" />
-          <span className="ml-2 text-slate-400">Loading availability...</span>
+          <Activity className="w-6 h-6 text-neutral-400 animate-spin" />
+          <span className="ml-2 text-neutral-400">Loading availability...</span>
         </div>
       </div>
     );
@@ -52,7 +52,7 @@ const AvailabilitySummary = memo(({ data, loading, lastUpdated }) => {
             Available Beds by Ward (Read-Only)
           </h2>
           {lastUpdated && (
-            <div className="flex items-center gap-2 text-sm text-slate-400">
+            <div className="flex items-center gap-2 text-sm text-neutral-400">
               <Clock className="w-4 h-4" />
               <span>
                 Last updated: {secondsAgo === 0 ? 'just now' : `${secondsAgo} second${secondsAgo !== 1 ? 's' : ''} ago`}
@@ -84,12 +84,12 @@ const AvailabilitySummary = memo(({ data, loading, lastUpdated }) => {
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-400">Total Beds:</span>
+                    <span className="text-sm text-neutral-400">Total Beds:</span>
                     <span className="text-sm font-semibold text-white">{ward.total}</span>
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-400">Available:</span>
+                    <span className="text-sm text-neutral-400">Available:</span>
                     <span className={`text-lg font-bold ${ward.available === 0 ? 'text-red-400' :
                       ward.available < 3 ? 'text-orange-400' :
                         'text-green-400'
@@ -130,7 +130,7 @@ const AvailabilitySummary = memo(({ data, loading, lastUpdated }) => {
         </div>
 
         {wards.length === 0 && (
-          <div className="text-center py-8 text-slate-400">
+          <div className="text-center py-8 text-neutral-400">
             No ward data available
           </div>
         )}

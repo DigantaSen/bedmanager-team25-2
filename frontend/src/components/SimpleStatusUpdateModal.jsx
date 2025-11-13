@@ -37,7 +37,7 @@ const SimpleStatusUpdateModal = ({ bed, isOpen, onClose, onUpdate, isOffline = f
         >
           Update Bed Status
         </h3>
-        <p className="text-sm sm:text-base text-slate-400 mb-2 sm:mb-4">
+        <p className="text-sm sm:text-base text-neutral-400 mb-2 sm:mb-4">
           Bed: <span className="font-semibold">{bed.bedId}</span> - {bed.ward}
         </p>
         <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-6">

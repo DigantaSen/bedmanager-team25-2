@@ -94,7 +94,7 @@ const WardUtilizationReport = () => {
       case 'normal':
         return 'bg-green-500/20 text-green-400 border-green-500/50';
       default:
-        return 'bg-neutral-500/20 text-slate-400 border-neutral-500/50';
+        return 'bg-neutral-500/20 text-neutral-400 border-neutral-500/50';
     }
   };
 

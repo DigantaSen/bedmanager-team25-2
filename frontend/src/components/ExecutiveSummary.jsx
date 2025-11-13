@@ -107,7 +107,7 @@ const ExecutiveSummary = () => {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-sm text-slate-400 mb-1">{kpi.title}</p>
+                    <p className="text-sm text-neutral-400 mb-1">{kpi.title}</p>
                     <h3 className="text-3xl font-bold text-white mb-2">{kpi.value}</h3>
                     <Badge
                       variant={kpi.changeType === 'positive' ? 'default' : 'destructive'}

@@ -88,7 +88,7 @@ const WardBedGrid = ({ beds, onStatusUpdate, isOffline = false }) => {
       case 'occupied':
         return 'bg-blue-500/20 border-blue-500 text-blue-400';
       default:
-        return 'bg-neutral-500/20 border-neutral-500 text-slate-400';
+        return 'bg-neutral-500/20 border-neutral-500 text-neutral-400';
     }
   };
 
@@ -96,7 +96,7 @@ const WardBedGrid = ({ beds, onStatusUpdate, isOffline = false }) => {
     <>
       {/* Task 4.3: Mobile-optimized info banner with better responsive text */}
       <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-neutral-900 border border-neutral-700 rounded-lg">
-        <p className="text-xs sm:text-sm text-slate-400">
+        <p className="text-xs sm:text-sm text-neutral-400">
           💡 <span className="font-semibold">Tip:</span> Tap beds with{' '}
           <span className="text-orange-400 font-semibold">Cleaning</span> status to mark available after cleaning.
         </p>

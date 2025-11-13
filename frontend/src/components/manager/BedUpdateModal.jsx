@@ -293,7 +293,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
                         label="Estimated discharge"
                       />
                       {bed.dischargeNotes && (
-                        <p className="mt-2 text-xs text-slate-400">
+                        <p className="mt-2 text-xs text-neutral-400">
                           Note: {bed.dischargeNotes}
                         </p>
                       )}
@@ -404,7 +404,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-neutral-400"
                   disabled={isUpdating}
                 >
                   {bed.status === 'available' ? (
@@ -440,7 +440,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
                       value={patientName}
                       onChange={(e) => setPatientName(e.target.value)}
                       placeholder="Enter patient name"
-                      className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500"
+                      className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-neutral-400"
                       disabled={isUpdating}
                       required
                     />
@@ -452,7 +452,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
                       value={patientId}
                       onChange={(e) => setPatientId(e.target.value)}
                       placeholder="Enter patient ID"
-                      className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500"
+                      className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-neutral-400"
                       disabled={isUpdating}
                     />
                   </div>
@@ -470,7 +470,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
                   placeholder="Add any additional notes or comments..."
                   rows="3"
                   maxLength="500"
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 resize-none"
+                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-neutral-400 resize-none"
                   disabled={isUpdating}
                 />
                 <p className="text-xs text-zinc-500 mt-1">
@@ -495,7 +495,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
                         type="datetime-local"
                         value={estimatedDischargeTime}
                         onChange={(e) => setEstimatedDischargeTime(e.target.value)}
-                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 [color-scheme:dark]"
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-neutral-400 [color-scheme:dark]"
                         disabled={isUpdating}
                       />
                       {bed.status === 'available' && (
@@ -520,7 +520,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
                         placeholder="Add discharge notes or instructions..."
                         rows="2"
                         maxLength="500"
-                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 resize-none"
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-neutral-400 resize-none"
                         disabled={isUpdating}
                       />
                     </div>

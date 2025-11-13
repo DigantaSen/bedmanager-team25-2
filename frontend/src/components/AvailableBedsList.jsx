@@ -8,7 +8,7 @@ const BedListItem = memo(({ bed }) => (
   >
     <div>
       <div className="font-medium text-white text-sm sm:text-base">{bed.bedId}</div>
-      <div className="text-xs sm:text-sm text-slate-400">{bed.ward}</div>
+      <div className="text-xs sm:text-sm text-neutral-400">{bed.ward}</div>
     </div>
     <div className="text-green-400 font-medium text-xs sm:text-sm px-2 py-1 bg-green-500/20 rounded">
       Available
@@ -59,7 +59,7 @@ const AvailableBedsList = ({ beds }) => {
 
       {availableBeds.length === 0 ? (
         // Task 4.3: Better empty state with icon
-        <div className="text-slate-400 text-center py-6 sm:py-8">
+        <div className="text-neutral-400 text-center py-6 sm:py-8">
           <div className="text-3xl sm:text-4xl mb-2">🛏️</div>
           <p className="text-xs sm:text-sm">No available beds</p>
         </div>

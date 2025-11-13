@@ -144,7 +144,7 @@ const CleaningQueuePanel = ({ ward }) => {
         </div>
         <div className="text-center py-8">
           <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
-          <p className="text-slate-400">No beds currently need cleaning</p>
+          <p className="text-neutral-400">No beds currently need cleaning</p>
         </div>
       </div>
     );
@@ -182,7 +182,7 @@ const CleaningQueuePanel = ({ ward }) => {
                 <h3 className="text-lg font-semibold text-white">
                   Bed {bed.bedId}
                 </h3>
-                <p className="text-sm text-slate-400">Ward: {bed.ward}</p>
+                <p className="text-sm text-neutral-400">Ward: {bed.ward}</p>
               </div>
 
               <button

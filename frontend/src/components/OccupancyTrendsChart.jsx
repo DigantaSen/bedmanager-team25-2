@@ -201,7 +201,7 @@ const OccupancyTrendsChart = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {metrics.map((metric, index) => (
             <div key={index} className="p-4 bg-neutral-900 rounded-lg border border-neutral-700">
-              <p className="text-sm text-slate-400 mb-1">{metric.label}</p>
+              <p className="text-sm text-neutral-400 mb-1">{metric.label}</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-white">{metric.value}</span>
                 <span className={`text-sm ${metric.change.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
@@ -214,7 +214,7 @@ const OccupancyTrendsChart = () => {
 
         {/* Chart */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm text-slate-400 px-2">
+          <div className="flex items-center justify-between text-sm text-neutral-400 px-2">
             <span>Occupancy Rate</span>
             <span>100%</span>
           </div>
@@ -239,7 +239,7 @@ const OccupancyTrendsChart = () => {
                         </div>
                       </div>
                     </div>
-                    <span className="text-xs text-slate-400 mt-1">{item.day}</span>
+                    <span className="text-xs text-neutral-400 mt-1">{item.day}</span>
                   </div>
                 );
               })}
@@ -251,7 +251,7 @@ const OccupancyTrendsChart = () => {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-4 text-xs text-slate-400 px-2">
+          <div className="flex items-center gap-4 text-xs text-neutral-400 px-2">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded bg-gradient-to-t from-blue-600 to-blue-400" />
               <span>Normal (&lt;90%)</span>

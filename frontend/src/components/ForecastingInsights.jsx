@@ -139,7 +139,7 @@ const ForecastingInsights = () => {
       case 'low':
         return 'bg-green-500/20 border-green-500/50 text-green-400';
       default:
-        return 'bg-neutral-500/20 border-neutral-500/50 text-slate-400';
+        return 'bg-neutral-500/20 border-neutral-500/50 text-neutral-400';
     }
   };
 
@@ -198,7 +198,7 @@ const ForecastingInsights = () => {
                         <ArrowDown className="w-4 h-4 text-green-400" />
                       )}
                     </div>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-neutral-400">
                       {forecast.confidence}% confidence
                     </span>
                   </div>

@@ -91,14 +91,14 @@ const OccupantTable = ({ beds, onSelectBed }) => {
             placeholder="Search by bed ID, patient name, or patient ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 transition-colors"
+            className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-neutral-400 transition-colors"
           />
         </div>
 
         <select
           value={wardFilter}
           onChange={(e) => setWardFilter(e.target.value)}
-          className="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
+          className="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-neutral-400 transition-colors"
         >
           <option value="all">All Wards</option>
           {wards.map(ward => (
