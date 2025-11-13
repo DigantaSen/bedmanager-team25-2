@@ -1,13 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ExecutiveSummary from '@/components/ExecutiveSummary';
 import WardUtilizationReport from '@/components/WardUtilizationReport';
 import OccupancyTrendsChart from '@/components/OccupancyTrendsChart';
 import ForecastingInsights from '@/components/ForecastingInsights';
 import ReportGenerator from '@/components/ReportGenerator';
 import DashboardLayout from '@/components/DashboardLayout';
+import api from '@/services/api';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [backendConnected, setBackendConnected] = useState(true);
+
+  // Check backend connectivity
+  const checkBackendConnection = useCallback(async () => {
+    try {
+      await api.get('/health');
+      setBackendConnected(true);
+    } catch (error) {
+      console.error('Backend connection check failed:', error);
+      setBackendConnected(false);
+    }
+  }, []);
+
+  // Periodic backend health check
+  useEffect(() => {
+    checkBackendConnection();
+    const interval = setInterval(checkBackendConnection, 5000);
+    return () => clearInterval(interval);
+  }, [checkBackendConnection]);
 
   return (
     <DashboardLayout>
@@ -20,7 +40,14 @@ const AdminDashboard = () => {
             </svg>
             <h1 className="text-4xl font-bold">Admin Dashboard</h1>
           </div>
-          <p className="text-zinc-400">Hospital-wide analytics and insights</p>
+          <p className="text-zinc-400">
+            Hospital-wide analytics and insights
+            {backendConnected ? (
+              <span className="ml-2 text-green-400">● Live</span>
+            ) : (
+              <span className="ml-2 text-red-400">● Disconnected</span>
+            )}
+          </p>
         </div>
 
         {/* Executive Summary - Always Visible */}

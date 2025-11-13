@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectCurrentUser } from '@/features/auth/authSlice';
 import { fetchBeds } from '@/features/beds/bedsSlice';
@@ -12,6 +12,7 @@ import ForecastingPanel from '@/components/manager/ForecastingPanel';
 import CleaningQueuePanel from '@/components/manager/CleaningQueuePanel';
 import BedUpdateModal from '@/components/manager/BedUpdateModal';
 import DashboardLayout from '@/components/DashboardLayout';
+import api from '@/services/api';
 
 const ManagerDashboard = () => {
   const currentUser = useSelector(selectCurrentUser);
@@ -20,6 +21,25 @@ const ManagerDashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [emergencyPatientData, setEmergencyPatientData] = useState(null);
+  const [backendConnected, setBackendConnected] = useState(true);
+
+  // Check backend connectivity
+  const checkBackendConnection = useCallback(async () => {
+    try {
+      await api.get('/health');
+      setBackendConnected(true);
+    } catch (error) {
+      console.error('Backend connection check failed:', error);
+      setBackendConnected(false);
+    }
+  }, []);
+
+  // Periodic backend health check
+  useEffect(() => {
+    checkBackendConnection();
+    const interval = setInterval(checkBackendConnection, 5000);
+    return () => clearInterval(interval);
+  }, [checkBackendConnection]);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -70,6 +90,11 @@ const ManagerDashboard = () => {
               <span className="ml-2">
                 | Ward: <span className="text-purple-400 font-semibold">{currentUser.ward}</span>
               </span>
+            )}
+            {backendConnected ? (
+              <span className="ml-2 text-green-400">● Live</span>
+            ) : (
+              <span className="ml-2 text-red-400">● Disconnected</span>
             )}
           </p>
         </div>

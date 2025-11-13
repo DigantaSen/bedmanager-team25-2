@@ -16,15 +16,38 @@ const WardStaffDashboard = () => {
   const [assignedWard, setAssignedWard] = useState('');
   // Task 4.3: Add online status tracking for offline capability
   const [online, setOnline] = useState(isOnline());
+  const [backendConnected, setBackendConnected] = useState(true);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
+
+  // Check backend connectivity
+  const checkBackendConnection = useCallback(async () => {
+    try {
+      await api.get('/health');
+      setBackendConnected(true);
+    } catch (error) {
+      console.error('Backend connection check failed:', error);
+      setBackendConnected(false);
+    }
+  }, []);
+
+  // Periodic backend health check
+  useEffect(() => {
+    checkBackendConnection();
+    const interval = setInterval(checkBackendConnection, 5000); // Check every 5 seconds
+    return () => clearInterval(interval);
+  }, [checkBackendConnection]);
 
   // Task 4.3: Track online/offline status for mobile optimization
   useEffect(() => {
     const handleOnline = () => {
       setOnline(true);
+      checkBackendConnection();
       dispatch(fetchBeds()); // Refresh when coming back online
     };
-    const handleOffline = () => setOnline(false);
+    const handleOffline = () => {
+      setOnline(false);
+      setBackendConnected(false);
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -33,7 +56,7 @@ const WardStaffDashboard = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [dispatch]);
+  }, [dispatch, checkBackendConnection]);
 
   useEffect(() => {
     // Task 4.3: Try loading from cache first if offline
@@ -135,8 +158,10 @@ const WardStaffDashboard = () => {
           </div>
           <p className="text-zinc-400">
             {assignedWard || 'No ward assigned'} • Total: {bedsList.length} • Ward: {wardBeds.length}
-            {lastUpdateTime && online && (
+            {backendConnected ? (
               <span className="ml-2 text-green-400">● Live</span>
+            ) : (
+              <span className="ml-2 text-red-400">● Disconnected</span>
             )}
           </p>
         </div>

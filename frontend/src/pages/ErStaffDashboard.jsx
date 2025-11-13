@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import AvailabilitySummary from '@/components/er-staff/AvailabilitySummary';
@@ -17,7 +17,26 @@ const ErStaffDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [error, setError] = useState(null);
+  const [backendConnected, setBackendConnected] = useState(true);
   const requestTrackerRef = useRef(null);
+
+  // Check backend connectivity
+  const checkBackendConnection = useCallback(async () => {
+    try {
+      await api.get('/health');
+      setBackendConnected(true);
+    } catch (error) {
+      console.error('Backend connection check failed:', error);
+      setBackendConnected(false);
+    }
+  }, []);
+
+  // Periodic backend health check
+  useEffect(() => {
+    checkBackendConnection();
+    const interval = setInterval(checkBackendConnection, 5000);
+    return () => clearInterval(interval);
+  }, [checkBackendConnection]);
 
   // Fetch availability data
   const fetchAvailability = async () => {
@@ -106,6 +125,11 @@ const ErStaffDashboard = () => {
             <div className="flex items-center justify-between">
               <p className="text-zinc-400">
                 Emergency bed availability and request management
+                {backendConnected ? (
+                  <span className="ml-2 text-green-400">● Live</span>
+                ) : (
+                  <span className="ml-2 text-red-400">● Disconnected</span>
+                )}
               </p>
               <div className="flex items-center gap-2 text-sm text-neutral-400">
                 {lastUpdated && (
