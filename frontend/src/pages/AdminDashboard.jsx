@@ -27,44 +27,40 @@ const AdminDashboard = () => {
 
         {/* Tabbed Navigation */}
         <div className="mb-6">
-          <div className="grid w-full grid-cols-4 gap-2 bg-slate-800/50 border border-slate-700 rounded-lg p-2">
+          <div className="grid w-full grid-cols-4 gap-2 bg-neutral-900 border border-neutral-700 rounded-lg p-2">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'overview'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'overview'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-neutral-700'
+                }`}
             >
               Overview
             </button>
             <button
               onClick={() => setActiveTab('trends')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'trends'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'trends'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-neutral-700'
+                }`}
             >
               Trends
             </button>
             <button
               onClick={() => setActiveTab('forecasting')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'forecasting'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'forecasting'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-neutral-700'
+                }`}
             >
               Forecasting
             </button>
             <button
               onClick={() => setActiveTab('reports')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'reports'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'reports'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-neutral-700'
+                }`}
             >
               Reports
             </button>

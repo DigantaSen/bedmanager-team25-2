@@ -113,7 +113,7 @@ const PatientTimelineCard = ({ history }) => {
               {/* Timeline dot */}
               <div className={`absolute left-0 top-2 w-4 h-4 rounded-full ${getStatusColor(period.startLog.statusChange)}`}></div>
 
-              <div className="bg-neutral-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition-colors">
+              <div className="bg-neutral-900 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                   <div>
                     <h4 className="text-white font-semibold flex items-center gap-2">
@@ -207,7 +207,7 @@ const PatientTimelineCard = ({ history }) => {
           {history.allLogs.map((log, index) => (
             <div
               key={index}
-              className="flex items-center justify-between py-2 px-3 bg-neutral-900/50 rounded border border-zinc-800 text-sm"
+              className="flex items-center justify-between py-2 px-3 bg-neutral-900 rounded border border-zinc-800 text-sm"
             >
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${getStatusColor(log.statusChange)}`}></div>

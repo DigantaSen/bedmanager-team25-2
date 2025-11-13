@@ -27,19 +27,19 @@ const ErStaffDashboard = () => {
       console.log('Fetching beds data...');
       const response = await api.get('/beds');
       console.log('Beds response:', response);
-      
+
       // Calculate availability by ward - handle multiple possible data structures
       let beds = response.data?.data?.beds || response.data?.beds || response.data?.data || response.data;
       console.log('Extracted beds:', beds);
-      
+
       if (!Array.isArray(beds)) {
         console.error('Beds data is not an array:', beds);
         setError('Invalid data format received');
         return;
       }
-      
+
       const wardSummary = {};
-      
+
       beds.forEach(bed => {
         if (!wardSummary[bed.ward]) {
           wardSummary[bed.ward] = { total: 0, available: 0, occupied: 0, cleaning: 0 };
@@ -49,7 +49,7 @@ const ErStaffDashboard = () => {
           wardSummary[bed.ward][bed.status] = (wardSummary[bed.ward][bed.status] || 0) + 1;
         }
       });
-      
+
       console.log('Ward summary:', wardSummary);
       setAvailabilityData(wardSummary);
       setLastUpdated(new Date());
@@ -96,7 +96,7 @@ const ErStaffDashboard = () => {
           )}
 
           {/* Header */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-white">ER Staff Dashboard</h1>
@@ -117,20 +117,20 @@ const ErStaffDashboard = () => {
 
           {/* Availability Summary */}
           {availabilityData ? (
-            <AvailabilitySummary 
-              data={availabilityData} 
-              loading={refreshing} 
+            <AvailabilitySummary
+              data={availabilityData}
+              loading={refreshing}
               lastUpdated={lastUpdated}
             />
           ) : (
-            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6 text-center">
+            <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6 text-center">
               <RefreshCw className="w-8 h-8 text-slate-400 animate-spin mx-auto mb-2" />
               <p className="text-slate-400">Loading bed availability...</p>
             </div>
           )}
 
           {/* Emergency Request Button */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6 text-center">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6 text-center">
             <button
               onClick={() => setShowRequestForm(!showRequestForm)}
               className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white text-lg font-semibold rounded-lg transition-colors flex items-center gap-3 mx-auto"

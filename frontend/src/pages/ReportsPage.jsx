@@ -45,10 +45,10 @@ const ReportsPage = () => {
   const handleGenerateReport = async () => {
     setIsGenerating(true);
     setMessage(null);
-    
+
     try {
       const endpoint = format === 'pdf' ? '/reports/generate/pdf' : '/reports/generate/csv';
-      
+
       const response = await api.post(endpoint, {
         reportType,
         dateRange,
@@ -182,11 +182,10 @@ const ReportsPage = () => {
 
         {/* Message Alert */}
         {message && (
-          <div className={`p-4 rounded-lg border ${
-            message.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
+          <div className={`p-4 rounded-lg border ${message.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
             message.type === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
-            'bg-blue-500/10 border-blue-500/30 text-blue-400'
-          }`}>
+              'bg-blue-500/10 border-blue-500/30 text-blue-400'
+            }`}>
             <div className="flex items-center gap-2">
               {message.type === 'success' && <CheckCircle className="w-5 h-5" />}
               {message.type === 'error' && <AlertCircle className="w-5 h-5" />}
@@ -197,7 +196,7 @@ const ReportsPage = () => {
         )}
 
         {/* Report Generator */}
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-neutral-900 border-neutral-700">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl text-white">
               <FileText className="w-5 h-5 text-blue-400" />
@@ -209,7 +208,7 @@ const ReportsPage = () => {
               <div>
                 <Label className="text-slate-300">Report Type</Label>
                 <Select value={reportType} onValueChange={setReportType}>
-                  <SelectTrigger className="border-slate-600 bg-slate-900/50 text-white">
+                  <SelectTrigger className="border-neutral-600 bg-neutral-900 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -225,7 +224,7 @@ const ReportsPage = () => {
               <div>
                 <Label className="text-slate-300">Date Range</Label>
                 <Select value={dateRange} onValueChange={setDateRange}>
-                  <SelectTrigger className="border-slate-600 bg-slate-900/50 text-white">
+                  <SelectTrigger className="border-neutral-600 bg-neutral-900 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -241,7 +240,7 @@ const ReportsPage = () => {
               <div>
                 <Label className="text-slate-300">Format</Label>
                 <Select value={format} onValueChange={setFormat}>
-                  <SelectTrigger className="border-slate-600 bg-slate-900/50 text-white">
+                  <SelectTrigger className="border-neutral-600 bg-neutral-900 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -272,7 +271,7 @@ const ReportsPage = () => {
               </Button>
             </div>
 
-            <div className="border-t border-slate-700 pt-4 mt-4">
+            <div className="border-t border-neutral-700 pt-4 mt-4">
               <Label className="text-slate-300 mb-2 block">Email Report</Label>
               <div className="flex gap-3">
                 <Input
@@ -280,7 +279,7 @@ const ReportsPage = () => {
                   placeholder="Enter email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 border-slate-600 bg-slate-900/50 text-white"
+                  className="flex-1 border-neutral-600 bg-neutral-900 text-white"
                 />
                 <Button
                   onClick={handleEmailReport}
@@ -305,7 +304,7 @@ const ReportsPage = () => {
         </Card>
 
         {/* Report History */}
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-neutral-900 border-neutral-700">
           <CardHeader>
             <CardTitle className="text-lg text-white">Report History</CardTitle>
           </CardHeader>
@@ -320,7 +319,7 @@ const ReportsPage = () => {
                 {reportHistory.map((report) => (
                   <div
                     key={report.fileName}
-                    className="flex items-center justify-between p-4 rounded-lg bg-slate-900/50 border border-slate-700 hover:border-slate-600 transition-all"
+                    className="flex items-center justify-between p-4 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-neutral-600 transition-all"
                   >
                     <div className="flex items-center gap-3">
                       <FileText className="w-5 h-5 text-blue-400" />
@@ -335,7 +334,7 @@ const ReportsPage = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-slate-600 hover:bg-slate-700"
+                        className="border-neutral-600 hover:bg-neutral-700"
                         onClick={() => handleDownloadFromHistory(report.fileName)}
                       >
                         <Download className="w-4 h-4" />
@@ -343,7 +342,7 @@ const ReportsPage = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-slate-600 hover:bg-red-900/20 hover:border-red-600"
+                        className="border-neutral-600 hover:bg-red-900/20 hover:border-red-600"
                         onClick={() => handleDeleteReport(report.fileName)}
                       >
                         <Trash2 className="w-4 h-4 text-red-400" />
@@ -357,7 +356,7 @@ const ReportsPage = () => {
         </Card>
 
         {/* Scheduled Reports */}
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-neutral-900 border-neutral-700">
           <CardHeader>
             <CardTitle className="text-lg text-white flex items-center gap-2">
               <Clock className="w-5 h-5 text-purple-400" />
@@ -369,14 +368,13 @@ const ReportsPage = () => {
               {schedules.map((schedule) => (
                 <div
                   key={schedule.id}
-                  className="flex items-center justify-between p-4 rounded-lg bg-slate-900/50 border border-slate-700"
+                  className="flex items-center justify-between p-4 rounded-lg bg-neutral-900 border border-neutral-700"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
                       <h4 className="font-medium text-white">{schedule.name}</h4>
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        schedule.enabled ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-slate-400'
-                      }`}>
+                      <span className={`text-xs px-2 py-1 rounded ${schedule.enabled ? 'bg-green-500/20 text-green-400' : 'bg-neutral-700 text-slate-400'
+                        }`}>
                         {schedule.enabled ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -388,7 +386,7 @@ const ReportsPage = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-slate-600 hover:bg-slate-700"
+                      className="border-neutral-600 hover:bg-neutral-700"
                       onClick={() => handleRunScheduleNow(schedule.id)}
                     >
                       Run Now
@@ -396,9 +394,8 @@ const ReportsPage = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      className={`border-slate-600 ${
-                        schedule.enabled ? 'hover:bg-red-900/20' : 'hover:bg-green-900/20'
-                      }`}
+                      className={`border-neutral-600 ${schedule.enabled ? 'hover:bg-red-900/20' : 'hover:bg-green-900/20'
+                        }`}
                       onClick={() => handleToggleSchedule(schedule.id, schedule.enabled)}
                     >
                       {schedule.enabled ? 'Disable' : 'Enable'}

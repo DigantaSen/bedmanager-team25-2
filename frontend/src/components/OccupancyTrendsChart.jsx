@@ -33,10 +33,10 @@ const OccupancyTrendsChart = () => {
       const totalBeds = bedsList.length;
       const occupiedBeds = bedsList.filter(bed => bed.status === 'occupied').length;
       const currentOccupancy = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
-      
+
       // Generate realistic trends with variation around current occupancy
       let data;
-      
+
       if (timeRange === '7days') {
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         data = days.map((day, i) => {
@@ -45,7 +45,7 @@ const OccupancyTrendsChart = () => {
           const baseVariation = isWeekend ? -5 : 2;
           const randomVariation = Math.floor(Math.random() * 8 - 4); // -4 to +4
           const occupancy = Math.max(0, Math.min(100, currentOccupancy + baseVariation + randomVariation));
-          
+
           return {
             day,
             occupancy,
@@ -57,7 +57,7 @@ const OccupancyTrendsChart = () => {
         data = Array.from({ length: 4 }, (_, i) => {
           const variation = Math.floor(Math.random() * 10 - 5);
           const occupancy = Math.max(0, Math.min(100, currentOccupancy + variation));
-          
+
           return {
             day: `Week ${i + 1}`,
             occupancy,
@@ -69,7 +69,7 @@ const OccupancyTrendsChart = () => {
         data = Array.from({ length: 3 }, (_, i) => {
           const variation = Math.floor(Math.random() * 8 - 4);
           const occupancy = Math.max(0, Math.min(100, currentOccupancy + variation));
-          
+
           return {
             day: `Month ${i + 1}`,
             occupancy,
@@ -77,7 +77,7 @@ const OccupancyTrendsChart = () => {
           };
         });
       }
-      
+
       setTrendData({ [timeRange]: data });
     };
 
@@ -87,7 +87,7 @@ const OccupancyTrendsChart = () => {
   }, [bedsList, timeRange]);
 
   const currentData = trendData[timeRange] || [];
-  const avgOccupancy = currentData.length > 0 
+  const avgOccupancy = currentData.length > 0
     ? Math.round(currentData.reduce((sum, d) => sum + d.occupancy, 0) / currentData.length)
     : 0;
   const maxOccupancy = currentData.length > 0 ? Math.max(...currentData.map(d => d.occupancy)) : 0;
@@ -96,15 +96,15 @@ const OccupancyTrendsChart = () => {
   // Generate dynamic insights
   const generateInsights = () => {
     if (currentData.length === 0) return [];
-    
+
     const insights = [];
-    
+
     // Find peak day
     const peakIndex = currentData.findIndex(d => d.occupancy === maxOccupancy);
     if (peakIndex !== -1) {
       insights.push(`Occupancy peaked on ${currentData[peakIndex].day} with ${maxOccupancy}%`);
     }
-    
+
     // Check for trend (increasing/decreasing)
     if (currentData.length >= 3) {
       const firstHalf = currentData.slice(0, Math.floor(currentData.length / 2));
@@ -112,7 +112,7 @@ const OccupancyTrendsChart = () => {
       const firstAvg = firstHalf.reduce((sum, d) => sum + d.occupancy, 0) / firstHalf.length;
       const secondAvg = secondHalf.reduce((sum, d) => sum + d.occupancy, 0) / secondHalf.length;
       const difference = Math.abs(secondAvg - firstAvg);
-      
+
       if (difference > 3) {
         if (secondAvg > firstAvg) {
           insights.push(`Upward trend detected with ${Math.round(difference)}% increase`);
@@ -123,7 +123,7 @@ const OccupancyTrendsChart = () => {
         insights.push('Occupancy remains relatively stable over the period');
       }
     }
-    
+
     // Check for high occupancy warnings
     const highOccupancyDays = currentData.filter(d => d.occupancy >= 90);
     if (highOccupancyDays.length > 0) {
@@ -134,7 +134,7 @@ const OccupancyTrendsChart = () => {
     } else if (avgOccupancy < 70) {
       insights.push('Low occupancy detected - consider resource optimization');
     }
-    
+
     return insights;
   };
 
@@ -147,7 +147,7 @@ const OccupancyTrendsChart = () => {
   ];
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
+    <Card className="bg-neutral-900 border-neutral-700">
       <CardHeader>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <CardTitle className="flex items-center gap-2 text-xl">
@@ -156,7 +156,7 @@ const OccupancyTrendsChart = () => {
           </CardTitle>
           <div className="flex flex-wrap gap-2">
             <Select value={selectedWard} onValueChange={setSelectedWard}>
-              <SelectTrigger className="w-[180px] border-slate-600">
+              <SelectTrigger className="w-[180px] border-neutral-600">
                 <SelectValue placeholder="Select ward" />
               </SelectTrigger>
               <SelectContent>
@@ -167,7 +167,7 @@ const OccupancyTrendsChart = () => {
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex gap-1 bg-slate-900/50 rounded-lg p-1 border border-slate-700">
+            <div className="flex gap-1 bg-neutral-900 rounded-lg p-1 border border-neutral-700">
               <Button
                 size="sm"
                 variant={timeRange === '7days' ? 'default' : 'ghost'}
@@ -200,7 +200,7 @@ const OccupancyTrendsChart = () => {
         {/* Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {metrics.map((metric, index) => (
-            <div key={index} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+            <div key={index} className="p-4 bg-neutral-900 rounded-lg border border-neutral-700">
               <p className="text-sm text-slate-400 mb-1">{metric.label}</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-white">{metric.value}</span>
@@ -218,24 +218,23 @@ const OccupancyTrendsChart = () => {
             <span>Occupancy Rate</span>
             <span>100%</span>
           </div>
-          <div className="relative h-64 bg-slate-900/50 rounded-lg border border-slate-700 p-4">
+          <div className="relative h-64 bg-neutral-900 rounded-lg border border-neutral-700 p-4">
             <div className="h-full flex items-end justify-around gap-2">
               {currentData.map((item, index) => {
                 const heightPercentage = (item.occupancy / 100) * 100;
                 const isHighOccupancy = item.occupancy >= 90;
-                
+
                 return (
                   <div key={index} className="flex-1 flex flex-col items-center gap-2">
                     <div className="w-full relative group">
                       <div
-                        className={`w-full rounded-t-lg transition-all ${
-                          isHighOccupancy
-                            ? 'bg-gradient-to-t from-red-600 to-red-400'
-                            : 'bg-gradient-to-t from-blue-600 to-blue-400'
-                        }`}
+                        className={`w-full rounded-t-lg transition-all ${isHighOccupancy
+                          ? 'bg-gradient-to-t from-red-600 to-red-400'
+                          : 'bg-gradient-to-t from-blue-600 to-blue-400'
+                          }`}
                         style={{ height: `${heightPercentage}%`, minHeight: '20px' }}
                       >
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950 px-2 py-1 rounded text-xs whitespace-nowrap border border-slate-700">
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-950 px-2 py-1 rounded text-xs whitespace-nowrap border border-neutral-700">
                           {item.occupancy}%
                         </div>
                       </div>
@@ -248,7 +247,7 @@ const OccupancyTrendsChart = () => {
             {/* Grid lines */}
             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none p-4">
               {[0, 25, 50, 75, 100].map((line) => (
-                <div key={line} className="border-t border-slate-700/30" />
+                <div key={line} className="border-t border-neutral-700/30" />
               ))}
             </div>
           </div>

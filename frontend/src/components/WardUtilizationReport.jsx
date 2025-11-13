@@ -24,14 +24,14 @@ const WardUtilizationReport = () => {
       try {
         const response = await api.get('/analytics/occupancy-by-ward');
         const wardBreakdown = response.data.data.wardBreakdown;
-        
+
         // Transform API data to match component structure
         const transformedData = wardBreakdown.map(ward => {
           const utilization = ward.occupancyPercentage;
           let status = 'normal';
           if (utilization >= 90) status = 'critical';
           else if (utilization >= 75) status = 'high';
-          
+
           return {
             ward: ward.ward,
             totalBeds: ward.totalBeds,
@@ -41,7 +41,7 @@ const WardUtilizationReport = () => {
             status
           };
         });
-        
+
         setWardData(transformedData);
       } catch (error) {
         console.error('Error fetching ward data:', error);
@@ -94,7 +94,7 @@ const WardUtilizationReport = () => {
       case 'normal':
         return 'bg-green-500/20 text-green-400 border-green-500/50';
       default:
-        return 'bg-slate-500/20 text-slate-400 border-slate-500/50';
+        return 'bg-neutral-500/20 text-slate-400 border-neutral-500/50';
     }
   };
 
@@ -105,7 +105,7 @@ const WardUtilizationReport = () => {
   };
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
+    <Card className="bg-neutral-900 border-neutral-700">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-xl">
@@ -117,14 +117,14 @@ const WardUtilizationReport = () => {
               variant="outline"
               size="sm"
               onClick={() => setViewMode(viewMode === 'table' ? 'chart' : 'table')}
-              className="border-slate-600 hover:bg-slate-700"
+              className="border-neutral-600 hover:bg-neutral-700"
             >
               {viewMode === 'table' ? 'Chart View' : 'Table View'}
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-600 hover:bg-slate-700"
+              className="border-neutral-600 hover:bg-neutral-700"
             >
               <Download className="w-4 h-4 mr-2" />
               Export
@@ -137,7 +137,7 @@ const WardUtilizationReport = () => {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-700">
+                <tr className="border-b border-neutral-700">
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-300">Ward</th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-slate-300">Total Beds</th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-slate-300">Occupied</th>
@@ -148,14 +148,14 @@ const WardUtilizationReport = () => {
               </thead>
               <tbody>
                 {wardData.map((ward, index) => (
-                  <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                  <tr key={index} className="border-b border-neutral-700/50 hover:bg-neutral-700/30">
                     <td className="py-3 px-4 font-medium text-white">{ward.ward}</td>
                     <td className="py-3 px-4 text-center text-slate-300">{ward.totalBeds}</td>
                     <td className="py-3 px-4 text-center text-blue-400 font-semibold">{ward.occupied}</td>
                     <td className="py-3 px-4 text-center text-green-400 font-semibold">{ward.available}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-slate-700 rounded-full h-2 overflow-hidden">
+                        <div className="flex-1 bg-neutral-700 rounded-full h-2 overflow-hidden">
                           <div
                             className={`h-full ${getUtilizationBarColor(ward.utilization)}`}
                             style={{ width: `${ward.utilization}%` }}
@@ -179,12 +179,12 @@ const WardUtilizationReport = () => {
         ) : (
           <div className="space-y-4">
             {wardData.map((ward, index) => (
-              <div key={index} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+              <div key={index} className="p-4 bg-neutral-900 rounded-lg border border-neutral-700">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-semibold text-white">{ward.ward}</span>
                   <span className="text-2xl font-bold text-blue-400">{ward.utilization}%</span>
                 </div>
-                <div className="relative h-8 bg-slate-700 rounded-full overflow-hidden">
+                <div className="relative h-8 bg-neutral-700 rounded-full overflow-hidden">
                   <div
                     className={`absolute inset-y-0 left-0 ${getUtilizationBarColor(ward.utilization)} transition-all`}
                     style={{ width: `${ward.utilization}%` }}

@@ -7,8 +7,8 @@ const BedCard = memo(({ bed, onBedClick, canUpdate, statusColor }) => (
     onClick={() => onBedClick(bed)}
     // Task 4.3: Larger touch targets (min 48x48px), active state for tactile feedback
     className={`${statusColor} border-2 rounded-lg p-4 sm:p-5 text-center transition-all min-h-[80px] sm:min-h-[90px] ${canUpdate
-        ? 'hover:scale-105 active:scale-95 hover:shadow-lg cursor-pointer touch-manipulation'
-        : 'cursor-default opacity-75'
+      ? 'hover:scale-105 active:scale-95 hover:shadow-lg cursor-pointer touch-manipulation'
+      : 'cursor-default opacity-75'
       } ${canUpdate ? 'ring-2 ring-orange-500/50 animate-pulse' : ''}`}
     // Task 4.3: Improve touch responsiveness on mobile
     aria-label={`Bed ${bed.bedId}, status: ${bed.status}${canUpdate ? ', can update' : ''}`}
@@ -88,14 +88,14 @@ const WardBedGrid = ({ beds, onStatusUpdate, isOffline = false }) => {
       case 'occupied':
         return 'bg-blue-500/20 border-blue-500 text-blue-400';
       default:
-        return 'bg-slate-500/20 border-slate-500 text-slate-400';
+        return 'bg-neutral-500/20 border-neutral-500 text-slate-400';
     }
   };
 
   return (
     <>
       {/* Task 4.3: Mobile-optimized info banner with better responsive text */}
-      <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-slate-800/50 border border-slate-700 rounded-lg">
+      <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-neutral-900 border border-neutral-700 rounded-lg">
         <p className="text-xs sm:text-sm text-slate-400">
           💡 <span className="font-semibold">Tip:</span> Tap beds with{' '}
           <span className="text-orange-400 font-semibold">Cleaning</span> status to mark available after cleaning.

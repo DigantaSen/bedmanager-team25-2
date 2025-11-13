@@ -25,7 +25,7 @@ const ForecastingInsights = () => {
       const totalBeds = bedsList.length;
       const occupiedBeds = bedsList.filter(bed => bed.status === 'occupied').length;
       const currentOccupancy = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
-      
+
       // Calculate ward-specific data for recommendations
       const wardOccupancy = bedsList.reduce((acc, bed) => {
         if (!acc[bed.ward]) {
@@ -39,35 +39,35 @@ const ForecastingInsights = () => {
       // Generate forecast data based on current occupancy
       const forecast7Days = [];
       let previousPredicted7 = currentOccupancy;
-      
+
       for (let i = 0; i < 7; i++) {
         const variance = Math.floor(Math.random() * 6 - 3); // -3 to +3 variance
         const predicted = Math.max(0, Math.min(100, currentOccupancy + variance));
-        
+
         forecast7Days.push({
           date: `In ${i + 1} day${i === 0 ? '' : 's'}`,
           predicted,
           confidence: Math.max(70, 95 - i * 2),
           trend: predicted >= previousPredicted7 ? 'up' : 'down'
         });
-        
+
         previousPredicted7 = predicted;
       }
 
       const forecast30Days = [];
       let previousPredicted30 = currentOccupancy;
-      
+
       for (let i = 0; i < 4; i++) {
         const variance = Math.floor(Math.random() * 8 - 4);
         const predicted = Math.max(0, Math.min(100, currentOccupancy + variance));
-        
+
         forecast30Days.push({
           date: `Week ${i + 1}`,
           predicted,
           confidence: Math.max(65, 90 - i * 5),
           trend: predicted >= previousPredicted30 ? 'up' : 'down'
         });
-        
+
         previousPredicted30 = predicted;
       }
 
@@ -78,7 +78,7 @@ const ForecastingInsights = () => {
 
       // Generate recommendations based on real data
       const recs = [];
-      
+
       // Check for high occupancy wards
       Object.entries(wardOccupancy).forEach(([ward, data]) => {
         const rate = data.total > 0 ? (data.occupied / data.total) * 100 : 0;
@@ -139,21 +139,21 @@ const ForecastingInsights = () => {
       case 'low':
         return 'bg-green-500/20 border-green-500/50 text-green-400';
       default:
-        return 'bg-slate-500/20 border-slate-500/50 text-slate-400';
+        return 'bg-neutral-500/20 border-neutral-500/50 text-slate-400';
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Forecast Chart */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-neutral-900 border-neutral-700">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2 text-xl">
               <TrendingUp className="w-5 h-5 text-green-400" />
               Occupancy Forecast
             </CardTitle>
-            <div className="flex gap-1 bg-slate-900/50 rounded-lg p-1 border border-slate-700">
+            <div className="flex gap-1 bg-neutral-900 rounded-lg p-1 border border-neutral-700">
               <Button
                 size="sm"
                 variant={forecastPeriod === '7days' ? 'default' : 'ghost'}
@@ -177,11 +177,11 @@ const ForecastingInsights = () => {
           <div className="space-y-3">
             {currentForecasts.map((forecast, index) => {
               const isHighOccupancy = forecast.predicted >= 90;
-              
+
               return (
                 <div
                   key={index}
-                  className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-all"
+                  className="p-4 bg-neutral-900 rounded-lg border border-neutral-700 hover:border-neutral-600 transition-all"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
@@ -203,13 +203,13 @@ const ForecastingInsights = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div className="flex-1 bg-neutral-700 rounded-full h-2 overflow-hidden">
                       <div
                         className={`h-full ${isHighOccupancy ? 'bg-red-500' : 'bg-blue-500'}`}
                         style={{ width: `${forecast.predicted}%` }}
                       />
                     </div>
-                    <div className="w-24 bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div className="w-24 bg-neutral-700 rounded-full h-2 overflow-hidden">
                       <div
                         className="h-full bg-green-500"
                         style={{ width: `${forecast.confidence}%` }}
@@ -224,7 +224,7 @@ const ForecastingInsights = () => {
       </Card>
 
       {/* AI-Powered Recommendations */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-neutral-900 border-neutral-700">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <Lightbulb className="w-5 h-5 text-yellow-400" />
@@ -267,8 +267,8 @@ const ForecastingInsights = () => {
             <div className="flex-1">
               <h4 className="font-semibold text-blue-400 mb-1">About This Forecast</h4>
               <p className="text-sm text-slate-300">
-                Predictions are generated using historical data and machine learning algorithms. 
-                Confidence levels indicate the reliability of each prediction. Consider external 
+                Predictions are generated using historical data and machine learning algorithms.
+                Confidence levels indicate the reliability of each prediction. Consider external
                 factors like holidays, events, and seasonal patterns when interpreting forecasts.
               </p>
             </div>

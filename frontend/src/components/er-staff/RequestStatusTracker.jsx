@@ -14,12 +14,12 @@ const RequestStatusTracker = forwardRef((props, ref) => {
       console.log('Fetching emergency requests...');
       const response = await api.get('/emergency-requests');
       console.log('Emergency requests response:', response);
-      
+
       // Backend returns { data: { emergencyRequests: [...] } }
       const requestsData = response.data?.data?.emergencyRequests || response.data?.emergencyRequests || response.data || [];
       console.log('Requests data:', requestsData);
       console.log('Is array?', Array.isArray(requestsData));
-      
+
       setRequests(Array.isArray(requestsData) ? requestsData : []);
     } catch (error) {
       console.error('Error fetching emergency requests:', error);
@@ -64,7 +64,7 @@ const RequestStatusTracker = forwardRef((props, ref) => {
       case 'rejected':
         return 'bg-red-500/10 border-red-500/30 text-red-400';
       default:
-        return 'bg-slate-700/50 border-slate-600 text-slate-400';
+        return 'bg-neutral-700/50 border-neutral-600 text-slate-400';
     }
   };
 
@@ -93,7 +93,7 @@ const RequestStatusTracker = forwardRef((props, ref) => {
 
   if (loading) {
     return (
-      <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6">
         <div className="flex items-center justify-center">
           <RefreshCw className="w-6 h-6 text-slate-400 animate-spin" />
           <span className="ml-2 text-slate-400">Loading requests...</span>
@@ -104,7 +104,7 @@ const RequestStatusTracker = forwardRef((props, ref) => {
 
   if (error) {
     return (
-      <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6">
         <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
           <Clock className="w-6 h-6" />
           Request Status Tracker
@@ -118,7 +118,7 @@ const RequestStatusTracker = forwardRef((props, ref) => {
   }
 
   return (
-    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
+    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6">
       <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
         <Clock className="w-6 h-6" />
         Request Status Tracker
@@ -146,7 +146,7 @@ const RequestStatusTracker = forwardRef((props, ref) => {
                       {request.priority || request.urgencyLevel}
                     </span>
                   </div>
-                  
+
                   <div className="text-sm space-y-1">
                     <p className="text-slate-400">
                       Ward: <span className="text-white">{request.ward || request.requestedWard}</span>
@@ -171,7 +171,7 @@ const RequestStatusTracker = forwardRef((props, ref) => {
               </div>
 
               {(request.reason || request.description) && (
-                <div className="mt-3 pt-3 border-t border-slate-700 space-y-1">
+                <div className="mt-3 pt-3 border-t border-neutral-700 space-y-1">
                   {request.reason && (
                     <p className="text-sm text-slate-300">
                       <span className="text-slate-400">Reason:</span> {request.reason}

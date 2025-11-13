@@ -102,7 +102,7 @@ const ExecutiveSummary = () => {
           return (
             <Card
               key={index}
-              className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700 hover:border-slate-600 transition-all"
+              className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-neutral-700 hover:border-neutral-600 transition-all"
             >
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
@@ -129,7 +129,7 @@ const ExecutiveSummary = () => {
       </div>
 
       {/* Alerts Section */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-neutral-900 border-neutral-700">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <AlertCircle className="w-5 h-5 text-red-400" />
@@ -141,26 +141,23 @@ const ExecutiveSummary = () => {
             {alerts.map((alert, index) => (
               <div
                 key={index}
-                className={`p-4 rounded-lg border ${
-                  alert.severity === 'high'
-                    ? 'bg-red-500/10 border-red-500/30'
-                    : 'bg-yellow-500/10 border-yellow-500/30'
-                }`}
+                className={`p-4 rounded-lg border ${alert.severity === 'high'
+                  ? 'bg-red-500/10 border-red-500/30'
+                  : 'bg-yellow-500/10 border-yellow-500/30'
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <AlertCircle
-                    className={`w-5 h-5 ${
-                      alert.severity === 'high' ? 'text-red-400' : 'text-yellow-400'
-                    }`}
+                    className={`w-5 h-5 ${alert.severity === 'high' ? 'text-red-400' : 'text-yellow-400'
+                      }`}
                   />
                   <span className="text-slate-200">{alert.message}</span>
                   <Badge
                     variant="outline"
-                    className={`ml-auto ${
-                      alert.severity === 'high'
-                        ? 'border-red-500/50 text-red-400'
-                        : 'border-yellow-500/50 text-yellow-400'
-                    }`}
+                    className={`ml-auto ${alert.severity === 'high'
+                      ? 'border-red-500/50 text-red-400'
+                      : 'border-yellow-500/50 text-yellow-400'
+                      }`}
                   >
                     {alert.severity}
                   </Badge>

@@ -69,10 +69,10 @@ const ReportGenerator = () => {
 
   const handleGenerateReport = async () => {
     setIsGenerating(true);
-    
+
     try {
-      const wardsToSend = selectedWards.length > 0 && !selectedWards.includes('All Wards') 
-        ? selectedWards 
+      const wardsToSend = selectedWards.length > 0 && !selectedWards.includes('All Wards')
+        ? selectedWards
         : [];
 
       // Generate PDF from backend
@@ -97,7 +97,7 @@ const ReportGenerator = () => {
       // Save to history
       const reportData = generateReportData();
       saveReportToHistory(reportData);
-      
+
       setIsGenerating(false);
       setReportGenerated(true);
       setTimeout(() => setReportGenerated(false), 3000);
@@ -184,14 +184,14 @@ const ReportGenerator = () => {
     content += `Date Range: ${dateRange.replace(/([A-Z])/g, ' $1').trim()}\n`;
     content += `Generated: ${data.generatedDate}\n`;
     content += `Wards: ${data.selectedWards.join(', ')}\n\n`;
-    
+
     content += `EXECUTIVE SUMMARY\n`;
     content += `${'-'.repeat(60)}\n`;
     content += `Total Beds: ${data.summary.totalBeds}\n`;
     content += `Occupied: ${data.summary.occupiedBeds} (${data.summary.occupancyRate}%)\n`;
     content += `Available: ${data.summary.availableBeds}\n`;
     content += `Cleaning: ${data.summary.cleaningBeds}\n\n`;
-    
+
     content += `WARD-WISE BREAKDOWN\n`;
     content += `${'-'.repeat(60)}\n`;
     Object.entries(data.wardStats).forEach(([ward, stats]) => {
@@ -202,7 +202,7 @@ const ReportGenerator = () => {
       content += `  Available: ${stats.available}\n`;
       content += `  Cleaning: ${stats.cleaning}\n`;
     });
-    
+
     content += `\n${'='.repeat(60)}\n`;
     content += `End of Report\n`;
 
@@ -332,8 +332,8 @@ const ReportGenerator = () => {
 
         <h2>Ward-wise Breakdown</h2>
         ${Object.entries(data.wardStats).map(([ward, stats]) => {
-          const wardOccupancy = stats.total > 0 ? Math.round((stats.occupied / stats.total) * 100) : 0;
-          return `
+      const wardOccupancy = stats.total > 0 ? Math.round((stats.occupied / stats.total) * 100) : 0;
+      return `
             <div class="ward-section">
               <h3>${ward}</h3>
               <table>
@@ -360,7 +360,7 @@ const ReportGenerator = () => {
               </table>
             </div>
           `;
-        }).join('')}
+    }).join('')}
 
         <hr style="margin-top: 40px; border: none; border-top: 2px solid #333;">
         <p style="text-align: center; color: #666;">End of Report</p>
@@ -370,7 +370,7 @@ const ReportGenerator = () => {
 
     printWindow.document.write(htmlContent);
     printWindow.document.close();
-    
+
     // Wait for content to load, then print
     printWindow.onload = () => {
       printWindow.print();
@@ -397,8 +397,8 @@ const ReportGenerator = () => {
     setIsEmailing(true);
 
     try {
-      const wardsToSend = selectedWards.length > 0 && !selectedWards.includes('All Wards') 
-        ? selectedWards 
+      const wardsToSend = selectedWards.length > 0 && !selectedWards.includes('All Wards')
+        ? selectedWards
         : [];
 
       await api.post('/reports/email', {
@@ -422,7 +422,7 @@ const ReportGenerator = () => {
   return (
     <div className="space-y-6">
       {/* Report Configuration */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-neutral-900 border-neutral-700">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <FileText className="w-5 h-5 text-blue-400" />
@@ -438,11 +438,10 @@ const ReportGenerator = () => {
                 <div
                   key={type.value}
                   onClick={() => setReportType(type.value)}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                    reportType === type.value
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'
-                  }`}
+                  className={`p-4 rounded-lg border cursor-pointer transition-all ${reportType === type.value
+                    ? 'border-blue-500 bg-blue-500/10'
+                    : 'border-neutral-700 bg-neutral-900 hover:border-neutral-600'
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -462,7 +461,7 @@ const ReportGenerator = () => {
           <div className="space-y-3">
             <Label className="text-slate-300">Date Range</Label>
             <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="border-slate-600">
+              <SelectTrigger className="border-neutral-600">
                 <Calendar className="w-4 h-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
@@ -486,13 +485,13 @@ const ReportGenerator = () => {
               {wards.map((ward) => (
                 <div
                   key={ward}
-                  className="flex items-center space-x-2 p-3 rounded-lg bg-slate-900/50 border border-slate-700"
+                  className="flex items-center space-x-2 p-3 rounded-lg bg-neutral-900 border border-neutral-700"
                 >
                   <Checkbox
                     id={ward}
                     checked={selectedWards.includes(ward)}
                     onCheckedChange={() => toggleWard(ward)}
-                    className="border-slate-600"
+                    className="border-neutral-600"
                   />
                   <label
                     htmlFor={ward}
@@ -513,9 +512,9 @@ const ReportGenerator = () => {
                 {metrics.map((metric) => (
                   <div
                     key={metric.id}
-                    className="flex items-center space-x-2 p-3 rounded-lg bg-slate-900/50 border border-slate-700"
+                    className="flex items-center space-x-2 p-3 rounded-lg bg-neutral-900 border border-neutral-700"
                   >
-                    <Checkbox id={metric.id} className="border-slate-600" />
+                    <Checkbox id={metric.id} className="border-neutral-600" />
                     <label
                       htmlFor={metric.id}
                       className="text-sm text-slate-300 cursor-pointer select-none"
@@ -555,7 +554,7 @@ const ReportGenerator = () => {
       </Card>
 
       {/* Email Report Section */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-neutral-900 border-neutral-700">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Mail className="w-5 h-5 text-green-400" />
@@ -571,14 +570,14 @@ const ReportGenerator = () => {
                 placeholder="recipient@example.com"
                 value={emailAddress}
                 onChange={(e) => setEmailAddress(e.target.value)}
-                className="border-slate-600 bg-slate-900/50 text-white"
+                className="border-neutral-600 bg-neutral-900 text-white"
                 disabled={isEmailing}
               />
             </div>
             <div>
               <Label className="text-slate-300 mb-2 block">Format</Label>
               <Select value={emailFormat} onValueChange={setEmailFormat} disabled={isEmailing}>
-                <SelectTrigger className="border-slate-600 bg-slate-900/50 text-white">
+                <SelectTrigger className="border-neutral-600 bg-neutral-900 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -609,19 +608,19 @@ const ReportGenerator = () => {
       </Card>
 
       {/* Quick Actions */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-neutral-900 border-neutral-700">
         <CardHeader>
           <CardTitle className="text-lg">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Button 
-              variant="outline" 
-              className="h-auto flex-col gap-2 py-4 border-slate-600 hover:bg-slate-700"
+            <Button
+              variant="outline"
+              className="h-auto flex-col gap-2 py-4 border-neutral-600 hover:bg-neutral-700"
               onClick={async () => {
                 try {
-                  const wardsToSend = selectedWards.length > 0 && !selectedWards.includes('All Wards') 
-                    ? selectedWards 
+                  const wardsToSend = selectedWards.length > 0 && !selectedWards.includes('All Wards')
+                    ? selectedWards
                     : [];
 
                   const response = await api.post('/reports/generate/csv', {
@@ -649,9 +648,9 @@ const ReportGenerator = () => {
               <Download className="w-6 h-6 text-blue-400" />
               <span className="text-sm">Download CSV</span>
             </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto flex-col gap-2 py-4 border-slate-600 hover:bg-slate-700"
+            <Button
+              variant="outline"
+              className="h-auto flex-col gap-2 py-4 border-neutral-600 hover:bg-neutral-700"
               onClick={() => {
                 const data = generateReportData();
                 printReport(data);
@@ -665,7 +664,7 @@ const ReportGenerator = () => {
       </Card>
 
       {/* Recent Reports */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-neutral-900 border-neutral-700">
         <CardHeader>
           <CardTitle className="text-lg">Recent Reports</CardTitle>
         </CardHeader>
@@ -681,7 +680,7 @@ const ReportGenerator = () => {
               {recentReports.map((report) => (
                 <div
                   key={report.id}
-                  className="flex items-center justify-between p-4 rounded-lg bg-slate-900/50 border border-slate-700 hover:border-slate-600 transition-all"
+                  className="flex items-center justify-between p-4 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-neutral-600 transition-all"
                 >
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-blue-400" />
@@ -693,19 +692,19 @@ const ReportGenerator = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="border-slate-600 hover:bg-slate-700"
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-neutral-600 hover:bg-neutral-700"
                       onClick={() => downloadSavedReport(report)}
                       title="Download report"
                     >
                       <Download className="w-4 h-4" />
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="border-slate-600 hover:bg-red-900/20 hover:border-red-600"
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-neutral-600 hover:bg-red-900/20 hover:border-red-600"
                       onClick={() => deleteReport(report.id)}
                       title="Delete report"
                     >

@@ -218,7 +218,7 @@ function HomePage() {
             transition={{ duration: 0.6, delay: 0.7 + index * 0.1 }}
             className={`${feature.span.replace('col-span-2', 'lg:col-span-2 col-span-1')}`}
           >
-            <Card className="h-full border-neutral-800 bg-neutral-900/50 backdrop-blur hover:bg-neutral-800/50 transition-all hover:shadow-lg hover:shadow-neutral-700/20">
+            <Card className="h-full border-neutral-800 bg-neutral-900 backdrop-blur hover:bg-neutral-800/50 transition-all hover:shadow-lg hover:shadow-neutral-700/20">
               <CardHeader>
                 <div className="text-5xl mb-3">{feature.emoji}</div>
                 <CardTitle className="text-white text-lg">{feature.title}</CardTitle>

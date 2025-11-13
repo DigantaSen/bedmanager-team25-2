@@ -25,10 +25,10 @@ const WardStaffDashboard = () => {
       dispatch(fetchBeds()); // Refresh when coming back online
     };
     const handleOffline = () => setOnline(false);
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -44,7 +44,7 @@ const WardStaffDashboard = () => {
         return;
       }
     }
-    
+
     dispatch(fetchBeds());
   }, [dispatch, online]);
 
@@ -126,7 +126,7 @@ const WardStaffDashboard = () => {
         )}
 
         {/* Task 4.3: Mobile-optimized header with responsive text sizing */}
-        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 sm:p-4">
+        <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-3 sm:p-4">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-1 sm:mb-2">
             Ward Staff Dashboard
           </h1>
@@ -140,7 +140,7 @@ const WardStaffDashboard = () => {
 
         {/* Task 4.3: Responsive stats grid - 2 cols mobile, 4 cols desktop with larger touch targets */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 sm:p-4 min-h-[80px] flex flex-col justify-center">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-3 sm:p-4 min-h-[80px] flex flex-col justify-center">
             <div className="text-slate-400 text-xs sm:text-sm mb-1">Total Beds</div>
             <div className="text-xl sm:text-2xl font-bold text-white">{stats.total}</div>
           </div>
@@ -162,7 +162,7 @@ const WardStaffDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           {/* Bed Grid */}
           <div className="lg:col-span-2">
-            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 sm:p-4">
+            <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-3 sm:p-4">
               <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Bed Status</h2>
               <WardBedGrid beds={wardBeds} onStatusUpdate={handleStatusUpdate} isOffline={!online} />
             </div>

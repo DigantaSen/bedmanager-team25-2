@@ -31,20 +31,20 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     console.log('Form submitted, data:', formData);
-    
+
     // Validation
     if (!formData.patientName || !formData.patientName.trim()) {
       setError('Patient name is required');
       return;
     }
-    
+
     if (!formData.location || !formData.location.trim()) {
       setError('Location is required');
       return;
     }
-    
+
     if (!formData.requestedWard) {
       setError('Please select a ward');
       return;
@@ -61,7 +61,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
         ward: formData.requestedWard,
         priority: formData.priority
       };
-      
+
       // Only include optional fields if they have values
       if (formData.patientContact && formData.patientContact.trim()) {
         requestData.patientContact = formData.patientContact.trim();
@@ -72,9 +72,9 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
       if (formData.description && formData.description.trim()) {
         requestData.description = formData.description.trim();
       }
-      
+
       console.log('Request data:', requestData);
-      
+
       const response = await api.post('/emergency-requests', requestData);
       console.log('Response:', response);
 
@@ -95,7 +95,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
     } catch (err) {
       console.error('Error submitting emergency request:', err);
       console.error('Error response:', err.response);
-      
+
       // Show user-friendly error
       if (err.response?.status === 404) {
         setError('Emergency request feature not yet available on the server. Please contact the administrator.');
@@ -108,7 +108,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
   };
 
   return (
-    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
+    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <AlertCircle className="w-6 h-6 text-red-500" />
@@ -116,7 +116,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
         </h2>
         <button
           onClick={onClose}
-          className="p-1 rounded hover:bg-slate-700 transition-colors text-slate-400 hover:text-white"
+          className="p-1 rounded hover:bg-neutral-700 transition-colors text-slate-400 hover:text-white"
         >
           <X className="w-5 h-5" />
         </button>
@@ -141,7 +141,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             value={formData.patientName}
             onChange={(e) => handleChange('patientName', e.target.value)}
             placeholder="Enter patient's full name"
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
             disabled={isSubmitting}
             required
           />
@@ -158,7 +158,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             value={formData.patientContact}
             onChange={(e) => handleChange('patientContact', e.target.value)}
             placeholder="Enter contact number"
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
             disabled={isSubmitting}
           />
         </div>
@@ -173,7 +173,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             value={formData.location}
             onChange={(e) => handleChange('location', e.target.value)}
             placeholder="e.g., Emergency Room, Trauma Unit, etc."
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
             disabled={isSubmitting}
             required
           />
@@ -188,7 +188,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             <select
               value={formData.priority}
               onChange={(e) => handleChange('priority', e.target.value)}
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+              className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
               disabled={isSubmitting}
             >
               {priorityLevels.map(level => (
@@ -206,7 +206,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             <select
               value={formData.requestedWard}
               onChange={(e) => handleChange('requestedWard', e.target.value)}
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+              className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
               disabled={isSubmitting}
               required
             >
@@ -230,7 +230,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             value={formData.reason}
             onChange={(e) => handleChange('reason', e.target.value)}
             placeholder="Brief reason for emergency admission"
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
             disabled={isSubmitting}
           />
         </div>
@@ -247,7 +247,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
             placeholder="Add any relevant medical information or special requirements..."
             rows="3"
             maxLength="500"
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+            className="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
             disabled={isSubmitting}
           />
           <p className="text-xs text-slate-500 mt-1">
@@ -260,7 +260,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors"
+            className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-white transition-colors"
             disabled={isSubmitting}
           >
             Cancel

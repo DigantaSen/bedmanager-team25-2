@@ -52,7 +52,7 @@ const AvailableBedsList = ({ beds }) => {
 
   return (
     // Task 4.3: Mobile-optimized container with responsive padding
-    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 sm:p-4">
+    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-3 sm:p-4">
       <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">
         Available Beds ({availableBeds.length})
       </h3>
