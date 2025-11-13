@@ -81,7 +81,7 @@ export const DesktopSidebar = ({
       className={cn(
         // Force hide on mobile with !important, show only on desktop
         "!hidden md:!flex md:flex-col",
-        "h-full px-4 py-4 bg-neutral-100 dark:bg-neutral-900 w-[300px] flex-shrink-0",
+        "h-full px-4 py-4 bg-neutral-100 dark:bg-neutral-900 w-[300px] flex-shrink-0 border-r border-neutral-700",
         className
       )}
       animate={{
@@ -136,7 +136,7 @@ export const MobileSidebar = ({
                 ease: "easeInOut",
               }}
               className={cn(
-                "fixed h-full w-[280px] left-0 top-0 bg-white dark:bg-neutral-900 p-6 z-[100] flex flex-col justify-between md:hidden shadow-2xl",
+                "fixed h-full w-[280px] left-0 top-0 bg-white dark:bg-neutral-900 p-6 z-[100] flex flex-col justify-between md:hidden shadow-2xl border-r border-neutral-700",
                 className
               )}>
               {/* Close button */}
@@ -192,7 +192,7 @@ export const SidebarLink = ({
 
   // Task 4.3: Enhanced mobile touch targets with min height
   const linkClassName = cn(
-    "flex items-center justify-start gap-2 group/sidebar py-3 px-3 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors active:scale-95 touch-manipulation md:min-h-0 min-h-[48px]",
+    "flex items-center justify-start gap-2 group/sidebar py-3 px-3 rounded-lg border border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-800 hover:border-neutral-700 transition-colors active:scale-95 touch-manipulation md:min-h-0 min-h-[48px]",
     className
   );
 
