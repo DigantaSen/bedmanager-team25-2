@@ -144,9 +144,9 @@ const BedStatusGrid = ({ ward, onBedClick }) => {
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h2 className="text-2xl font-bold text-white">Bed Status Grid</h2>
-        <div className="flex gap-4 text-sm">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
             <span className="text-zinc-400">Available</span>
