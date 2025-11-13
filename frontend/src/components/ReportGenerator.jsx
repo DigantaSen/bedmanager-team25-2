@@ -531,7 +531,7 @@ const ReportGenerator = () => {
           <Button
             onClick={handleGenerateReport}
             disabled={isGenerating}
-            className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
           >
             {isGenerating ? (
               <>
@@ -590,7 +590,7 @@ const ReportGenerator = () => {
           <Button
             onClick={handleEmailReport}
             disabled={isEmailing || !emailAddress}
-            className="w-full bg-green-600 hover:bg-green-700"
+            className="w-full bg-green-600 hover:bg-green-700 text-white"
           >
             {isEmailing ? (
               <>
