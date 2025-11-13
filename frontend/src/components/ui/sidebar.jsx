@@ -49,10 +49,23 @@ export const Sidebar = ({
 };
 
 export const SidebarBody = (props) => {
+  // Check if we're on mobile to conditionally render
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint is 768px
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
     <>
-      <DesktopSidebar {...props} />
-      <MobileSidebar {...(props)} />
+      {!isMobile && <DesktopSidebar {...props} />}
+      {isMobile && <MobileSidebar {...props} />}
     </>
   );
 };
@@ -66,7 +79,9 @@ export const DesktopSidebar = ({
   return (
     <motion.div
       className={cn(
-        "h-full px-4 py-4 hidden md:flex md:flex-col bg-neutral-100 dark:bg-neutral-900 w-[300px] flex-shrink-0",
+        // Force hide on mobile with !important, show only on desktop
+        "!hidden md:!flex md:flex-col",
+        "h-full px-4 py-4 bg-neutral-100 dark:bg-neutral-900 w-[300px] flex-shrink-0",
         className
       )}
       animate={{
@@ -93,7 +108,6 @@ export const MobileSidebar = ({
         onClick={() => setOpen(!open)}
         aria-label={open ? "Close menu" : "Open menu"}
         className="fixed top-4 right-4 z-50 md:hidden bg-neutral-800 dark:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 p-3 rounded-lg shadow-lg transition-all min-h-[48px] min-w-[48px] flex items-center justify-center touch-manipulation"
-        {...props}
       >
         <Menu className="text-white h-6 w-6" />
       </button>
