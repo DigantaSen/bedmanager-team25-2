@@ -111,7 +111,7 @@ export const MobileSidebar = ({
               className="fixed inset-0 bg-black/60 z-[90] md:hidden"
               onClick={() => setOpen(false)}
             />
-            
+
             {/* Sidebar panel */}
             <motion.div
               initial={{ x: "-100%", opacity: 0 }}

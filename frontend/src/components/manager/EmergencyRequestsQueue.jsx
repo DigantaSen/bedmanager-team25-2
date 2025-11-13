@@ -6,7 +6,7 @@ import { getSocket } from '@/services/socketService';
 import Toast from '@/components/ui/Toast';
 import api from '@/services/api';
 
-const EmergencyRequestsQueue = ({ ward }) => {
+const EmergencyRequestsQueue = ({ ward, onApprovalSuccess }) => {
   const dispatch = useDispatch();
   const { requests, status } = useSelector((state) => state.requests);
   const currentUser = useSelector((state) => state.auth.user);
@@ -25,11 +25,11 @@ const EmergencyRequestsQueue = ({ ward }) => {
   // Socket.IO listener for new emergency requests
   useEffect(() => {
     const socket = getSocket();
-    
+
     if (socket && socket.connected) {
       const handleNewRequest = async (data) => {
         const managerWard = ward || currentUser?.ward;
-        
+
         // Only process if request is for this manager's ward
         if (data.ward === managerWard) {
           // Play notification sound
@@ -37,34 +37,34 @@ const EmergencyRequestsQueue = ({ ward }) => {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
-            
+
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
-            
+
             oscillator.frequency.value = 800;
             oscillator.type = 'sine';
-            
+
             gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-            
+
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.5);
-            
+
             // Try to play mp3 if available
             const audio = new Audio('/notification.mp3');
             audio.volume = 0.5;
-            audio.play().catch(() => {});
+            audio.play().catch(() => { });
           };
-          
+
           playNotificationSound();
-          
+
           // Show toast notification
           setToast({
             type: 'emergency',
             title: '🚨 New Emergency Request',
             message: `Priority: ${data.priority.toUpperCase()} - ${data.patientName} needs ${data.ward} bed from ${data.location}`,
           });
-          
+
           // Create an alert in the Alerts & Notifications panel
           try {
             await api.post('/alerts', {
@@ -77,7 +77,7 @@ const EmergencyRequestsQueue = ({ ward }) => {
           } catch (error) {
             // Silently fail - alert creation is not critical
           }
-          
+
           // Show browser notification if permission granted
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('🚨 New Emergency Request', {
@@ -87,14 +87,14 @@ const EmergencyRequestsQueue = ({ ward }) => {
               requireInteraction: true
             });
           }
-          
+
           // Refresh the requests list
           dispatch(fetchRequests());
         }
       };
-      
+
       socket.on('emergencyRequestCreated', handleNewRequest);
-      
+
       return () => {
         socket.off('emergencyRequestCreated', handleNewRequest);
       };
@@ -106,7 +106,23 @@ const EmergencyRequestsQueue = ({ ward }) => {
       setProcessingId(requestId);
       try {
         await dispatch(approveRequest({ id: requestId })).unwrap();
-        alert('Emergency request approved successfully!');
+
+        // Find the approved request to pass patient data
+        const approvedRequest = filteredRequests.find(req => req._id === requestId);
+
+        // Call the callback with patient data for bed assignment
+        if (onApprovalSuccess && approvedRequest) {
+          onApprovalSuccess({
+            patientName: approvedRequest.patientName,
+            patientId: approvedRequest.patientId,
+            patientContact: approvedRequest.patientContact,
+            reason: approvedRequest.reason || approvedRequest.description,
+            ward: approvedRequest.ward,
+            priority: approvedRequest.priority
+          });
+        } else {
+          alert('Emergency request approved successfully!');
+        }
       } catch (error) {
         alert(`Error: ${error.message || 'Failed to approve request'}`);
       } finally {

@@ -19,6 +19,7 @@ const ManagerDashboard = () => {
   const [selectedBed, setSelectedBed] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [emergencyPatientData, setEmergencyPatientData] = useState(null);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -31,12 +32,20 @@ const ManagerDashboard = () => {
 
   const handleBedClick = (bed) => {
     setSelectedBed(bed);
+    // Keep emergency data if it exists - it will be used to pre-fill patient info
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedBed(null);
+    setEmergencyPatientData(null); // Clear emergency data on close
+  };
+
+  const handleEmergencyApproval = (patientData) => {
+    // Store emergency patient data - manager will select a bed from the grid
+    setEmergencyPatientData(patientData);
+    // Don't open modal yet - wait for manager to select a bed
   };
 
   const handleUpdateSuccess = () => {
@@ -68,13 +77,48 @@ const ManagerDashboard = () => {
         {/* KPI Summary Cards */}
         <KPISummaryCard key={refreshKey} ward={currentUser?.ward} />
 
+        {/* Emergency Patient Assignment Alert */}
+        {emergencyPatientData && (
+          <div className="bg-red-500/10 border-2 border-red-500 rounded-lg p-6 animate-pulse">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-2xl">
+                🚨
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-red-400 mb-2">
+                  Emergency Patient Awaiting Bed Assignment
+                </h3>
+                <div className="text-white space-y-1 mb-3">
+                  <p><strong>Patient:</strong> {emergencyPatientData.patientName}</p>
+                  <p><strong>Patient ID:</strong> {emergencyPatientData.patientId}</p>
+                  <p><strong>Ward:</strong> {emergencyPatientData.ward}</p>
+                  <p><strong>Priority:</strong> {emergencyPatientData.priority?.toUpperCase()}</p>
+                  <p><strong>Reason:</strong> {emergencyPatientData.reason}</p>
+                </div>
+                <p className="text-red-300 font-semibold text-lg">
+                  👇 Please select an available bed from the grid below to assign this patient
+                </p>
+              </div>
+              <button
+                onClick={() => setEmergencyPatientData(null)}
+                className="flex-shrink-0 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Bed Status Grid */}
         <BedStatusGrid ward={currentUser?.ward} onBedClick={handleBedClick} />
 
         {/* Two Column Layout for Alerts and Emergency Requests */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AlertNotificationPanel ward={currentUser?.ward} />
-          <EmergencyRequestsQueue ward={currentUser?.ward} />
+          <EmergencyRequestsQueue
+            ward={currentUser?.ward}
+            onApprovalSuccess={handleEmergencyApproval}
+          />
         </div>
 
         {/* Cleaning Queue Panel - Task 2.5b */}
@@ -89,6 +133,7 @@ const ManagerDashboard = () => {
           isOpen={isModalOpen}
           onClose={handleCloseModal}
           onSuccess={handleUpdateSuccess}
+          emergencyPatientData={emergencyPatientData}
         />
       </div>
     </DashboardLayout>

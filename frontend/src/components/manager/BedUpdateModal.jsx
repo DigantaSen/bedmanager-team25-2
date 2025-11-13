@@ -3,7 +3,7 @@ import { X, BedDouble, Loader2, Clock, User, Calendar, AlertCircle, FileText } f
 import api from '@/services/api';
 import TimeRemaining from '../common/TimeRemaining';
 
-const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
+const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData }) => {
   const [status, setStatus] = useState(bed?.status || 'available');
   const [patientName, setPatientName] = useState(bed?.patientName || '');
   const [patientId, setPatientId] = useState(bed?.patientId || '');
@@ -31,9 +31,17 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
       setStatus('available'); // Fallback
     }
 
-    setPatientName(bed.patientName || '');
-    setPatientId(bed.patientId || '');
-    setNotes(bed.notes || '');
+    // If emergency patient data exists, use it; otherwise use bed data
+    if (emergencyPatientData) {
+      setPatientName(emergencyPatientData.patientName || '');
+      setPatientId(emergencyPatientData.patientId || '');
+      setNotes(emergencyPatientData.reason || '');
+    } else {
+      setPatientName(bed.patientName || '');
+      setPatientId(bed.patientId || '');
+      setNotes(bed.notes || '');
+    }
+
     setDischargeNotes(bed.dischargeNotes || '');
 
     // Format discharge time for datetime-local input
@@ -85,7 +93,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
       setCleaningProgress(null);
       setCleaningDuration('45'); // Reset to default
     }
-  }, [bed]);
+  }, [bed, emergencyPatientData]);
 
   if (!isOpen || !bed) return null;
 
@@ -194,12 +202,19 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-800 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-cyan-500/10">
-              <BedDouble className="w-6 h-6 text-cyan-500" />
+            <div className={`p-2 rounded-lg ${emergencyPatientData ? 'bg-red-500/10' : 'bg-cyan-500/10'}`}>
+              <BedDouble className={`w-6 h-6 ${emergencyPatientData ? 'text-red-500' : 'text-cyan-500'}`} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Bed {bed.bedId}</h2>
-              <p className="text-zinc-400 text-sm">Ward: {bed.ward}</p>
+              <h2 className="text-xl font-bold text-white">
+                {emergencyPatientData ? '🚨 Emergency Patient Assignment' : `Bed ${bed?.bedId || 'Selection'}`}
+              </h2>
+              <p className="text-zinc-400 text-sm">
+                {emergencyPatientData
+                  ? `Ward: ${emergencyPatientData.ward} | Priority: ${emergencyPatientData.priority?.toUpperCase()}`
+                  : `Ward: ${bed?.ward || 'N/A'}`
+                }
+              </p>
             </div>
           </div>
           <button
