@@ -196,12 +196,12 @@ export default function LoginCardSection() {
 
                     {/* <div className="relative">
                       <Separator className="bg-zinc-800" />
-                      <span className="absolute left-1/2 -translate-x-1/2 -top-3 bg-zinc-900/70 px-2 text-[11px] uppercase tracking-widest text-zinc-500">or</span>
+                      <span className="absolute left-1/2 -translate-x-1/2 -top-3 bg-neutral-900/70 px-2 text-[11px] uppercase tracking-widest text-zinc-500">or</span>
                     </div> */}
 
                     {/* <div className="grid grid-cols-2 gap-3">
-                      <Button variant="outline" className="h-10 rounded-lg border-zinc-800 bg-zinc-950 text-zinc-50 hover:bg-zinc-900/80"><Github className="h-4 w-4 mr-2" /> GitHub</Button>
-                      <Button variant="outline" className="h-10 rounded-lg border-zinc-800 bg-zinc-950 text-zinc-50 hover:bg-zinc-900/80"><Chrome className="h-4 w-4 mr-2" /> Google</Button>
+                      <Button variant="outline" className="h-10 rounded-lg border-zinc-800 bg-zinc-950 text-zinc-50 hover:bg-neutral-900/80"><Github className="h-4 w-4 mr-2" /> GitHub</Button>
+                      <Button variant="outline" className="h-10 rounded-lg border-zinc-800 bg-zinc-950 text-zinc-50 hover:bg-neutral-900/80"><Chrome className="h-4 w-4 mr-2" /> Google</Button>
                     </div> */}
                   </div>
                 )}
@@ -365,12 +365,12 @@ export default function LoginCardSection() {
                     {/* 
                     <div className="relative">
                       <Separator className="bg-zinc-800" />
-                      <span className="absolute left-1/2 -translate-x-1/2 -top-3 bg-zinc-900/70 px-2 text-[11px] uppercase tracking-widest text-zinc-500">or</span>
+                      <span className="absolute left-1/2 -translate-x-1/2 -top-3 bg-neutral-900/70 px-2 text-[11px] uppercase tracking-widest text-zinc-500">or</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <Button variant="outline" className="h-10 rounded-lg border-zinc-800 bg-zinc-950 text-zinc-50 hover:bg-zinc-900/80"><Github className="h-4 w-4 mr-2" /> GitHub</Button>
-                      <Button variant="outline" className="h-10 rounded-lg border-zinc-800 bg-zinc-950 text-zinc-50 hover:bg-zinc-900/80"><Chrome className="h-4 w-4 mr-2" /> Google</Button>
+                      <Button variant="outline" className="h-10 rounded-lg border-zinc-800 bg-zinc-950 text-zinc-50 hover:bg-neutral-900/80"><Github className="h-4 w-4 mr-2" /> GitHub</Button>
+                      <Button variant="outline" className="h-10 rounded-lg border-zinc-800 bg-zinc-950 text-zinc-50 hover:bg-neutral-900/80"><Chrome className="h-4 w-4 mr-2" /> Google</Button>
                     </div> */}
                   </div>
                 )}

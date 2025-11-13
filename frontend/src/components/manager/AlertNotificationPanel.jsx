@@ -16,18 +16,18 @@ const AlertNotificationPanel = ({ ward }) => {
   // Socket.IO listener for new alerts
   useEffect(() => {
     const socket = getSocket();
-    
+
     if (socket) {
       console.log('📡 Setting up alert listener for manager');
-      
+
       const handleNewAlert = (data) => {
         console.log('🔔 New alert received:', data);
         // Refresh alerts list
         dispatch(fetchAlerts());
       };
-      
+
       socket.on('alertCreated', handleNewAlert);
-      
+
       return () => {
         socket.off('alertCreated', handleNewAlert);
       };
@@ -72,7 +72,7 @@ const AlertNotificationPanel = ({ ward }) => {
         return {
           icon: Info,
           color: 'text-zinc-500',
-          bgColor: 'bg-zinc-500/10',
+          bgColor: 'bg-neutral-900/10',
           borderColor: 'border-zinc-500/50',
         };
     }
@@ -84,13 +84,13 @@ const AlertNotificationPanel = ({ ward }) => {
 
   if (status === 'loading') {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <h2 className="text-2xl font-bold text-white mb-4">Alerts & Notifications</h2>
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-zinc-800 rounded-lg p-4 animate-pulse">
-              <div className="h-4 bg-zinc-700 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-zinc-700 rounded w-1/2"></div>
+            <div key={i} className="bg-neutral-800 rounded-lg p-4 animate-pulse">
+              <div className="h-4 bg-neutral-700 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-neutral-700 rounded w-1/2"></div>
             </div>
           ))}
         </div>
@@ -99,7 +99,7 @@ const AlertNotificationPanel = ({ ward }) => {
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-white">Alerts & Notifications</h2>
         {filteredAlerts.length > 0 && (

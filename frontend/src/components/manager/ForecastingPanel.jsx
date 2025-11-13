@@ -101,7 +101,7 @@ const ForecastingPanel = ({ ward }) => {
 
   if (loading && !forecastData) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="w-6 h-6 text-cyan-500" />
           <h2 className="text-2xl font-bold text-white">Forecasting & Insights</h2>
@@ -113,7 +113,7 @@ const ForecastingPanel = ({ ward }) => {
 
   if (error) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="w-6 h-6 text-cyan-500" />
           <h2 className="text-2xl font-bold text-white">Forecasting & Insights</h2>
@@ -127,7 +127,7 @@ const ForecastingPanel = ({ ward }) => {
   // Accept data if we have currentMetrics OR wardForecasts
   if (!forecastData || (!forecastData.currentMetrics && (!forecastData.wardForecasts || forecastData.wardForecasts.length === 0))) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="w-6 h-6 text-cyan-500" />
           <h2 className="text-2xl font-bold text-white">Forecasting & Insights</h2>
@@ -247,7 +247,7 @@ const ForecastingPanel = ({ ward }) => {
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-6 h-6 text-cyan-500" />
@@ -263,7 +263,7 @@ const ForecastingPanel = ({ ward }) => {
               fetchForecastData();
               fetchBedsWithDischargeTime();
             }}
-            className="text-xs text-zinc-400 hover:text-cyan-500 transition-colors px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700"
+            className="text-xs text-zinc-400 hover:text-cyan-500 transition-colors px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700"
           >
             Refresh Now
           </button>
@@ -277,7 +277,7 @@ const ForecastingPanel = ({ ward }) => {
           return (
             <div
               key={index}
-              className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4 hover:border-zinc-600 transition-all hover:scale-[1.02]"
+              className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-4 hover:border-zinc-600 transition-all hover:scale-[1.02]"
             >
               <div className="flex items-start justify-between mb-2">
                 <div className={`${item.bgColor} p-2.5 rounded-lg`}>
@@ -303,7 +303,7 @@ const ForecastingPanel = ({ ward }) => {
 
       {/* Enhanced Insights Section */}
       {((forecastData?.insights && forecastData.insights.length > 0) || (forecastData?.expectedDischarges?.details?.length > 0)) && (
-        <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4 mb-6">
+        <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-4 mb-6">
           <p className="text-zinc-400 text-sm mb-3 flex items-center gap-2 font-semibold">
             <AlertCircle className="w-4 h-4" />
             AI-Powered Insights & Recommendations
@@ -407,7 +407,7 @@ const ForecastingPanel = ({ ward }) => {
       )}
 
       {/* Enhanced Timeline Section - Now uses backend integrated timing */}
-      <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
+      <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-4">
         <p className="text-zinc-400 text-sm mb-4 flex items-center gap-2 font-semibold">
           <Calendar className="w-4 h-4" />
           Discharge Timeline (Next 72 Hours)
@@ -449,7 +449,7 @@ const ForecastingPanel = ({ ward }) => {
               return (
                 <div key={index} className="flex items-center gap-3 py-1.5">
                   <div className="w-24 text-zinc-400 text-xs font-mono flex-shrink-0">{bucket.label}</div>
-                  <div className="flex-1 bg-zinc-900 rounded-full h-7 overflow-hidden relative border border-zinc-800">
+                  <div className="flex-1 bg-neutral-900 rounded-full h-7 overflow-hidden relative border border-neutral-800">
                     {hasAny ? (
                       <div className="flex h-full">
                         {/* Confirmed discharges (manager-set times) */}
@@ -508,7 +508,7 @@ const ForecastingPanel = ({ ward }) => {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-4 mt-4 pt-3 border-t border-zinc-800">
+        <div className="flex items-center gap-4 mt-4 pt-3 border-t border-neutral-800">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded bg-gradient-to-r from-cyan-500 to-cyan-600"></div>
             <span className="text-xs text-zinc-400">Confirmed (Manager Set)</span>
@@ -524,7 +524,7 @@ const ForecastingPanel = ({ ward }) => {
 
       {/* All Expected Discharges - Now sorted by backend priority */}
       {forecastData?.expectedDischarges?.details && forecastData.expectedDischarges.details.length > 0 && (
-        <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4 mt-6">
+        <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-4 mt-6">
           <div className="flex items-center justify-between mb-3">
             <p className="text-zinc-400 text-sm flex items-center gap-2 font-semibold">
               <Calendar className="w-4 h-4" />
@@ -553,7 +553,7 @@ const ForecastingPanel = ({ ward }) => {
                   key={index}
                   className={`flex items-center justify-between py-2 px-3 rounded border transition-all ${isManual
                       ? 'bg-gradient-to-r from-cyan-900/30 to-cyan-800/20 border-cyan-800/50 hover:border-cyan-600/50'
-                      : 'bg-zinc-900/30 border-zinc-800/50 hover:border-zinc-700'
+                      : 'bg-neutral-900/30 border-neutral-800/50 hover:border-neutral-700'
                     }`}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -604,7 +604,7 @@ const ForecastingPanel = ({ ward }) => {
               );
             })}
           </div>
-          <div className="mt-3 pt-3 border-t border-zinc-800 flex items-start gap-2 text-xs text-zinc-500">
+          <div className="mt-3 pt-3 border-t border-neutral-800 flex items-start gap-2 text-xs text-zinc-500">
             <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
             <p>
               {forecastData?.metadata?.accuracyNote || 'Discharge times combine manager-confirmed schedules with AI estimates.'}
@@ -615,7 +615,7 @@ const ForecastingPanel = ({ ward }) => {
 
       {/* Capacity Planning Summary */}
       {displayMetrics.totalBeds && (
-        <div className="bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 border border-zinc-700 rounded-lg p-4 mt-6">
+        <div className="bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 border border-neutral-700 rounded-lg p-4 mt-6">
           <p className="text-zinc-400 text-sm mb-4 flex items-center gap-2 font-semibold">
             <Target className="w-4 h-4" />
             Capacity Planning Summary
@@ -638,7 +638,7 @@ const ForecastingPanel = ({ ward }) => {
                   <span className="text-cyan-500 font-bold">{displayMetrics.occupiedBeds}</span>
                 </div>
               </div>
-              <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden mt-2">
+              <div className="w-full bg-neutral-900 rounded-full h-2 overflow-hidden mt-2">
                 <div
                   className={`h-full transition-all ${displayMetrics.projectedOccupancy > 90
                       ? 'bg-red-500'
@@ -699,7 +699,7 @@ const ForecastingPanel = ({ ward }) => {
           </div>
 
           {/* Capacity Recommendation */}
-          <div className="mt-4 pt-3 border-t border-zinc-800">
+          <div className="mt-4 pt-3 border-t border-neutral-800">
             {displayMetrics.totalBeds > 0 && displayMetrics.projectedAvailability24h < displayMetrics.totalBeds * 0.15 && (
               <div className="flex items-start gap-2 text-xs text-yellow-500 bg-yellow-500/10 p-2 rounded">
                 <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
@@ -722,7 +722,7 @@ const ForecastingPanel = ({ ward }) => {
       )}
 
       {/* Footer with metadata */}
-      <div className="mt-6 pt-4 border-t border-zinc-800">
+      <div className="mt-6 pt-4 border-t border-neutral-800">
         {/* Ward Scope Indicator */}
         {forecastData?.metadata?.filteredByWard && (
           <div className="mb-3 px-3 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded flex items-center gap-2">

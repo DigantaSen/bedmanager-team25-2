@@ -22,7 +22,7 @@ const CleaningQueuePanel = ({ ward }) => {
       const response = await api.get('/beds/cleaning-queue', {
         params: ward ? { ward } : {}
       });
-      
+
       if (response.data.success) {
         setQueueData(response.data.data);
       }
@@ -37,17 +37,17 @@ const CleaningQueuePanel = ({ ward }) => {
   // Initial fetch
   useEffect(() => {
     fetchCleaningQueue();
-    
+
     // Auto-refresh every 30 seconds
     const interval = setInterval(fetchCleaningQueue, 30000);
-    
+
     return () => clearInterval(interval);
   }, [ward]);
 
   // Socket.io listeners for real-time updates
   useEffect(() => {
     const socket = getSocket();
-    
+
     if (!socket) {
       console.warn('Socket not available for CleaningQueuePanel');
       return;
@@ -96,12 +96,12 @@ const CleaningQueuePanel = ({ ward }) => {
     };
   }, [currentUser]);
 
-  if (loading && !queueData) {
+  if (status === 'loading') {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
           <Sparkles className="w-6 h-6 text-purple-500" />
-          <h2 className="text-2xl font-bold text-white">Cleaning Queue</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Cleaning Queue</h2>
         </div>
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
@@ -112,10 +112,10 @@ const CleaningQueuePanel = ({ ward }) => {
 
   if (error) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
           <Sparkles className="w-6 h-6 text-purple-500" />
-          <h2 className="text-2xl font-bold text-white">Cleaning Queue</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Cleaning Queue</h2>
         </div>
         <div className="text-red-400 text-center py-8">
           <AlertCircle className="w-12 h-12 mx-auto mb-2" />
@@ -127,7 +127,7 @@ const CleaningQueuePanel = ({ ward }) => {
 
   if (!queueData || queueData.beds.length === 0) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <Sparkles className="w-6 h-6 text-purple-500" />
@@ -144,7 +144,7 @@ const CleaningQueuePanel = ({ ward }) => {
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
       {/* Header with bed count */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -168,7 +168,7 @@ const CleaningQueuePanel = ({ ward }) => {
         {queueData.beds.map((bed) => (
           <div
             key={bed._id}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 hover:border-purple-500 transition-colors"
+            className="bg-neutral-800 border border-neutral-700 rounded-lg p-4 hover:border-purple-500 transition-colors"
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
@@ -177,7 +177,7 @@ const CleaningQueuePanel = ({ ward }) => {
                 </h3>
                 <p className="text-sm text-zinc-400">Ward: {bed.ward}</p>
               </div>
-              
+
               {/* Show status badge for managers (view-only) */}
               {!isWardStaff && (
                 <span className="px-4 py-2 bg-orange-500/20 border border-orange-500/50 rounded text-orange-400 font-medium">

@@ -20,7 +20,7 @@ const OccupantTable = ({ beds, onSelectBed }) => {
     // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      result = result.filter(bed => 
+      result = result.filter(bed =>
         bed.bedId.toLowerCase().includes(searchLower) ||
         bed.patientName?.toLowerCase().includes(searchLower) ||
         bed.patientId?.toLowerCase().includes(searchLower) ||
@@ -46,7 +46,7 @@ const OccupantTable = ({ beds, onSelectBed }) => {
 
       // Handle string comparison
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' 
+        return sortDirection === 'asc'
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       }
@@ -75,7 +75,7 @@ const OccupantTable = ({ beds, onSelectBed }) => {
     if (sortField !== field) {
       return <ArrowUpDown className="w-4 h-4 text-zinc-500" />;
     }
-    return sortDirection === 'asc' 
+    return sortDirection === 'asc'
       ? <ArrowUp className="w-4 h-4 text-cyan-500" />
       : <ArrowDown className="w-4 h-4 text-cyan-500" />;
   };
@@ -94,7 +94,7 @@ const OccupantTable = ({ beds, onSelectBed }) => {
             className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 transition-colors"
           />
         </div>
-        
+
         <select
           value={wardFilter}
           onChange={(e) => setWardFilter(e.target.value)}
@@ -113,11 +113,11 @@ const OccupantTable = ({ beds, onSelectBed }) => {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto bg-zinc-900 border border-zinc-800 rounded-lg">
+      <div className="overflow-x-auto bg-neutral-900 border border-zinc-800 rounded-lg">
         <table className="w-full">
           <thead>
             <tr className="border-b border-zinc-800">
-              <th 
+              <th
                 className="text-left px-6 py-4 text-zinc-400 font-semibold cursor-pointer hover:text-cyan-500 transition-colors"
                 onClick={() => handleSort('bedId')}
               >
@@ -127,7 +127,7 @@ const OccupantTable = ({ beds, onSelectBed }) => {
                   <SortIcon field="bedId" />
                 </div>
               </th>
-              <th 
+              <th
                 className="text-left px-6 py-4 text-zinc-400 font-semibold cursor-pointer hover:text-cyan-500 transition-colors"
                 onClick={() => handleSort('ward')}
               >
@@ -136,7 +136,7 @@ const OccupantTable = ({ beds, onSelectBed }) => {
                   <SortIcon field="ward" />
                 </div>
               </th>
-              <th 
+              <th
                 className="text-left px-6 py-4 text-zinc-400 font-semibold cursor-pointer hover:text-cyan-500 transition-colors"
                 onClick={() => handleSort('patientName')}
               >
@@ -149,7 +149,7 @@ const OccupantTable = ({ beds, onSelectBed }) => {
               <th className="text-left px-6 py-4 text-zinc-400 font-semibold">
                 Patient ID
               </th>
-              <th 
+              <th
                 className="text-left px-6 py-4 text-zinc-400 font-semibold cursor-pointer hover:text-cyan-500 transition-colors"
                 onClick={() => handleSort('timeInBed')}
               >
@@ -171,15 +171,15 @@ const OccupantTable = ({ beds, onSelectBed }) => {
             {filteredAndSortedBeds.length === 0 ? (
               <tr>
                 <td colSpan="7" className="px-6 py-8 text-center text-zinc-500">
-                  {searchTerm || wardFilter !== 'all' 
+                  {searchTerm || wardFilter !== 'all'
                     ? 'No beds match your search criteria'
                     : 'No occupied beds found'}
                 </td>
               </tr>
             ) : (
               filteredAndSortedBeds.map((bed) => (
-                <tr 
-                  key={bed._id} 
+                <tr
+                  key={bed._id}
                   className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors"
                 >
                   <td className="px-6 py-4">
@@ -209,13 +209,13 @@ const OccupantTable = ({ beds, onSelectBed }) => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-zinc-400 text-sm">
-                    {bed.admissionTime 
+                    {bed.admissionTime
                       ? new Date(bed.admissionTime).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
                       : 'N/A'}
                   </td>
                   <td className="px-6 py-4">

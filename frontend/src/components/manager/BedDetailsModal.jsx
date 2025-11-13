@@ -13,13 +13,13 @@ const BedDetailsModal = ({ bed, isOpen, onClose }) => {
       case 'cleaning':
         return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/50';
       default:
-        return 'text-zinc-500 bg-zinc-500/10 border-zinc-500/50';
+        return 'text-zinc-500 bg-neutral-900/10 border-zinc-500/50';
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-neutral-900 border border-zinc-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-800">
           <div className="flex items-center gap-3">

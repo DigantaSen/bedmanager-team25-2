@@ -198,7 +198,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg max-w-2xl w-full my-8 max-h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+      <div className="bg-neutral-900 border border-zinc-800 rounded-lg max-w-2xl w-full my-8 max-h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-800 flex-shrink-0">
           <div className="flex items-center gap-3">

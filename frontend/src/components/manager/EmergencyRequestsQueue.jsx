@@ -157,7 +157,7 @@ const EmergencyRequestsQueue = ({ ward, onApprovalSuccess }) => {
       case 'low':
         return 'text-green-500 bg-green-500/10 border-green-500/50';
       default:
-        return 'text-zinc-500 bg-zinc-500/10 border-zinc-500/50';
+        return 'text-zinc-500 bg-neutral-900/10 border-zinc-500/50';
     }
   };
 
@@ -189,13 +189,13 @@ const EmergencyRequestsQueue = ({ ward, onApprovalSuccess }) => {
 
   if (status === 'loading') {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <h2 className="text-2xl font-bold text-white mb-4">Emergency Requests</h2>
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-zinc-800 rounded-lg p-4 animate-pulse">
-              <div className="h-4 bg-zinc-700 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-zinc-700 rounded w-1/2"></div>
+            <div key={i} className="bg-neutral-800 rounded-lg p-4 animate-pulse">
+              <div className="h-4 bg-neutral-700 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-neutral-700 rounded w-1/2"></div>
             </div>
           ))}
         </div>
@@ -204,7 +204,7 @@ const EmergencyRequestsQueue = ({ ward, onApprovalSuccess }) => {
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-white">Emergency Requests</h2>
         {filteredRequests.filter((r) => r.status === 'pending').length > 0 && (

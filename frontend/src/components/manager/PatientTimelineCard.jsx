@@ -27,7 +27,7 @@ const PatientTimelineCard = ({ history }) => {
       case 'reservation_cancelled':
         return 'bg-red-500';
       default:
-        return 'bg-zinc-500';
+        return 'bg-neutral-900';
     }
   };
 
@@ -65,7 +65,7 @@ const PatientTimelineCard = ({ history }) => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
           <div className="flex items-center gap-3">
             <div className="bg-blue-500/10 p-3 rounded-lg">
@@ -79,10 +79,10 @@ const PatientTimelineCard = ({ history }) => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4">
           <div className="flex items-center gap-3">
-            <div className={`${statistics.currentlyOccupied ? 'bg-green-500/10' : 'bg-zinc-500/10'} p-3 rounded-lg`}>
+            <div className={`${statistics.currentlyOccupied ? 'bg-green-500/10' : 'bg-neutral-900/10'} p-3 rounded-lg`}>
               <User className={`w-5 h-5 ${statistics.currentlyOccupied ? 'text-green-500' : 'text-zinc-500'}`} />
             </div>
             <div>
@@ -101,7 +101,7 @@ const PatientTimelineCard = ({ history }) => {
           <Calendar className="w-5 h-5 text-cyan-500" />
           Occupancy Timeline
         </h3>
-        
+
         <div className="space-y-4">
           {occupancyPeriods.map((period, index) => (
             <div key={index} className="relative pl-8 pb-6 last:pb-0">
@@ -109,11 +109,11 @@ const PatientTimelineCard = ({ history }) => {
               {index < occupancyPeriods.length - 1 && (
                 <div className="absolute left-2 top-6 bottom-0 w-0.5 bg-zinc-700"></div>
               )}
-              
+
               {/* Timeline dot */}
               <div className={`absolute left-0 top-2 w-4 h-4 rounded-full ${getStatusColor(period.startLog.statusChange)}`}></div>
-              
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition-colors">
+
+              <div className="bg-neutral-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                   <div>
                     <h4 className="text-white font-semibold flex items-center gap-2">
@@ -130,7 +130,7 @@ const PatientTimelineCard = ({ history }) => {
                       {period.duration.ongoing && <span className="text-green-500 ml-2">(and counting)</span>}
                     </p>
                   </div>
-                  
+
                   {period.duration.days >= 0 && (
                     <div className="text-right">
                       <div className="text-xs text-zinc-500">{period.duration.days.toFixed(1)} days</div>
@@ -138,7 +138,7 @@ const PatientTimelineCard = ({ history }) => {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="space-y-2">
                   {/* Start Event */}
                   <div className="flex items-start gap-3 text-sm">
@@ -164,7 +164,7 @@ const PatientTimelineCard = ({ history }) => {
                       )}
                     </div>
                   </div>
-                  
+
                   {/* End Event (if completed) */}
                   {period.status === 'completed' && period.endLog && (
                     <div className="flex items-start gap-3 text-sm">
@@ -205,9 +205,9 @@ const PatientTimelineCard = ({ history }) => {
         </summary>
         <div className="p-4 pt-0 space-y-2 max-h-96 overflow-y-auto">
           {history.allLogs.map((log, index) => (
-            <div 
+            <div
               key={index}
-              className="flex items-center justify-between py-2 px-3 bg-zinc-900/50 rounded border border-zinc-800 text-sm"
+              className="flex items-center justify-between py-2 px-3 bg-neutral-900/50 rounded border border-zinc-800 text-sm"
             >
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${getStatusColor(log.statusChange)}`}></div>

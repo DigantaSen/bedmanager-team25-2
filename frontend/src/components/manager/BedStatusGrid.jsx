@@ -66,7 +66,7 @@ const BedStatusGrid = ({ ward, onBedClick }) => {
       case 'cleaning':
         return 'bg-orange-500 hover:bg-orange-600';
       default:
-        return 'bg-zinc-500 hover:bg-zinc-600';
+        return 'bg-neutral-900 hover:bg-zinc-600';
     }
   };
 
@@ -126,7 +126,7 @@ const BedStatusGrid = ({ ward, onBedClick }) => {
 
   if (status === 'loading') {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
         </div>
@@ -136,14 +136,14 @@ const BedStatusGrid = ({ ward, onBedClick }) => {
 
   if (filteredBeds.length === 0) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <p className="text-zinc-400 text-center">No beds found for this ward.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h2 className="text-2xl font-bold text-white">Bed Status Grid</h2>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 text-sm">
