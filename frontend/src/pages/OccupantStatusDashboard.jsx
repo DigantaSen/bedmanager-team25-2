@@ -99,7 +99,7 @@ const OccupantStatusDashboard = () => {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-neutral-900 border border-zinc-800 rounded-lg p-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 text-left">
               <div className="bg-cyan-500/10 p-3 rounded-lg">
                 <Bed className="w-6 h-6 text-cyan-500" />
               </div>
@@ -111,7 +111,7 @@ const OccupantStatusDashboard = () => {
           </div>
 
           <div className="bg-neutral-900 border border-zinc-800 rounded-lg p-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 text-left">
               <div className="bg-blue-500/10 p-3 rounded-lg">
                 <TrendingUp className="w-6 h-6 text-blue-500" />
               </div>
@@ -125,7 +125,7 @@ const OccupantStatusDashboard = () => {
           </div>
 
           <div className="bg-neutral-900 border border-zinc-800 rounded-lg p-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 text-left">
               <div className="bg-yellow-500/10 p-3 rounded-lg">
                 <AlertCircle className="w-6 h-6 text-yellow-500" />
               </div>
@@ -139,7 +139,7 @@ const OccupantStatusDashboard = () => {
           </div>
 
           <div className="bg-neutral-900 border border-zinc-800 rounded-lg p-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 text-left">
               <div className="bg-purple-500/10 p-3 rounded-lg">
                 <Users className="w-6 h-6 text-purple-500" />
               </div>
