@@ -85,12 +85,12 @@ const ForecastingPanel = ({ ward }) => {
   const fetchBedsWithDischargeTime = async () => {
     try {
       const response = await api.get('/beds');
-      const beds = response.data.data;
+      const beds = response.data?.data?.beds || response.data?.beds || [];
       const occupiedWithDischargeTime = beds.filter(
         bed => bed.status === 'occupied' && bed.estimatedDischargeTime && (!ward || bed.ward === ward)
       );
       // Sort by discharge time (soonest first)
-      occupiedWithDischargeTime.sort((a, b) => 
+      occupiedWithDischargeTime.sort((a, b) =>
         new Date(a.estimatedDischargeTime) - new Date(b.estimatedDischargeTime)
       );
       setBedsWithDischargeTime(occupiedWithDischargeTime);
@@ -136,8 +136,8 @@ const ForecastingPanel = ({ ward }) => {
           <Info className="w-12 h-12 mx-auto mb-3 text-zinc-600" />
           <p>No forecasting data available</p>
           <p className="text-sm text-zinc-500 mt-2">
-            {forecastData?.metadata?.filteredByWard 
-              ? `No beds found in ${forecastData.metadata.filteredByWard} ward` 
+            {forecastData?.metadata?.filteredByWard
+              ? `No beds found in ${forecastData.metadata.filteredByWard} ward`
               : 'Data will appear once beds are occupied'}
           </p>
         </div>
@@ -151,29 +151,29 @@ const ForecastingPanel = ({ ward }) => {
     ? forecastData.wardForecasts.find(w => w.ward === ward) || forecastData.wardForecasts[0]
     : forecastData?.wardForecasts?.[0];
 
-  const displayMetrics = wardForecast 
+  const displayMetrics = wardForecast
     ? {
-        expectedDischarges24h: wardForecast.expectedDischarges?.next24Hours || 0,
-        expectedDischarges48h: wardForecast.expectedDischarges?.next48Hours || 0,
-        avgLengthOfStay: forecastData?.averageLengthOfStay?.days || 0,
-        projectedOccupancy: wardForecast.occupancyPercentage || 0,
-        totalBeds: wardForecast.totalBeds || 0,
-        occupiedBeds: wardForecast.occupiedBeds || 0,
-        availableBeds: wardForecast.availableBeds || 0,
-        projectedAvailability24h: wardForecast.projectedAvailability?.next24Hours || 0,
-        projectedAvailability48h: wardForecast.projectedAvailability?.next48Hours || 0,
-      }
+      expectedDischarges24h: wardForecast.expectedDischarges?.next24Hours || 0,
+      expectedDischarges48h: wardForecast.expectedDischarges?.next48Hours || 0,
+      avgLengthOfStay: forecastData?.averageLengthOfStay?.days || 0,
+      projectedOccupancy: wardForecast.occupancyPercentage || 0,
+      totalBeds: wardForecast.totalBeds || 0,
+      occupiedBeds: wardForecast.occupiedBeds || 0,
+      availableBeds: wardForecast.availableBeds || 0,
+      projectedAvailability24h: wardForecast.projectedAvailability?.next24Hours || 0,
+      projectedAvailability48h: wardForecast.projectedAvailability?.next48Hours || 0,
+    }
     : {
-        expectedDischarges24h: forecastData?.expectedDischarges?.next24Hours || 0,
-        expectedDischarges48h: forecastData?.expectedDischarges?.next48Hours || 0,
-        avgLengthOfStay: forecastData?.averageLengthOfStay?.days || 0,
-        projectedOccupancy: forecastData?.currentMetrics?.occupancyPercentage || 0,
-        totalBeds: forecastData?.currentMetrics?.totalBeds || 0,
-        occupiedBeds: forecastData?.currentMetrics?.occupiedBeds || 0,
-        availableBeds: forecastData?.currentMetrics?.availableBeds || 0,
-        projectedAvailability24h: (forecastData?.currentMetrics?.availableBeds || 0) + (forecastData?.expectedDischarges?.next24Hours || 0),
-        projectedAvailability48h: (forecastData?.currentMetrics?.availableBeds || 0) + (forecastData?.expectedDischarges?.next48Hours || 0),
-      };
+      expectedDischarges24h: forecastData?.expectedDischarges?.next24Hours || 0,
+      expectedDischarges48h: forecastData?.expectedDischarges?.next48Hours || 0,
+      avgLengthOfStay: forecastData?.averageLengthOfStay?.days || 0,
+      projectedOccupancy: forecastData?.currentMetrics?.occupancyPercentage || 0,
+      totalBeds: forecastData?.currentMetrics?.totalBeds || 0,
+      occupiedBeds: forecastData?.currentMetrics?.occupiedBeds || 0,
+      availableBeds: forecastData?.currentMetrics?.availableBeds || 0,
+      projectedAvailability24h: (forecastData?.currentMetrics?.availableBeds || 0) + (forecastData?.expectedDischarges?.next24Hours || 0),
+      projectedAvailability48h: (forecastData?.currentMetrics?.availableBeds || 0) + (forecastData?.expectedDischarges?.next48Hours || 0),
+    };
 
   // Calculate trend indicators
   const getTrendIcon = (value) => {
@@ -313,7 +313,7 @@ const ForecastingPanel = ({ ward }) => {
             {forecastData?.expectedDischarges?.details && (() => {
               const confirmedDischarges = forecastData.expectedDischarges.details.filter(d => d.isManuallySet);
               const now = new Date();
-              
+
               const next6Hours = confirmedDischarges.filter(d => {
                 const hoursUntil = (new Date(d.expectedDischargeTime) - now) / (1000 * 60 * 60);
                 return hoursUntil > 0 && hoursUntil <= 6;
@@ -336,7 +336,7 @@ const ForecastingPanel = ({ ward }) => {
                       <div>
                         <p className="text-zinc-200 text-sm font-semibold">Action Required</p>
                         <p className="text-zinc-300 text-sm">
-                          {overdue} bed{overdue > 1 ? 's have' : ' has'} passed estimated discharge time. 
+                          {overdue} bed{overdue > 1 ? 's have' : ' has'} passed estimated discharge time.
                           Please check status and update accordingly.
                         </p>
                       </div>
@@ -348,7 +348,7 @@ const ForecastingPanel = ({ ward }) => {
                       <div>
                         <p className="text-zinc-200 text-sm font-semibold">Upcoming Discharges</p>
                         <p className="text-zinc-300 text-sm">
-                          {next6Hours} bed{next6Hours > 1 ? 's' : ''} scheduled for discharge in next 6 hours. 
+                          {next6Hours} bed{next6Hours > 1 ? 's' : ''} scheduled for discharge in next 6 hours.
                           Alert cleaning team to prepare.
                         </p>
                       </div>
@@ -371,7 +371,7 @@ const ForecastingPanel = ({ ward }) => {
                       <div>
                         <p className="text-zinc-200 text-sm font-semibold">High Occupancy Alert</p>
                         <p className="text-zinc-300 text-sm">
-                          Occupancy at {displayMetrics.projectedOccupancy}% with limited upcoming discharges. 
+                          Occupancy at {displayMetrics.projectedOccupancy}% with limited upcoming discharges.
                           Consider expediting non-critical discharges.
                         </p>
                       </div>
@@ -380,21 +380,19 @@ const ForecastingPanel = ({ ward }) => {
                 </>
               );
             })()}
-            
+
             {/* Original backend insights */}
             {forecastData?.insights?.map((insight, index) => (
               <div
                 key={index}
-                className={`flex items-start gap-3 p-3 rounded ${
-                  insight.type === 'warning'
+                className={`flex items-start gap-3 p-3 rounded ${insight.type === 'warning'
                     ? 'bg-yellow-500/10 border-l-2 border-yellow-500'
                     : 'bg-blue-500/10 border-l-2 border-blue-500'
-                }`}
+                  }`}
               >
                 <Info
-                  className={`w-4 h-4 mt-0.5 ${
-                    insight.type === 'warning' ? 'text-yellow-500' : 'text-blue-500'
-                  }`}
+                  className={`w-4 h-4 mt-0.5 ${insight.type === 'warning' ? 'text-yellow-500' : 'text-blue-500'
+                    }`}
                 />
                 <div>
                   {insight.priority && (
@@ -418,12 +416,12 @@ const ForecastingPanel = ({ ward }) => {
           {(() => {
             // Backend timeline now includes both confirmed and estimated discharges
             const timelineBuckets = forecastData?.timeline?.slice(0, 12) || [];
-            
+
             // Separate confirmed vs estimated from discharge details
             const dischargeDetails = forecastData?.expectedDischarges?.details || [];
             const confirmedDischarges = dischargeDetails.filter(d => d.isManuallySet);
             const estimatedDischarges = dischargeDetails.filter(d => !d.isManuallySet);
-            
+
             const now = new Date();
             const maxDischarges = Math.max(
               ...timelineBuckets.map(b => b.expectedDischarges || 0),
@@ -433,21 +431,21 @@ const ForecastingPanel = ({ ward }) => {
             return timelineBuckets.map((bucket, index) => {
               const bucketStart = new Date(bucket.startTime);
               const bucketEnd = new Date(bucket.endTime);
-              
+
               // Count confirmed vs estimated in this bucket
               const confirmedInBucket = confirmedDischarges.filter(d => {
                 const dischargeTime = new Date(d.expectedDischargeTime);
                 return dischargeTime >= bucketStart && dischargeTime < bucketEnd;
               }).length;
-              
+
               const estimatedInBucket = estimatedDischarges.filter(d => {
                 const dischargeTime = new Date(d.expectedDischargeTime);
                 return dischargeTime >= bucketStart && dischargeTime < bucketEnd;
               }).length;
-              
+
               const totalInBucket = bucket.expectedDischarges || 0;
               const hasAny = totalInBucket > 0;
-              
+
               return (
                 <div key={index} className="flex items-center gap-3 py-1.5">
                   <div className="w-24 text-zinc-400 text-xs font-mono flex-shrink-0">{bucket.label}</div>
@@ -508,7 +506,7 @@ const ForecastingPanel = ({ ward }) => {
             });
           })()}
         </div>
-        
+
         {/* Legend */}
         <div className="flex items-center gap-4 mt-4 pt-3 border-t border-zinc-800">
           <div className="flex items-center gap-2">
@@ -549,15 +547,14 @@ const ForecastingPanel = ({ ward }) => {
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
             {forecastData.expectedDischarges.details.map((discharge, index) => {
               const isManual = discharge.isManuallySet;
-              
+
               return (
                 <div
                   key={index}
-                  className={`flex items-center justify-between py-2 px-3 rounded border transition-all ${
-                    isManual
+                  className={`flex items-center justify-between py-2 px-3 rounded border transition-all ${isManual
                       ? 'bg-gradient-to-r from-cyan-900/30 to-cyan-800/20 border-cyan-800/50 hover:border-cyan-600/50'
                       : 'bg-zinc-900/30 border-zinc-800/50 hover:border-zinc-700'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`font-bold text-sm ${isManual ? 'text-cyan-500' : 'text-yellow-500'}`}>
@@ -582,8 +579,8 @@ const ForecastingPanel = ({ ward }) => {
                       <>
                         <TimeRemaining targetDate={discharge.expectedDischargeTime} compact={true} />
                         <div className="text-zinc-500 text-xs mt-0.5">
-                          {new Date(discharge.expectedDischargeTime).toLocaleDateString('en-US', { 
-                            month: 'short', 
+                          {new Date(discharge.expectedDischargeTime).toLocaleDateString('en-US', {
+                            month: 'short',
                             day: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit'
@@ -643,13 +640,12 @@ const ForecastingPanel = ({ ward }) => {
               </div>
               <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden mt-2">
                 <div
-                  className={`h-full transition-all ${
-                    displayMetrics.projectedOccupancy > 90
+                  className={`h-full transition-all ${displayMetrics.projectedOccupancy > 90
                       ? 'bg-red-500'
                       : displayMetrics.projectedOccupancy > 75
-                      ? 'bg-yellow-500'
-                      : 'bg-green-500'
-                  }`}
+                        ? 'bg-yellow-500'
+                        : 'bg-green-500'
+                    }`}
                   style={{ width: `${displayMetrics.projectedOccupancy}%` }}
                 />
               </div>
@@ -716,7 +712,7 @@ const ForecastingPanel = ({ ward }) => {
               <div className="flex items-start gap-2 text-xs text-green-500 bg-green-500/10 p-2 rounded">
                 <TrendingUp className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                 <span>
-                  Good capacity outlook: {Math.round(((displayMetrics.projectedAvailability24h || 0) / displayMetrics.totalBeds) * 100)}% 
+                  Good capacity outlook: {Math.round(((displayMetrics.projectedAvailability24h || 0) / displayMetrics.totalBeds) * 100)}%
                   projected availability in 24h.
                 </span>
               </div>
@@ -736,7 +732,7 @@ const ForecastingPanel = ({ ward }) => {
             </span>
           </div>
         )}
-        
+
         <div className="flex items-center justify-between text-xs text-zinc-500 mb-2">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
@@ -751,8 +747,8 @@ const ForecastingPanel = ({ ward }) => {
           <div className="flex items-center gap-1">
             <Activity className="w-3 h-3" />
             <span>
-              Updated: {forecastData?.metadata?.timestamp 
-                ? new Date(forecastData.metadata.timestamp).toLocaleTimeString() 
+              Updated: {forecastData?.metadata?.timestamp
+                ? new Date(forecastData.metadata.timestamp).toLocaleTimeString()
                 : 'N/A'}
             </span>
           </div>
@@ -760,7 +756,7 @@ const ForecastingPanel = ({ ward }) => {
         <div className="flex items-center gap-2 text-xs text-zinc-600 italic">
           <Info className="w-3 h-3" />
           <p>
-            Forecasts combine manager-set discharge times (cyan) with AI estimates based on historical data (yellow). 
+            Forecasts combine manager-set discharge times (cyan) with AI estimates based on historical data (yellow).
             {forecastData?.metadata?.disclaimer}
           </p>
         </div>
