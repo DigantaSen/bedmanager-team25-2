@@ -154,9 +154,9 @@ const OccupancyTrendsChart = () => {
             <TrendingUp className="w-5 h-5 text-purple-400" />
             Occupancy Trends
           </CardTitle>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             <Select value={selectedWard} onValueChange={setSelectedWard}>
-              <SelectTrigger className="w-[180px] border-neutral-600">
+              <SelectTrigger className="w-[180px] border-neutral-600 h-10">
                 <SelectValue placeholder="Select ward" />
               </SelectTrigger>
               <SelectContent>
@@ -167,12 +167,12 @@ const OccupancyTrendsChart = () => {
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex gap-1 bg-neutral-900 rounded-lg p-1 border border-neutral-700">
+            <div className="flex gap-1 bg-neutral-900 rounded-lg p-1 border border-neutral-700 h-10">
               <Button
                 size="sm"
                 variant={timeRange === '7days' ? 'default' : 'ghost'}
                 onClick={() => setTimeRange('7days')}
-                className="text-xs"
+                className="text-xs h-8"
               >
                 7 Days
               </Button>
@@ -180,7 +180,7 @@ const OccupancyTrendsChart = () => {
                 size="sm"
                 variant={timeRange === '30days' ? 'default' : 'ghost'}
                 onClick={() => setTimeRange('30days')}
-                className="text-xs"
+                className="text-xs h-8"
               >
                 30 Days
               </Button>
@@ -188,7 +188,7 @@ const OccupancyTrendsChart = () => {
                 size="sm"
                 variant={timeRange === '90days' ? 'default' : 'ghost'}
                 onClick={() => setTimeRange('90days')}
-                className="text-xs"
+                className="text-xs h-8"
               >
                 90 Days
               </Button>
