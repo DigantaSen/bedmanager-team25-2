@@ -102,7 +102,7 @@ export default function LoginCardSection() {
       {/* Animated accent lines removed */}
       {/* Header removed: branding and contact button intentionally omitted */}
       {/* Centered Login Card with Tabs (Login / Sign Up) */}
-      <div className="min-h-screen w-full grid place-items-center px-4">
+      <div className="min-h-screen w-full grid place-items-center px-4 pt-12 pb-8">
         <Card className="relative z-[5100] card-animate w-full max-w-md border border-neutral-200/5 bg-white/5 dark:border-neutral-700 dark:bg-neutral-900/60 backdrop-blur supports-[backdrop-filter]:bg-neutral-900/60">
           <CardHeader className="space-y-1 text-left pl-4 pr-4 pt-6">
             <CardTitle className="text-2xl">Welcome</CardTitle>
@@ -148,7 +148,8 @@ export default function LoginCardSection() {
                       <a href="#" className="text-sm text-zinc-300 hover:text-zinc-100">Forgot password?</a>
                     </div>
 
-                    <Button disabled={isSubmitting} onClick={async () => {
+                    <Button disabled={isSubmitting} onClick={async (e) => {
+                      e.preventDefault(); // Prevent form submission/page refresh
                       setErrors({});
                       try {
                         const payload = {
@@ -247,13 +248,13 @@ export default function LoginCardSection() {
                     {/* Department - Optional for all roles */}
                     <div className="grid gap-2 text-left">
                       <Label htmlFor="department" className="text-zinc-300">Department (Optional)</Label>
-                      <Input 
-                        id="department" 
-                        type="text" 
-                        placeholder="e.g., Cardiology, Surgery" 
+                      <Input
+                        id="department"
+                        type="text"
+                        placeholder="e.g., Cardiology, Surgery"
                         value={department}
                         onChange={(e) => setDepartment(e.target.value)}
-                        className="bg-zinc-950 border-zinc-800 text-zinc-50 placeholder:text-zinc-600" 
+                        className="bg-zinc-950 border-zinc-800 text-zinc-50 placeholder:text-zinc-600"
                       />
                       {errors.department && <p className="text-xs text-red-400 mt-1">{errors.department}</p>}
                     </div>
@@ -293,7 +294,8 @@ export default function LoginCardSection() {
                       <Label htmlFor="terms" className="text-zinc-400 text-sm">I agree to the Terms & Privacy</Label>
                     </div>
 
-                    <Button disabled={isSubmitting} onClick={async () => {
+                    <Button disabled={isSubmitting} onClick={async (e) => {
+                      e.preventDefault(); // Prevent form submission/page refresh
                       setErrors({});
                       try {
                         const payload = {
@@ -347,14 +349,19 @@ export default function LoginCardSection() {
                           }
                         } else {
                           // Error - show message
-                          setErrors({ password: resultAction.payload || 'Registration failed' });
+                          setErrors({ signupError: resultAction.payload || 'Registration failed' });
                         }
                       } catch (err) {
-                        setErrors({ password: 'An unexpected error occurred' });
+                        setErrors({ signupError: 'An unexpected error occurred' });
                       }
                     }} className="w-full h-10 rounded-lg bg-zinc-50 text-zinc-900 hover:bg-zinc-200">
                       {isSubmitting ? 'Creating account...' : 'Create account'}
                     </Button>
+                    {errors.signupError && (
+                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                        <p className="text-sm text-red-400">{errors.signupError}</p>
+                      </div>
+                    )}
                     {/* 
                     <div className="relative">
                       <Separator className="bg-zinc-800" />

@@ -11,14 +11,14 @@ export const FloatingNav = ({ navItems, className }) => {
     return (
         <AnimatePresence mode="wait">
             <motion.div
-                initial={{ opacity: 1, y: 0, scale: 1 }}
-                animate={{ y: visible ? 0 : -100, opacity: visible ? 1 : 0, scale: 1 }}
+                initial={{ opacity: 1, x: 0, scale: 1 }}
+                animate={{ x: visible ? 0 : -100, opacity: visible ? 1 : 0, scale: 1 }}
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.2 }}
                 className={cn(
-                    // dark, slightly translucent pill with backdrop blur for legibility
-                    "fixed top-10 inset-x-0 mx-auto max-w-fit rounded-full bg-neutral-950/75 backdrop-blur-sm border border-neutral-700/40 text-white shadow-lg z-[5000] pr-3 pl-8 py-2 flex items-center justify-center space-x-4",
+                    // dark, slightly translucent pill with backdrop blur for legibility - positioned on left
+                    "fixed top-10 left-8 max-w-fit rounded-full bg-neutral-950/75 backdrop-blur-sm border border-neutral-700/40 text-white shadow-lg z-[5000] pr-3 pl-8 py-2 flex items-center justify-center space-x-4",
                     className
                 )}
             >
