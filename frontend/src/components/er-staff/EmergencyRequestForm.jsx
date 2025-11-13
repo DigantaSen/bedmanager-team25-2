@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, AlertCircle, Loader2, User, FileText, Phone } from 'lucide-react';
+import { X, AlertCircle, Loader2, User, FileText, Phone, CheckCircle } from 'lucide-react';
 import api from '@/services/api';
 
 const EmergencyRequestForm = ({ onClose, onSuccess }) => {
@@ -14,6 +14,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const priorityLevels = [
     { value: 'critical', label: 'Critical', color: 'text-red-500' },
@@ -79,7 +80,7 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
       console.log('Response:', response);
 
       if (response.data.success || response.status === 200 || response.status === 201) {
-        alert('Emergency request submitted successfully!');
+        setShowSuccessModal(true);
         onSuccess && onSuccess(response.data.data || response.data);
         // Reset form
         setFormData({
@@ -281,6 +282,29 @@ const EmergencyRequestForm = ({ onClose, onSuccess }) => {
           </button>
         </div>
       </form>
+
+      {/* Success Modal - Centered Floating Card */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-neutral-900 border-2 border-green-500 rounded-lg shadow-2xl p-8 max-w-md mx-4 animate-in fade-in zoom-in duration-300">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-10 h-10 text-green-500" />
+              </div>
+              <h3 className="text-2xl font-bold text-white">Success!</h3>
+              <p className="text-neutral-300">
+                Emergency request submitted successfully!
+              </p>
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="mt-4 px-6 py-2 bg-green-500 hover:bg-green-600 rounded-lg text-white font-semibold transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

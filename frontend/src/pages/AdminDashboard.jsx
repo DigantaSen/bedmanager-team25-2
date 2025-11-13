@@ -4,6 +4,7 @@ import WardUtilizationReport from '@/components/WardUtilizationReport';
 import OccupancyTrendsChart from '@/components/OccupancyTrendsChart';
 import ForecastingInsights from '@/components/ForecastingInsights';
 import ReportGenerator from '@/components/ReportGenerator';
+import AlertNotificationPanel from '@/components/manager/AlertNotificationPanel';
 import DashboardLayout from '@/components/DashboardLayout';
 import api from '@/services/api';
 
@@ -53,6 +54,11 @@ const AdminDashboard = () => {
         {/* Executive Summary - Always Visible */}
         <div className="mb-8">
           <ExecutiveSummary />
+        </div>
+
+        {/* Active Alerts */}
+        <div className="mb-8">
+          <AlertNotificationPanel />
         </div>
 
         {/* Tabbed Navigation */}

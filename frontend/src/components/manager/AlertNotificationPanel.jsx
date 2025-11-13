@@ -10,6 +10,7 @@ const AlertNotificationPanel = ({ ward }) => {
   const currentUser = useSelector((state) => state.auth.user);
 
   useEffect(() => {
+    console.log('🔍 Fetching alerts...');
     dispatch(fetchAlerts());
   }, [dispatch]);
 
@@ -37,6 +38,15 @@ const AlertNotificationPanel = ({ ward }) => {
   const filteredAlerts = ward || currentUser?.ward
     ? (Array.isArray(alerts) ? alerts : []).filter((alert) => !alert.ward || alert.ward === (ward || currentUser?.ward))
     : (Array.isArray(alerts) ? alerts : []);
+
+  console.log('📊 Alert Panel State:', {
+    status,
+    totalAlerts: alerts?.length || 0,
+    filteredAlerts: filteredAlerts.length,
+    currentUserRole: currentUser?.role,
+    currentUserWard: currentUser?.ward,
+    wardProp: ward
+  });
 
   const getSeverityConfig = (severity) => {
     switch (severity) {
