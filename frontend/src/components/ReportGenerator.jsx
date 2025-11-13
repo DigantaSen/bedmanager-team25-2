@@ -431,8 +431,8 @@ const ReportGenerator = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Report Type Selection */}
-          <div className="space-y-3">
-            <Label className="text-slate-300">Report Type</Label>
+          <div className="space-y-4">
+            <Label className="text-slate-300 block mt-2">Report Type</Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {reportTypes.map((type) => (
                 <div
@@ -443,10 +443,10 @@ const ReportGenerator = () => {
                     : 'border-neutral-700 bg-neutral-900 hover:border-neutral-600'
                     }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-semibold text-white mb-1">{type.label}</h4>
-                      <p className="text-sm text-slate-400">{type.description}</p>
+                  <div className="flex items-start justify-between text-left">
+                    <div className="text-left">
+                      <h4 className="font-semibold text-white mb-1 text-left">{type.label}</h4>
+                      <p className="text-sm text-slate-400 text-left">{type.description}</p>
                     </div>
                     {reportType === type.value && (
                       <CheckCircle className="w-5 h-5 text-blue-400" />
@@ -458,8 +458,8 @@ const ReportGenerator = () => {
           </div>
 
           {/* Date Range */}
-          <div className="space-y-3">
-            <Label className="text-slate-300">Date Range</Label>
+          <div className="space-y-4">
+            <Label className="text-slate-300 block mt-2">Date Range</Label>
             <Select value={dateRange} onValueChange={setDateRange}>
               <SelectTrigger className="border-neutral-600">
                 <Calendar className="w-4 h-4 mr-2" />
@@ -479,9 +479,9 @@ const ReportGenerator = () => {
           </div>
 
           {/* Ward Selection */}
-          <div className="space-y-3">
-            <Label className="text-slate-300">Select Wards</Label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="space-y-4">
+            <Label className="text-slate-300 block mt-2">Select Wards</Label>
+            <div className="grid grid-cols-2 gap-3">
               {wards.map((ward) => (
                 <div
                   key={ward}
@@ -670,8 +670,8 @@ const ReportGenerator = () => {
         </CardHeader>
         <CardContent>
           {recentReports.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">
-              <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <div className="text-left py-8 text-slate-400">
+              <FileText className="w-12 h-12 mb-3 opacity-50" />
               <p>No reports generated yet</p>
               <p className="text-sm mt-1">Generate your first report to see it here</p>
             </div>

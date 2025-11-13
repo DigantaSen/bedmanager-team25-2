@@ -255,7 +255,7 @@ const ReportsPage = () => {
               <Button
                 onClick={handleGenerateReport}
                 disabled={isGenerating}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                className="flex-1 bg-blue-500 hover:bg-blue-700"
               >
                 {isGenerating ? (
                   <>

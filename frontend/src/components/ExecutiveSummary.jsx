@@ -102,7 +102,7 @@ const ExecutiveSummary = () => {
           return (
             <Card
               key={index}
-              className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-neutral-700 hover:border-neutral-600 transition-all"
+              className="bg-neutral-900 border-neutral-700 hover:border-neutral-600 transition-all text-left"
             >
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">

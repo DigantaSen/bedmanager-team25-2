@@ -270,7 +270,7 @@ const OccupancyTrendsChart = () => {
               <Calendar className="w-4 h-4" />
               Key Insights
             </h4>
-            <ul className="space-y-1 text-sm text-slate-300">
+            <ul className="space-y-1 text-md text-slate-300 text-left">
               {dynamicInsights.map((insight, index) => (
                 <li key={index}>• {insight}</li>
               ))}

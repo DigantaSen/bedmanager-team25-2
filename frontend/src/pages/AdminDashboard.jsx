@@ -13,11 +13,11 @@ const AdminDashboard = () => {
     <DashboardLayout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+        <div className="mb-8 text-left">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2 text-left">
             Admin Dashboard
           </h1>
-          <p className="text-slate-400">Hospital-wide analytics and insights</p>
+          <p className="text-neutral-400 text-left">Hospital-wide analytics and insights</p>
         </div>
 
         {/* Executive Summary - Always Visible */}
@@ -31,7 +31,7 @@ const AdminDashboard = () => {
             <button
               onClick={() => setActiveTab('overview')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'overview'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'text-slate-300 hover:bg-neutral-700'
                 }`}
             >
@@ -40,7 +40,7 @@ const AdminDashboard = () => {
             <button
               onClick={() => setActiveTab('trends')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'trends'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'text-slate-300 hover:bg-neutral-700'
                 }`}
             >
@@ -49,7 +49,7 @@ const AdminDashboard = () => {
             <button
               onClick={() => setActiveTab('forecasting')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'forecasting'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'text-slate-300 hover:bg-neutral-700'
                 }`}
             >
@@ -58,7 +58,7 @@ const AdminDashboard = () => {
             <button
               onClick={() => setActiveTab('reports')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'reports'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'text-slate-300 hover:bg-neutral-700'
                 }`}
             >
