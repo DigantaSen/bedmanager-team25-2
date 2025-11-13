@@ -167,6 +167,12 @@ exports.updateBedStatus = async (req, res) => {
     bed.patientName = finalStatus === 'occupied' ? (patientName || null) : null;
     bed.patientId = finalStatus === 'occupied' ? (patientId || null) : null;
     
+    // Clear discharge time and notes when patient is released (occupied -> cleaning/available)
+    if (previousStatus === 'occupied' && finalStatus !== 'occupied') {
+      bed.estimatedDischargeTime = null;
+      bed.dischargeNotes = null;
+    }
+    
     // Task 2.5c: Update notes if provided
     if (notes !== undefined) {
       bed.notes = notes ? notes.trim() : null;

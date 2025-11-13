@@ -2,30 +2,78 @@ import React, { useEffect, useState } from 'react';
 import { TrendingUp, Calendar, Users, Clock, AlertCircle, Info, Activity, BedDouble, ArrowUp, ArrowDown, Minus, Target, BarChart3 } from 'lucide-react';
 import api from '../../services/api';
 import TimeRemaining from '../common/TimeRemaining';
+import { useSocket } from '../../context/SocketProvider';
 
 const ForecastingPanel = ({ ward }) => {
   const [forecastData, setForecastData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [bedsWithDischargeTime, setBedsWithDischargeTime] = useState([]);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [secondsAgo, setSecondsAgo] = useState(0);
+  const socket = useSocket();
 
   useEffect(() => {
     fetchForecastData();
     fetchBedsWithDischargeTime();
-    // Refresh every 2 minutes for better real-time data
+    // Auto-refresh every 10 seconds for real-time data
     const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing forecasting data (10s interval)...');
       fetchForecastData();
       fetchBedsWithDischargeTime();
-    }, 2 * 60 * 1000);
+    }, 10 * 1000); // 10 seconds
     return () => clearInterval(interval);
   }, [ward]);
 
+  // Update "seconds ago" every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const seconds = Math.floor((new Date() - lastRefresh) / 1000);
+      setSecondsAgo(seconds);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lastRefresh]);
+
+  // Listen for socket events to refresh forecasting data in real-time
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleBedUpdate = () => {
+      console.log('🔄 Bed status changed, refreshing forecasting data...');
+      fetchForecastData();
+      fetchBedsWithDischargeTime();
+    };
+
+    // Listen to all bed-related events for automatic real-time updates
+    socket.on('bedStatusChanged', handleBedUpdate);
+    socket.on('bedDischargeTimeUpdated', handleBedUpdate);
+    socket.on('bedCleaningStarted', handleBedUpdate);
+    socket.on('bedCleaningCompleted', handleBedUpdate);
+    socket.on('bedUpdated', handleBedUpdate);
+
+    console.log('✅ Forecasting Panel: Socket listeners registered');
+
+    return () => {
+      socket.off('bedStatusChanged', handleBedUpdate);
+      socket.off('bedDischargeTimeUpdated', handleBedUpdate);
+      socket.off('bedCleaningStarted', handleBedUpdate);
+      socket.off('bedCleaningCompleted', handleBedUpdate);
+      socket.off('bedUpdated', handleBedUpdate);
+      console.log('🔌 Forecasting Panel: Socket listeners removed');
+    };
+  }, [socket, ward]);
+
   const fetchForecastData = async () => {
     try {
-      setLoading(true);
+      // Only show loading on initial load, not on refreshes
+      if (!forecastData) {
+        setLoading(true);
+      }
       const response = await api.get('/analytics/forecasting');
       setForecastData(response.data.data);
+      setLastRefresh(new Date());
       setError(null);
+      console.log('✅ Forecasting data refreshed at', new Date().toLocaleTimeString());
     } catch (err) {
       console.error('Error fetching forecast data:', err);
       setError('Failed to load forecasting data');
@@ -186,6 +234,18 @@ const ForecastingPanel = ({ ward }) => {
     },
   ];
 
+  const getTimeAgoText = () => {
+    if (secondsAgo < 60) {
+      return `${secondsAgo} second${secondsAgo !== 1 ? 's' : ''} ago`;
+    } else if (secondsAgo < 3600) {
+      const minutes = Math.floor(secondsAgo / 60);
+      return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    } else {
+      const hours = Math.floor(secondsAgo / 3600);
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    }
+  };
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
@@ -193,12 +253,21 @@ const ForecastingPanel = ({ ward }) => {
           <TrendingUp className="w-6 h-6 text-cyan-500" />
           <h2 className="text-2xl font-bold text-white">Forecasting & Insights</h2>
         </div>
-        <button
-          onClick={fetchForecastData}
-          className="text-xs text-zinc-400 hover:text-cyan-500 transition-colors"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-zinc-500 flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            Last updated: {getTimeAgoText()}
+          </div>
+          <button
+            onClick={() => {
+              fetchForecastData();
+              fetchBedsWithDischargeTime();
+            }}
+            className="text-xs text-zinc-400 hover:text-cyan-500 transition-colors px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700"
+          >
+            Refresh Now
+          </button>
+        </div>
       </div>
 
       {/* Metrics Grid */}

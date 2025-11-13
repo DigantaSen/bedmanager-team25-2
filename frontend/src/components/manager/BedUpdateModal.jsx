@@ -463,6 +463,7 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
           </div>
 
           {/* Estimated Discharge Time Section - For Assigning Patient or Updating Occupied Beds */}
+          {/* Show if: (1) assigning a new patient (status='occupied'), OR (2) bed is currently occupied */}
           {(status === 'occupied' || bed.status === 'occupied') && (
             <div className="pt-4 border-t border-zinc-800">
               <h3 className="text-sm font-semibold text-zinc-400 mb-3 flex items-center gap-2">
@@ -478,13 +479,18 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess }) => {
                     type="datetime-local"
                     value={estimatedDischargeTime}
                     onChange={(e) => setEstimatedDischargeTime(e.target.value)}
-                    min={new Date().toISOString().slice(0, 16)}
                     className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-cyan-500"
                     disabled={isUpdating}
                   />
                   {bed.status === 'available' && (
                     <p className="text-xs text-zinc-500 mt-1">
                       Set the expected discharge time when assigning the patient
+                    </p>
+                  )}
+                  {bed.status === 'occupied' && bed.estimatedDischargeTime && new Date(bed.estimatedDischargeTime) < new Date() && (
+                    <p className="text-xs text-yellow-400 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Current discharge time is overdue. Update to a new time.
                     </p>
                   )}
                 </div>
