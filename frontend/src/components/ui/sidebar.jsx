@@ -271,12 +271,12 @@ export const ProfileLink = () => {
           }}
           transition={{ duration: 0.18 }}
           className={cn(
-            "absolute left-2 top-1/2 -translate-y-1/2 text-neutral-700 dark:text-neutral-200 whitespace-pre transition-transform duration-150 group-hover/sidebar:translate-x-1",
+            "absolute left-2 top-1/2 -translate-y-1/2 text-neutral-700 dark:text-neutral-200 whitespace-pre transition-transform duration-150 group-hover/sidebar:translate-x-1 text-left",
             !open && "pointer-events-none"
           )}
         >
-          <div className="text-sm font-medium">{currentUser?.name || 'Guest'}</div>
-          <div className="text-xs text-neutral-500 dark:text-neutral-400 capitalize">
+          <div className="text-sm font-medium text-left">{currentUser?.name || 'Guest'}</div>
+          <div className="text-xs text-neutral-500 dark:text-neutral-400 capitalize text-left">
             {currentUser?.role?.replace(/_/g, ' ') || 'No role'}
           </div>
         </motion.div>
