@@ -385,7 +385,7 @@ class ReportService {
       fields: ['Ward', 'Total Beds', 'Occupied Beds', 'Available Beds', 'Cleaning Beds', 'Occupancy Rate (%)']
     });
 
-    const csv = json2csvParser.parse(csvData);
+    const csv = parser.parse(csvData);
 
     // Save CSV to file
     const fileName = `report_${Date.now()}.csv`;
