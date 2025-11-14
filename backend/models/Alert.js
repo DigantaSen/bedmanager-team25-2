@@ -51,10 +51,10 @@ const alertSchema = new mongoose.Schema(
         message: '{VALUE} is not a valid target role'
       }
     }],
-    read: {
-      type: Boolean,
-      default: false
-    },
+    dismissedBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
     timestamp: {
       type: Date,
       default: Date.now
@@ -69,11 +69,11 @@ const alertSchema = new mongoose.Schema(
 // Index for faster queries by targetRole
 alertSchema.index({ targetRole: 1 });
 
-// Index for faster queries by read status
-alertSchema.index({ read: 1 });
+// Index for faster queries by dismissedBy
+alertSchema.index({ dismissedBy: 1 });
 
-// Compound index for targetRole + read + timestamp queries
-alertSchema.index({ targetRole: 1, read: 1, timestamp: -1 });
+// Compound index for targetRole + timestamp queries
+alertSchema.index({ targetRole: 1, timestamp: -1 });
 
 // Index for type-based queries
 alertSchema.index({ type: 1 });

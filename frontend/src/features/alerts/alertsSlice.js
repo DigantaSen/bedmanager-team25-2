@@ -40,9 +40,9 @@ const alertsSlice = createSlice({
         state.error = action.error.message;
       })
       .addCase(dismissAlert.fulfilled, (state, action) => {
-        const idx = state.alerts.findIndex(a => a._id === action.payload._id);
-        if (idx >= 0) state.alerts[idx] = action.payload;
-        state.unreadCount = state.alerts.filter(a => !a.read).length;
+        // Remove the dismissed alert from the current user's view
+        state.alerts = state.alerts.filter(a => a._id !== action.payload._id);
+        state.unreadCount = state.alerts.length;
       });
   },
 });

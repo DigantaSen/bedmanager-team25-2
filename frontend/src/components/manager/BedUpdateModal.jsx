@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, BedDouble, Loader2, Clock, User, Calendar, AlertCircle, FileText } from 'lucide-react';
 import api from '@/services/api';
 import TimeRemaining from '../common/TimeRemaining';
@@ -13,6 +13,8 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
   const [dischargeNotes, setDischargeNotes] = useState(bed?.dischargeNotes || '');
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const timePickerRef = useRef(null);
 
   // Calculate time-related metadata
   const [timeInBed, setTimeInBed] = useState(null);
@@ -95,7 +97,38 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
     }
   }, [bed, emergencyPatientData]);
 
+  // Close time picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (timePickerRef.current && !timePickerRef.current.contains(event.target)) {
+        setShowTimePicker(false);
+      }
+    };
+
+    if (showTimePicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTimePicker]);
+
   if (!isOpen || !bed) return null;
+
+  const handleTimeSelect = (hour, minute, period) => {
+    let hour24 = parseInt(hour);
+    if (period === 'PM' && hour24 !== 12) {
+      hour24 += 12;
+    } else if (period === 'AM' && hour24 === 12) {
+      hour24 = 0;
+    }
+
+    const timeString = `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    const date = estimatedDischargeTime.split('T')[0] || new Date().toISOString().split('T')[0];
+    setEstimatedDischargeTime(`${date}T${timeString}`);
+    setShowTimePicker(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -491,13 +524,147 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
                       <label className="block text-sm text-zinc-400 mb-2 text-left">
                         Discharge Date & Time <span className="text-zinc-600">(Optional)</span>
                       </label>
-                      <input
-                        type="datetime-local"
-                        value={estimatedDischargeTime}
-                        onChange={(e) => setEstimatedDischargeTime(e.target.value)}
-                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-neutral-400 [color-scheme:dark]"
-                        disabled={isUpdating}
-                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-zinc-500 mb-1 text-left">Date (DD/MM/YYYY)</label>
+                          <input
+                            type="date"
+                            value={estimatedDischargeTime.split('T')[0] || ''}
+                            onChange={(e) => {
+                              const date = e.target.value;
+                              const time = estimatedDischargeTime.split('T')[1] || '00:00';
+                              setEstimatedDischargeTime(date ? `${date}T${time}` : '');
+                            }}
+                            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-neutral-400 [color-scheme:dark] cursor-pointer"
+                            disabled={isUpdating}
+                          />
+                        </div>
+                        <div className="relative" ref={timePickerRef}>
+                          <label className="block text-xs text-zinc-500 mb-1 text-left">Time (HH:MM)</label>
+                          <div
+                            onClick={() => !isUpdating && setShowTimePicker(!showTimePicker)}
+                            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white cursor-pointer flex items-center justify-between hover:border-neutral-400 transition-colors"
+                          >
+                            <span className={estimatedDischargeTime.split('T')[1] ? 'text-white' : 'text-zinc-500'}>
+                              {estimatedDischargeTime.split('T')[1] ?
+                                (() => {
+                                  const [hours, minutes] = estimatedDischargeTime.split('T')[1].split(':');
+                                  const hour = parseInt(hours);
+                                  const period = hour >= 12 ? 'PM' : 'AM';
+                                  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                                  return `${String(displayHour).padStart(2, '0')}:${minutes} ${period}`;
+                                })()
+                                : '--:-- --'
+                              }
+                            </span>
+                            <Clock className="w-4 h-4 text-zinc-400" />
+                          </div>
+
+                          {showTimePicker && (
+                            <div className="absolute z-50 bottom-full mb-2 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-4 w-full">
+                              <div className="grid grid-cols-3 gap-2 mb-3">
+                                {/* Hours */}
+                                <div>
+                                  <div className="text-xs text-zinc-400 mb-2 text-center">Hour</div>
+                                  <div className="max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(hour => {
+                                      const currentTime = estimatedDischargeTime.split('T')[1] || '12:00';
+                                      const [currentHour24] = currentTime.split(':').map(Number);
+                                      const currentHour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24;
+                                      const isSelected = currentHour12 === hour;
+
+                                      return (
+                                        <button
+                                          key={hour}
+                                          type="button"
+                                          onClick={() => {
+                                            const currentTime = estimatedDischargeTime.split('T')[1] || '12:00';
+                                            const [, currentMinute] = currentTime.split(':');
+                                            const [currentHour24] = currentTime.split(':').map(Number);
+                                            const period = currentHour24 >= 12 ? 'PM' : 'AM';
+                                            handleTimeSelect(hour, currentMinute, period);
+                                          }}
+                                          className={`w-full px-2 py-1.5 rounded text-sm transition-colors ${isSelected
+                                            ? 'bg-cyan-600 text-white'
+                                            : 'hover:bg-zinc-800 text-zinc-300'
+                                            }`}
+                                        >
+                                          {String(hour).padStart(2, '0')}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Minutes */}
+                                <div>
+                                  <div className="text-xs text-zinc-400 mb-2 text-center">Min</div>
+                                  <div className="max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
+                                    {Array.from({ length: 60 }, (_, i) => i).map(minute => {
+                                      const currentTime = estimatedDischargeTime.split('T')[1] || '12:00';
+                                      const [, currentMinute] = currentTime.split(':').map(Number);
+                                      const isSelected = currentMinute === minute;
+
+                                      return (
+                                        <button
+                                          key={minute}
+                                          type="button"
+                                          onClick={() => {
+                                            const currentTime = estimatedDischargeTime.split('T')[1] || '12:00';
+                                            const [currentHour] = currentTime.split(':');
+                                            const [currentHour24] = currentTime.split(':').map(Number);
+                                            const period = currentHour24 >= 12 ? 'PM' : 'AM';
+                                            const hour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24;
+                                            handleTimeSelect(hour12, minute, period);
+                                          }}
+                                          className={`w-full px-2 py-1.5 rounded text-sm transition-colors ${isSelected
+                                            ? 'bg-cyan-600 text-white'
+                                            : 'hover:bg-zinc-800 text-zinc-300'
+                                            }`}
+                                        >
+                                          {String(minute).padStart(2, '0')}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* AM/PM */}
+                                <div>
+                                  <div className="text-xs text-zinc-400 mb-2 text-center">Period</div>
+                                  <div className="space-y-1">
+                                    {['AM', 'PM'].map(period => {
+                                      const currentTime = estimatedDischargeTime.split('T')[1] || '12:00';
+                                      const [currentHour24] = currentTime.split(':').map(Number);
+                                      const currentPeriod = currentHour24 >= 12 ? 'PM' : 'AM';
+                                      const isSelected = currentPeriod === period;
+
+                                      return (
+                                        <button
+                                          key={period}
+                                          type="button"
+                                          onClick={() => {
+                                            const currentTime = estimatedDischargeTime.split('T')[1] || '12:00';
+                                            const [currentHour24, currentMinute] = currentTime.split(':').map(Number);
+                                            const currentHour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24;
+                                            handleTimeSelect(currentHour12, currentMinute, period);
+                                          }}
+                                          className={`w-full px-2 py-1.5 rounded text-sm transition-colors ${isSelected
+                                            ? 'bg-cyan-600 text-white'
+                                            : 'hover:bg-zinc-800 text-zinc-300'
+                                            }`}
+                                        >
+                                          {period}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       {bed.status === 'available' && (
                         <p className="text-xs text-zinc-500 mt-1">
                           Set the expected discharge time when assigning the patient

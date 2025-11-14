@@ -23,8 +23,11 @@ exports.getAlerts = async (req, res) => {
       ];
     }
 
-    // Fetch alerts filtered by user's role and ward
-    const alerts = await Alert.find(filter)
+    // Fetch alerts filtered by user's role and ward, excluding dismissed ones
+    const alerts = await Alert.find({
+      ...filter,
+      dismissedBy: { $ne: req.user._id } // Exclude alerts dismissed by this user
+    })
       .populate('relatedBed', 'bedId ward status')
       .populate('relatedRequest', 'patientId location status')
       .sort({ timestamp: -1 });
@@ -61,10 +64,10 @@ exports.dismissAlert = async (req, res) => {
       });
     }
 
-    // Find and update alert
+    // Find and update alert - add current user to dismissedBy array
     const alert = await Alert.findByIdAndUpdate(
       id,
-      { read: true },
+      { $addToSet: { dismissedBy: req.user._id } },
       { new: true, runValidators: true }
     );
 
@@ -75,24 +78,13 @@ exports.dismissAlert = async (req, res) => {
       });
     }
 
-    // Task 2.6: Emit socket event for alert dismissal (ward-specific if applicable)
-    if (req.io) {
-      // If alert has a ward, emit to that ward's room
-      if (alert.ward) {
-        req.io.to(`ward-${alert.ward}`).emit('alertDismissed', {
-          alertId: alert._id,
-          ward: alert.ward,
-          timestamp: new Date()
-        });
-      }
-      
-      // Also emit globally for hospital admins
-      req.io.emit('alertDismissed', {
+    // Task 2.6: Emit socket event for alert dismissal only to the user who dismissed it
+    if (req.io && req.user.socketId) {
+      req.io.to(req.user.socketId).emit('alertDismissed', {
         alertId: alert._id,
-        ward: alert.ward,
         timestamp: new Date()
       });
-      console.log('✅ alertDismissed event emitted via socket.io');
+      console.log('✅ alertDismissed event emitted to user via socket.io');
     }
 
     res.status(200).json({
