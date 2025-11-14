@@ -111,7 +111,10 @@ const AlertNotificationPanel = ({ ward }) => {
   return (
     <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-white">Alerts & Notifications</h2>
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-red-400" />
+          Active Alerts
+        </h2>
         {filteredAlerts.length > 0 && (
           <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
             {filteredAlerts.length}
@@ -142,7 +145,7 @@ const AlertNotificationPanel = ({ ward }) => {
                 <div className={`${config.color} mt-1`}>
                   <Icon className="w-5 h-5" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 text-left">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className={`font-semibold ${config.color}`}>
                       {alert.type || 'Alert'}
@@ -155,11 +158,11 @@ const AlertNotificationPanel = ({ ward }) => {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <p className="text-zinc-300 text-sm mt-1">{alert.message}</p>
+                  <p className="text-zinc-300 text-sm mt-1 text-left">{alert.message}</p>
                   {alert.ward && (
-                    <p className="text-zinc-500 text-xs mt-2">Ward: {alert.ward}</p>
+                    <p className="text-zinc-500 text-xs mt-2 text-left">Ward: {alert.ward}</p>
                   )}
-                  <p className="text-zinc-500 text-xs mt-1">
+                  <p className="text-zinc-500 text-xs mt-1 text-left">
                     {new Date(alert.createdAt || Date.now()).toLocaleString()}
                   </p>
                 </div>
