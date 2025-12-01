@@ -19,6 +19,7 @@ import OccupantStatusDashboard from './pages/OccupantStatusDashboard'
 import ErStaffDashboard from './pages/ErStaffDashboard'
 import ErStaffDashboardTest from './pages/ErStaffDashboardTest'
 import Unauthorized from './pages/Unauthorized'
+import Profile from './pages/Profile'
 
 function App() {
   const location = useLocation();
@@ -130,6 +131,16 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['er_staff']}>
               <ErStaffDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Profile Page - Accessible to all authenticated users */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute allowedRoles={['hospital_admin', 'manager', 'ward_staff', 'er_staff', 'technical_team']}>
+              <Profile />
             </ProtectedRoute>
           }
         />

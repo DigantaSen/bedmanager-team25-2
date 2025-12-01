@@ -260,6 +260,7 @@ export const LogoIcon = () => (
 export const ProfileLink = () => {
   const { open, animate } = useSidebar();
   const currentUser = useSelector(selectCurrentUser);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   // Get user initials for avatar
   const getInitials = (name) => {
@@ -273,8 +274,16 @@ export const ProfileLink = () => {
 
   return (
     <div className="group/sidebar flex items-center justify-start gap-2 py-4 px-3">
-      <div className="h-8 w-8 rounded-full bg-sky-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold">
-        {currentUser ? getInitials(currentUser.name) : '?'}
+      <div className="h-8 w-8 rounded-full bg-sky-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold overflow-hidden">
+        {currentUser?.profilePicture ? (
+          <img 
+            src={`${API_URL}${currentUser.profilePicture}`} 
+            alt={currentUser.name} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          currentUser ? getInitials(currentUser.name) : '?'
+        )}
       </div>
       <div className="relative flex-1">
         <motion.div

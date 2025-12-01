@@ -12,7 +12,8 @@ import {
   LogOut,
   ClipboardList,
   Shield,
-  TrendingUp
+  TrendingUp,
+  User
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,6 +40,11 @@ const DashboardLayout = ({ children }) => {
     const role = currentUser?.role;
 
     const commonLinks = [
+      {
+        label: 'Profile',
+        href: '/profile',
+        icon: <User className="h-5 w-5" />,
+      },
       {
         label: 'Settings',
         href: '#settings',

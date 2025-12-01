@@ -107,6 +107,9 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
+    setUser: (state, action) => {
+      state.user = action.payload;
+    },
     logout: (state) => {
       state.user = null;
       state.token = null;
@@ -166,7 +169,14 @@ const authSlice = createSlice({
 });
 
 // Export actions
-export const { logout, clearError } = authSlice.actions;
+export const { logout, clearError, setUser } = authSlice.actions;
+
+// Action to update user profile data
+export const updateUserProfile = (userData) => (dispatch) => {
+  const updatedUser = { ...userData };
+  localStorage.setItem('user', JSON.stringify(updatedUser));
+  dispatch(setUser(updatedUser));
+};
 
 // Selectors
 export const selectCurrentUser = (state) => state.auth.user;

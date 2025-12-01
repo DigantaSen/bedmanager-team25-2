@@ -92,6 +92,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve static files for uploads
+app.use('/uploads', express.static('uploads'));
+
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRoutes);
 app.use('/api/beds', bedRoutes);
@@ -100,6 +103,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/emergency-requests', emergencyRequestRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/profile', require('./routes/profileRoutes'));
 
 // Initialize socket connections
 initializeSocket(io);

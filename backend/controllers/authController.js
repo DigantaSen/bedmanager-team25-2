@@ -100,7 +100,12 @@ exports.register = async (req, res) => {
           role: user.role,
           ward: user.ward,
           assignedWards: user.assignedWards,
-          department: user.department
+          department: user.department,
+          profilePicture: user.profilePicture,
+          phone: user.phone,
+          address: user.address,
+          dateOfBirth: user.dateOfBirth,
+          bio: user.bio
         },
         token
       }
@@ -185,7 +190,12 @@ exports.login = async (req, res) => {
           role: user.role,
           ward: user.ward,
           assignedWards: user.assignedWards,
-          department: user.department
+          department: user.department,
+          profilePicture: user.profilePicture,
+          phone: user.phone,
+          address: user.address,
+          dateOfBirth: user.dateOfBirth,
+          bio: user.bio
         },
         token
       }

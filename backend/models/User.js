@@ -70,6 +70,34 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: [100, 'Department name cannot exceed 100 characters']
+    },
+    profilePicture: {
+      type: String,
+      default: null
+    },
+    phone: {
+      type: String,
+      trim: true,
+      match: [/^\+?[\d\s\-()]+$/, 'Please provide a valid phone number']
+    },
+    address: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Address cannot exceed 500 characters']
+    },
+    dateOfBirth: {
+      type: Date,
+      validate: {
+        validator: function(value) {
+          return !value || value < new Date();
+        },
+        message: 'Date of birth must be in the past'
+      }
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: [1000, 'Bio cannot exceed 1000 characters']
     }
   },
   {
