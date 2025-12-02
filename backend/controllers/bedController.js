@@ -5,6 +5,7 @@ const CleaningLog = require('../models/CleaningLog');
 const Alert = require('../models/Alert');
 const mongoose = require('mongoose');
 const { AppError } = require('../middleware/errorHandler');
+const mlService = require('../services/mlService');
 
 /**
  * @desc    Get all beds with optional filtering
@@ -933,4 +934,136 @@ exports.updateDischargeTime = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Predict discharge time using ML
+ * @route   POST /api/beds/:id/predict-discharge
+ * @access  Private (Manager/Staff)
+ */
+exports.predictDischarge = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find bed
+    let bed;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      bed = await Bed.findById(id);
+    } else {
+      bed = await Bed.findOne({ bedId: id });
+    }
+
+    if (!bed) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bed not found'
+      });
+    }
+
+    // Only predict for occupied beds
+    if (bed.status !== 'occupied') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only predict discharge time for occupied beds'
+      });
+    }
+
+    // Call ML service for prediction
+    const prediction = await mlService.predictDischarge(bed.ward, bed.createdAt);
+
+    if (prediction.success) {
+      res.status(200).json({
+        success: true,
+        message: 'Discharge prediction generated successfully',
+        data: {
+          bed: bed.toObject(),
+          prediction: prediction.data.prediction,
+          metadata: prediction.data.metadata
+        }
+      });
+    } else {
+      // Use fallback if ML service failed
+      res.status(200).json({
+        success: true,
+        message: 'Discharge prediction generated (using fallback)',
+        data: {
+          bed: bed.toObject(),
+          prediction: prediction.fallback,
+          note: 'ML service unavailable, using fallback estimate'
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Predict discharge error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error predicting discharge time',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * @desc    Predict cleaning duration using ML
+ * @route   POST /api/beds/:id/predict-cleaning
+ * @access  Private (Staff)
+ */
+exports.predictCleaningDuration = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estimatedDuration } = req.body || {};
+
+    // Find bed
+    let bed;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      bed = await Bed.findById(id);
+    } else {
+      bed = await Bed.findOne({ bedId: id });
+    }
+
+    if (!bed) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bed not found'
+      });
+    }
+
+    // Call ML service for prediction
+    const prediction = await mlService.predictCleaningDuration(
+      bed.ward,
+      estimatedDuration || 30,
+      new Date()
+    );
+
+    if (prediction.success) {
+      res.status(200).json({
+        success: true,
+        message: 'Cleaning duration prediction generated successfully',
+        data: {
+          bed: bed.toObject(),
+          prediction: prediction.data.prediction,
+          metadata: prediction.data.metadata
+        }
+      });
+    } else {
+      // Use fallback if ML service failed
+      res.status(200).json({
+        success: true,
+        message: 'Cleaning duration prediction generated (using fallback)',
+        data: {
+          bed: bed.toObject(),
+          prediction: prediction.fallback,
+          note: 'ML service unavailable, using fallback estimate'
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Predict cleaning duration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error predicting cleaning duration',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 

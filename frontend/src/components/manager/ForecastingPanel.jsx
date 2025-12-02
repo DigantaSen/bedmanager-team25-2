@@ -355,7 +355,7 @@ const ForecastingPanel = ({ ward }) => {
                     </div>
                   )}
                   {next24Hours > 3 && (
-                    <div className="flex items-start gap-3 p-3 rounded bg-green-500/10 border-l-2 border-green-500">
+                    <div className="flex items-start gap-3 p-3 rounded bg-green-500/10 border-l-2 border-green-500 text-left">
                       <TrendingUp className="w-4 h-4 mt-0.5 text-green-500" />
                       <div>
                         <p className="text-zinc-200 text-sm font-semibold">Capacity Improvement</p>
@@ -366,7 +366,7 @@ const ForecastingPanel = ({ ward }) => {
                     </div>
                   )}
                   {displayMetrics.projectedOccupancy > 85 && next24Hours < 2 && (
-                    <div className="flex items-start gap-3 p-3 rounded bg-yellow-500/10 border-l-2 border-yellow-500">
+                    <div className="flex items-start gap-3 p-3 rounded bg-yellow-500/10 border-l-2 border-yellow-500 text-left">
                       <AlertCircle className="w-4 h-4 mt-0.5 text-yellow-500" />
                       <div>
                         <p className="text-zinc-200 text-sm font-semibold">High Occupancy Alert</p>
@@ -385,7 +385,7 @@ const ForecastingPanel = ({ ward }) => {
             {forecastData?.insights?.map((insight, index) => (
               <div
                 key={index}
-                className={`flex items-start gap-3 p-3 rounded ${insight.type === 'warning'
+                className={`flex items-start gap-3 p-3 rounded text-left ${insight.type === 'warning'
                   ? 'bg-yellow-500/10 border-l-2 border-yellow-500'
                   : 'bg-blue-500/10 border-l-2 border-blue-500'
                   }`}
