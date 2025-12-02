@@ -28,6 +28,7 @@ import {
   Mail,
   ArrowRight,
   Chrome,
+  X,
 } from "lucide-react";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { HeroHighlight } from "@/components/ui/hero-highlight";
@@ -50,6 +51,8 @@ export default function LoginCardSection() {
   const signupEmailRef = useRef(null);
   const signupPwRef = useRef(null);
   const [termsChecked, setTermsChecked] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const [errors, setErrors] = useState({});
   const isSubmitting = status === 'loading';
@@ -140,12 +143,11 @@ export default function LoginCardSection() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center">
                       <div className="flex items-center gap-2">
                         <Checkbox id="remember" className="border-zinc-700 data-[state=checked]:bg-zinc-50 data-[state=checked]:text-zinc-900" />
                         <Label htmlFor="remember" className="text-zinc-400">Remember me</Label>
                       </div>
-                      <a href="#" className="text-sm text-zinc-300 hover:text-zinc-100">Forgot password?</a>
                     </div>
 
                     <Button disabled={isSubmitting} onClick={async (e) => {
@@ -219,7 +221,6 @@ export default function LoginCardSection() {
                               <SelectValue placeholder="Select role" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="technical_team">Technical/IT Team</SelectItem>
                               <SelectItem value="hospital_admin">Hospital Admin</SelectItem>
                               <SelectItem value="er_staff">ER Staff</SelectItem>
                               <SelectItem value="ward_staff">Ward Staff</SelectItem>
@@ -301,7 +302,24 @@ export default function LoginCardSection() {
                     {/* Agreement and Button - Full Width */}
                     <div className="flex items-center gap-2">
                       <Checkbox checked={termsChecked} onCheckedChange={setTermsChecked} id="terms" className="border-zinc-700 data-[state=checked]:bg-zinc-50 data-[state=checked]:text-zinc-900" />
-                      <Label htmlFor="terms" className="text-zinc-400 text-sm">I agree to the Terms & Privacy</Label>
+                      <Label htmlFor="terms" className="text-zinc-400 text-sm">
+                        I agree to the{' '}
+                        <button 
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); setShowTermsModal(true); }}
+                          className="text-cyan-400 hover:text-cyan-300 underline"
+                        >
+                          Terms & Conditions
+                        </button>
+                        {' '}and{' '}
+                        <button 
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }}
+                          className="text-cyan-400 hover:text-cyan-300 underline"
+                        >
+                          Privacy Policy
+                        </button>
+                      </Label>
                     </div>
 
                     <Button disabled={isSubmitting} onClick={async (e) => {
@@ -393,6 +411,122 @@ export default function LoginCardSection() {
           </CardFooter> */}
         </Card>
       </div>
+
+      {/* Terms & Conditions Modal */}
+      {showTermsModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative bg-neutral-900 border border-neutral-700 rounded-lg max-w-3xl w-full max-h-[80vh] overflow-hidden">
+            <div className="sticky top-0 bg-neutral-900 border-b border-neutral-700 p-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white">Terms and Conditions</h2>
+              <button 
+                onClick={() => setShowTermsModal(false)}
+                className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-zinc-400" />
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(80vh-5rem)] p-6 text-zinc-300 space-y-4 text-left">
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">1. Acceptance of Terms</h3>
+                <p className="text-left">By creating an account and accessing the Bed Manager System, you agree to be bound by these Terms and Conditions.</p>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">2. User Responsibilities</h3>
+                <ul className="list-disc list-outside space-y-1 ml-6 text-left">
+                  <li>Provide accurate and complete information during registration</li>
+                  <li>Keep your login credentials secure and confidential</li>
+                  <li>Use the System only for its intended medical and administrative purposes</li>
+                  <li>Comply with all applicable healthcare regulations and privacy laws</li>
+                </ul>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">3. Data Privacy and Security</h3>
+                <p className="text-left">The System handles sensitive medical information. You must comply with HIPAA and maintain patient confidentiality at all times.</p>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">4. Role-Based Access</h3>
+                <p className="text-left">Your access is determined by your assigned role. Do not attempt to access areas beyond your authorization level.</p>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">5. System Usage</h3>
+                <ul className="list-disc list-outside space-y-1 ml-6 text-left">
+                  <li>Updates to bed status must be accurate and timely</li>
+                  <li>Patient information must be entered correctly</li>
+                  <li>System resources must not be misused</li>
+                </ul>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">6. Account Termination</h3>
+                <p className="text-left">The hospital reserves the right to suspend or terminate your account for violations of these terms.</p>
+              </section>
+              <p className="text-sm text-zinc-500 pt-4 border-t border-neutral-700 text-left">Last Updated: December 2, 2025</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Policy Modal */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative bg-neutral-900 border border-neutral-700 rounded-lg max-w-3xl w-full max-h-[80vh] overflow-hidden">
+            <div className="sticky top-0 bg-neutral-900 border-b border-neutral-700 p-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white">Privacy Policy</h2>
+              <button 
+                onClick={() => setShowPrivacyModal(false)}
+                className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-zinc-400" />
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(80vh-5rem)] p-6 text-zinc-300 space-y-4 text-left">
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">1. Information We Collect</h3>
+                <ul className="list-disc list-outside space-y-1 ml-6 text-left">
+                  <li>User account information (name, email, role, ward)</li>
+                  <li>Bed status data and occupancy information</li>
+                  <li>Patient information entered by authorized staff</li>
+                  <li>System activity logs</li>
+                </ul>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">2. How We Use Your Information</h3>
+                <p className="text-left">We use collected information to manage hospital bed availability, facilitate staff communication, and ensure patient safety.</p>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">3. Data Security</h3>
+                <ul className="list-disc list-outside space-y-1 ml-6 text-left">
+                  <li>Encrypted data transmission (HTTPS)</li>
+                  <li>Password hashing and secure authentication</li>
+                  <li>Role-based access control</li>
+                  <li>Regular security audits</li>
+                </ul>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">4. Data Sharing</h3>
+                <p className="text-left">Your information is shared only with authorized hospital staff and when required by law. We never sell personal data.</p>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">5. Patient Data Protection</h3>
+                <p className="text-left">All patient information is treated with highest confidentiality in compliance with HIPAA regulations.</p>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">6. Your Rights</h3>
+                <ul className="list-disc list-outside space-y-1 ml-6 text-left">
+                  <li>Access your personal information</li>
+                  <li>Request corrections to inaccurate data</li>
+                  <li>Delete your account (subject to retention requirements)</li>
+                  <li>Report privacy concerns</li>
+                </ul>
+              </section>
+              <section>
+                <h3 className="text-xl font-semibold text-white mb-2">7. Contact Information</h3>
+                <p className="text-left">For privacy questions: privacy@hospital.com</p>
+              </section>
+              <p className="text-sm text-zinc-500 pt-4 border-t border-neutral-700 text-left">Last Updated: December 2, 2025</p>
+            </div>
+          </div>
+        </div>
+      )}
     </HeroHighlight>
   );
 }

@@ -251,3 +251,36 @@ exports.getMe = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Delete user account
+ * @route   DELETE /api/auth/account
+ * @access  Private
+ */
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Find and delete the user
+    const user = await User.findByIdAndDelete(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting account',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};

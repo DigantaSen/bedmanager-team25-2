@@ -8,12 +8,12 @@ import {
   Users,
   BarChart2,
   FileText,
-  Settings,
   LogOut,
   ClipboardList,
   Shield,
   TrendingUp,
-  User
+  User,
+  Trash2
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,6 +39,20 @@ const DashboardLayout = ({ children }) => {
   const getLinksForRole = () => {
     const role = currentUser?.role;
 
+    const handleDeleteAccount = async () => {
+      if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+        try {
+          const api = (await import('@/services/api')).default;
+          await api.delete('/auth/account');
+          alert('Account deleted successfully');
+          handleLogout();
+        } catch (error) {
+          console.error('Delete account error:', error);
+          alert(error.response?.data?.message || 'Failed to delete account');
+        }
+      }
+    };
+
     const commonLinks = [
       {
         label: 'Profile',
@@ -46,9 +60,13 @@ const DashboardLayout = ({ children }) => {
         icon: <User className="h-5 w-5" />,
       },
       {
-        label: 'Settings',
-        href: '#settings',
-        icon: <Settings className="h-5 w-5" />,
+        label: 'Delete Account',
+        href: '#delete',
+        icon: <Trash2 className="h-5 w-5" />,
+        onClick: (e) => {
+          e.preventDefault();
+          handleDeleteAccount();
+        },
       },
       {
         label: 'Logout',
@@ -101,16 +119,6 @@ const DashboardLayout = ({ children }) => {
             href: '/staff/dashboard',
             icon: <Home className="h-5 w-5" />,
           },
-          {
-            label: 'Bed Cleaning',
-            href: '/staff/dashboard',
-            icon: <BedDouble className="h-5 w-5" />,
-          },
-          {
-            label: 'Cleaning Logs',
-            href: '#logs',
-            icon: <ClipboardList className="h-5 w-5" />,
-          },
           ...commonLinks,
         ];
 
@@ -122,52 +130,8 @@ const DashboardLayout = ({ children }) => {
             icon: <Home className="h-5 w-5" />,
           },
           {
-            label: 'Analytics',
-            href: '/admin/dashboard',
-            icon: <BarChart2 className="h-5 w-5" />,
-          },
-          {
-            label: 'Reports',
-            href: '/reports',
-            icon: <FileText className="h-5 w-5" />,
-          },
-          {
             label: 'Occupants',
             href: '/manager/occupants',
-            icon: <Users className="h-5 w-5" />,
-          },
-          {
-            label: 'Forecasting',
-            href: '/admin/dashboard',
-            icon: <TrendingUp className="h-5 w-5" />,
-            onClick: (e) => {
-              e.preventDefault();
-              navigate('/admin/dashboard', { state: { activeTab: 'forecasting' } });
-            },
-          },
-          ...commonLinks,
-        ];
-
-      case 'technical_team':
-        return [
-          {
-            label: 'Dashboard',
-            href: '/tech/dashboard',
-            icon: <Home className="h-5 w-5" />,
-          },
-          {
-            label: 'System Status',
-            href: '#system',
-            icon: <Shield className="h-5 w-5" />,
-          },
-          {
-            label: 'Bed Management',
-            href: '#beds',
-            icon: <BedDouble className="h-5 w-5" />,
-          },
-          {
-            label: 'Users',
-            href: '#users',
             icon: <Users className="h-5 w-5" />,
           },
           ...commonLinks,
@@ -179,16 +143,6 @@ const DashboardLayout = ({ children }) => {
             label: 'Dashboard',
             href: '/er/dashboard',
             icon: <Home className="h-5 w-5" />,
-          },
-          {
-            label: 'Available Beds',
-            href: '#beds',
-            icon: <BedDouble className="h-5 w-5" />,
-          },
-          {
-            label: 'Emergency Queue',
-            href: '#queue',
-            icon: <ClipboardList className="h-5 w-5" />,
           },
           ...commonLinks,
         ];

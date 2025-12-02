@@ -1,12 +1,16 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 export const FloatingNav = ({ navItems, className }) => {
-    // Always visible by default
+    const location = useLocation();
     const [visible] = useState(true);
+    
+    // Determine which item is active based on current path
+    const isHomeActive = location.pathname === '/';
+    const isLoginActive = location.pathname === '/login';
 
     return (
         <AnimatePresence mode="wait">
@@ -17,27 +21,53 @@ export const FloatingNav = ({ navItems, className }) => {
                 whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.2 }}
                 className={cn(
-                    // dark, slightly translucent pill with backdrop blur for legibility - centered at top
-                    "fixed top-10 left-1/2 -translate-x-1/2 max-w-fit rounded-full bg-neutral-950/75 backdrop-blur-sm border border-neutral-700/40 text-white shadow-lg z-[5000] pr-3 pl-8 py-2 flex items-center justify-center space-x-4",
+                    "fixed top-10 left-1/2 -translate-x-1/2 max-w-fit rounded-full bg-neutral-950/75 backdrop-blur-sm border border-neutral-700/40 text-white shadow-lg z-[5000] px-4 py-2 flex items-center justify-center space-x-2",
                     className
                 )}
             >
-                {navItems?.map((navItem, idx) => (
-                    <Link
-                        key={`link=${idx}`}
-                        to={navItem.link}
+                <div className="relative flex items-center space-x-2">
+                    {/* Sliding background indicator */}
+                    <motion.div
+                        className="absolute inset-y-0 rounded-full bg-white/10 border border-white/20"
+                        initial={false}
+                        animate={{
+                            x: isLoginActive ? '100%' : '0%',
+                            width: isLoginActive ? '80px' : '70px'
+                        }}
+                        transition={{
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 30
+                        }}
+                        style={{ left: 0 }}
+                    />
+                    
+                    {/* Home Link */}
+                    {navItems?.map((navItem, idx) => (
+                        <Link
+                            key={`link=${idx}`}
+                            to={navItem.link}
+                            className={cn(
+                                "relative z-10 items-center flex space-x-1 px-4 py-2 rounded-full transition-colors",
+                                isHomeActive ? "text-white" : "text-neutral-400 hover:text-neutral-200"
+                            )}
+                        >
+                            <span className="block sm:hidden">{navItem.icon}</span>
+                            <span className="hidden sm:block text-sm font-medium">{navItem.name}</span>
+                        </Link>
+                    ))}
+                    
+                    {/* Login Link */}
+                    <Link 
+                        to="/login" 
                         className={cn(
-                            "relative items-center flex space-x-1 text-white hover:text-neutral-200",
+                            "relative z-10 text-sm font-medium px-4 py-2 rounded-full transition-colors",
+                            isLoginActive ? "text-white" : "text-neutral-400 hover:text-neutral-200"
                         )}
                     >
-                        <span className="block sm:hidden">{navItem.icon}</span>
-                        <span className="hidden sm:block text-sm font-medium">{navItem.name}</span>
+                        <span>Login</span>
                     </Link>
-                ))}
-                <Link to="/login" className="relative text-sm font-medium px-4 py-2 rounded-full bg-white/8 border border-white/20 text-white hover:bg-white/12">
-                    <span>Login</span>
-                    <span className="absolute inset-x-0 w-1/2 mx-auto -bottom-px bg-gradient-to-r from-transparent via-sky-400 to-transparent h-px" />
-                </Link>
+                </div>
             </motion.div>
         </AnimatePresence>
     );

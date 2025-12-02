@@ -20,6 +20,8 @@ import ErStaffDashboard from './pages/ErStaffDashboard'
 import ErStaffDashboardTest from './pages/ErStaffDashboardTest'
 import Unauthorized from './pages/Unauthorized'
 import Profile from './pages/Profile'
+import TermsAndConditions from './pages/TermsAndConditions'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 
 function App() {
   const location = useLocation();
@@ -147,6 +149,10 @@ function App() {
 
         {/* Unauthorized Access Page */}
         <Route path="/unauthorized" element={<Unauthorized />} />
+
+        {/* Terms and Privacy Pages */}
+        <Route path="/terms" element={<TermsAndConditions />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
       </Routes>
     </div>
   )

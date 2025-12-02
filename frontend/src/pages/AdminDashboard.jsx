@@ -1,17 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
 import ExecutiveSummary from '@/components/ExecutiveSummary';
 import WardUtilizationReport from '@/components/WardUtilizationReport';
-import OccupancyTrendsChart from '@/components/OccupancyTrendsChart';
-import ForecastingInsights from '@/components/ForecastingInsights';
-import ReportGenerator from '@/components/ReportGenerator';
 import AlertNotificationPanel from '@/components/manager/AlertNotificationPanel';
 import DashboardLayout from '@/components/DashboardLayout';
 import api from '@/services/api';
 
 const AdminDashboard = () => {
-  const location = useLocation();
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
   const [backendConnected, setBackendConnected] = useState(true);
 
   // Check backend connectivity
@@ -31,13 +25,6 @@ const AdminDashboard = () => {
     const interval = setInterval(checkBackendConnection, 5000);
     return () => clearInterval(interval);
   }, [checkBackendConnection]);
-
-  // Handle navigation state to set active tab
-  useEffect(() => {
-    if (location.state?.activeTab) {
-      setActiveTab(location.state.activeTab);
-    }
-  }, [location.state]);
 
   return (
     <DashboardLayout>
@@ -70,54 +57,9 @@ const AdminDashboard = () => {
           <AlertNotificationPanel />
         </div>
 
-        {/* Tabbed Navigation */}
-        <div className="mb-6">
-          <div className="grid w-full grid-cols-4 gap-2 bg-neutral-900 border border-neutral-700 rounded-lg p-2">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'overview'
-                ? 'bg-blue-500 text-white'
-                : 'text-slate-300 hover:bg-neutral-700'
-                }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab('trends')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'trends'
-                ? 'bg-blue-500 text-white'
-                : 'text-slate-300 hover:bg-neutral-700'
-                }`}
-            >
-              Trends
-            </button>
-            <button
-              onClick={() => setActiveTab('forecasting')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'forecasting'
-                ? 'bg-blue-500 text-white'
-                : 'text-slate-300 hover:bg-neutral-700'
-                }`}
-            >
-              Forecasting
-            </button>
-            <button
-              onClick={() => setActiveTab('reports')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'reports'
-                ? 'bg-blue-500 text-white'
-                : 'text-slate-300 hover:bg-neutral-700'
-                }`}
-            >
-              Reports
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Content */}
+        {/* Ward Utilization Report */}
         <div className="space-y-6">
-          {activeTab === 'overview' && <WardUtilizationReport />}
-          {activeTab === 'trends' && <OccupancyTrendsChart />}
-          {activeTab === 'forecasting' && <ForecastingInsights />}
-          {activeTab === 'reports' && <ReportGenerator />}
+          <WardUtilizationReport />
         </div>
       </div>
     </DashboardLayout>
