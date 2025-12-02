@@ -22,11 +22,10 @@ mongoose.connect("mongodb://localhost:27017/bedmanager", {
 });
 
 // ----------------------------------------------------------------------
-// CONFIGURATION — UPDATED WITH REALISTIC SETTINGS
+// CONFIGURATION — UPDATED TO MATCH SEEDBEDS.JS
 // ----------------------------------------------------------------------
 const CONFIG = {
-  wards: ["ICU", "General", "Pediatric", "Surgery", "Emergency", "Cardiology"],
-  bedsPerWard: 25,
+  wards: ["ICU", "General", "Emergency"], // Match seedBeds.js wards only
   daysHistory: 15,   // realistic historical window
   today: new Date(), // anchor point for generating future discharges
 };
@@ -73,32 +72,28 @@ const conditions = ["Chest Pain", "Respiratory Distress", "Abdominal Pain", "Hea
 
 // ----------------------------------------------------------------------
 // REALISTIC LENGTH OF STAY DISTRIBUTIONS (WARD-BASED WITH ±20% VARIANCE)
-// Target: ICU=40-60h, Emergency=4-12h, General=50-80h, Surgery=30-50h, Pediatric=30-60h
-// Ranges adjusted to compensate for shorter historical stays being included
+// Updated to match seedBeds.js ward structure: ICU, General, Emergency only
 // ----------------------------------------------------------------------
 const LOS = {
-  ICU: [42, 62],           // Target avg ~52h (2.2 days) → actual ~50h
-  General: [55, 85],       // Target avg ~70h (2.9 days) → actual ~65h
-  Pediatric: [35, 65],     // Target avg ~50h (2.1 days) → actual ~45h
-  Surgery: [32, 52],       // Target avg ~42h (1.8 days) → actual ~40h
-  Emergency: [4, 12],      // Target avg ~8h (0.3 days) → actual ~8h
-  Cardiology: [38, 58],    // Target avg ~48h (2.0 days) → actual ~45h
+  ICU: [72, 168],          // 3-7 days (critical care patients)
+  General: [48, 120],      // 2-5 days (standard hospital stay)
+  Emergency: [24, 72],     // 1-3 days (stabilization period)
 };
 
 // ----------------------------------------------------------------------
-// CLEAR DATABASE
+// CLEAR DATABASE (EXCEPT BEDS — SEEDBEDS.JS HANDLES THOSE)
 // ----------------------------------------------------------------------
 async function clearDatabase() {
-  console.log("🗑 Clearing database...");
+  console.log("🗑 Clearing database (keeping beds)...");
   await Promise.all([
-    Bed.deleteMany({}),
+    // Bed.deleteMany({}), // ← REMOVED: seedBeds.js creates beds
     User.deleteMany({}),
     OccupancyLog.deleteMany({}),
     CleaningLog.deleteMany({}),
     EmergencyRequest.deleteMany({}),
     Alert.deleteMany({}),
   ]);
-  console.log("✔ Database clean");
+  console.log("✔ Database clean (beds preserved)");
 }
 
 // ----------------------------------------------------------------------
@@ -172,68 +167,87 @@ async function generateUsers() {
 }
 
 // ----------------------------------------------------------------------
-// BED GENERATION (FIXED DISCHARGE LOGIC)
+// FETCH EXISTING BEDS & UPDATE STATUS (SEEDBEDS.JS CREATES THE BEDS)
 // ----------------------------------------------------------------------
-async function generateBeds() {
-  console.log("🛏 Generating beds...");
+async function fetchAndUpdateBeds() {
+  console.log("🛏 Fetching beds from database...");
 
-  const beds = [];
+  const beds = await Bed.find({}).lean();
 
-  for (let ward of CONFIG.wards) {
-    for (let i = 1; i <= CONFIG.bedsPerWard; i++) {
-      const bedId = `${ward}-${String(i).padStart(2, "0")}`;
-
-      // 70% occupied / 20% available / 10% cleaning
-      const r = Math.random();
-      let status = "available";
-      if (r < 0.7) status = "occupied";
-      else if (r < 0.9) status = "cleaning";
-
-      const bed = {
-        bedId,
-        ward,
-        status,
-        patientName: null,
-        patientId: null,
-        admissionTime: null,
-        estimatedDischargeTime: null,
-        cleaningStartTime: null,
-      };
-
-      // OCCUPIED LOGIC FIXED — realistic patient + discharge time with ward-based duration
-      if (status === "occupied") {
-        const stayHours = getRealisticStayDuration(ward); // Use realistic duration with ±20% variance
-
-        const admissionTime = addHours(CONFIG.today, -random(12, Math.floor(stayHours * 0.8))); // admitted within valid range
-        const dischargeTime = addHours(admissionTime, stayHours);
-
-        // Future discharge only (never past)
-        const safeDischarge =
-          dischargeTime < CONFIG.today
-            ? addHours(CONFIG.today, random(6, 48))
-            : dischargeTime;
-
-        bed.patientName = randomChoice(firstNames) + " " + randomChoice(lastNames);
-        bed.patientId = "P" + random(10000, 99999);
-        bed.admissionTime = admissionTime;
-        bed.estimatedDischargeTime = safeDischarge;
-      }
-
-      // CLEANING BEDS FIXED
-      if (status === "cleaning") {
-        const start = addMinutes(CONFIG.today, -random(5, 25));
-        const dur = random(20, 45);
-        bed.cleaningStartTime = start;
-        bed.estimatedCleaningDuration = dur;
-        bed.estimatedCleaningEndTime = addMinutes(start, dur);
-      }
-
-      beds.push(bed);
-    }
+  if (beds.length === 0) {
+    console.error("❌ No beds found! Please run seedBeds.js first.");
+    throw new Error("No beds in database. Run seedBeds.js before generateSyntheticData.js");
   }
 
-  await Bed.insertMany(beds);
-  console.log(`✔ Created ${beds.length} beds`);
+  console.log(`✔ Found ${beds.length} beds in database`);
+
+  // Verify bed structure matches seedBeds layout
+  const icuBeds = beds.filter((b) => b.ward === "ICU");
+  const generalBeds = beds.filter((b) => b.ward === "General");
+  const emergencyBeds = beds.filter((b) => b.ward === "Emergency");
+
+  console.log(`  - ICU: ${icuBeds.length} beds`);
+  console.log(`  - General: ${generalBeds.length} beds`);
+  console.log(`  - Emergency: ${emergencyBeds.length} beds`);
+
+  // Now update beds with realistic occupancy states
+  console.log("🔄 Updating bed statuses...");
+  
+  const updates = [];
+  
+  for (let bed of beds) {
+    // 70% occupied / 20% available / 10% cleaning
+    const r = Math.random();
+    let status = "available";
+    if (r < 0.7) status = "occupied";
+    else if (r < 0.9) status = "cleaning";
+
+    const update = {
+      status,
+      patientName: null,
+      patientId: null,
+      estimatedDischargeTime: null,
+      cleaningStartTime: null,
+      estimatedCleaningDuration: null,
+      estimatedCleaningEndTime: null,
+    };
+
+    // OCCUPIED LOGIC — realistic patient + discharge time with ward-based duration
+    if (status === "occupied") {
+      const stayHours = getRealisticStayDuration(bed.ward);
+
+      // Calculate discharge time from now + stay duration
+      const dischargeTime = addHours(CONFIG.today, stayHours);
+
+      // Ensure future discharge (never past)
+      const safeDischarge =
+        dischargeTime < CONFIG.today
+          ? addHours(CONFIG.today, random(6, 48))
+          : dischargeTime;
+
+      update.patientName = randomChoice(firstNames) + " " + randomChoice(lastNames);
+      update.patientId = "P" + random(10000, 99999);
+      update.estimatedDischargeTime = safeDischarge;
+    }
+
+    // CLEANING BEDS
+    if (status === "cleaning") {
+      const start = addMinutes(CONFIG.today, -random(5, 25));
+      const dur = random(20, 45);
+      update.cleaningStartTime = start;
+      update.estimatedCleaningDuration = dur;
+      update.estimatedCleaningEndTime = addMinutes(start, dur);
+    }
+
+    updates.push(
+      Bed.updateOne({ _id: bed._id }, { $set: update })
+    );
+  }
+
+  await Promise.all(updates);
+  console.log(`✔ Updated ${beds.length} beds with realistic states`);
+  
+  // Fetch updated beds
   return Bed.find({});
 }
 
@@ -246,24 +260,23 @@ async function generateOccupancyLogs(beds, users) {
   const logs = [];
   const wardStaff = users.filter((u) => u.role === "ward_staff");
 
-  // Current occupied beds
+  // Current occupied beds - create admission logs (only past timestamps)
   for (let bed of beds) {
     const staff = randomChoice(wardStaff.filter((s) => s.ward === bed.ward));
     if (!staff) continue;
 
-    if (bed.admissionTime) {
+    if (bed.status === "occupied") {
+      // Calculate admission time based on stay duration (always in the past)
+      const stayHours = getRealisticStayDuration(bed.ward);
+      const admissionTime = addHours(CONFIG.today, -random(12, Math.floor(stayHours * 0.8)));
+      
+      // Only create assignment log (admission)
+      // Don't create future release logs - those would violate OccupancyLog validation
       logs.push({
         bedId: bed._id,
         userId: staff._id,
         statusChange: "assigned",
-        timestamp: bed.admissionTime,
-      });
-
-      logs.push({
-        bedId: bed._id,
-        userId: staff._id,
-        statusChange: "released",
-        timestamp: bed.estimatedDischargeTime,
+        timestamp: admissionTime,
       });
     }
   }
@@ -408,15 +421,16 @@ async function generateAlerts() {
 // ----------------------------------------------------------------------
 (async () => {
   try {
-    await clearDatabase();
+    await clearDatabase(); // Clears logs/users/requests/alerts (NOT beds)
     const users = await generateUsers();
-    const beds = await generateBeds();
+    const beds = await fetchAndUpdateBeds(); // Fetches beds from seedBeds.js, updates status
     await generateOccupancyLogs(beds, users);
     await generateCleaningLogs(beds, users);
     await generateEmergencyRequests(users);
     await generateAlerts();
 
-    console.log("\n🎉 Synthetic dataset generated successfully!\n");
+    console.log("\n🎉 Synthetic dataset generated successfully!");
+    console.log("ℹ️  Bed structure preserved from seedBeds.js\n");
     process.exit(0);
   } catch (err) {
     console.error(err);
