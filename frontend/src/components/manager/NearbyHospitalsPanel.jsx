@@ -3,11 +3,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { 
-  Building2, 
-  MapPin, 
-  Phone, 
-  Star, 
+import {
+  Building2,
+  MapPin,
+  Phone,
+  Star,
   ExternalLink,
   CheckCircle,
   RefreshCw,
@@ -35,7 +35,7 @@ const NearbyHospitalsPanel = ({ ward }) => {
       if (maxDistance) params.append('maxDistance', maxDistance);
 
       const response = await api.get(`/referrals/nearby-hospitals?${params.toString()}`);
-      
+
       if (response.data.success) {
         setHospitals(response.data.data.hospitals);
       }
@@ -120,11 +120,10 @@ const NearbyHospitalsPanel = ({ ward }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`p-2 rounded-lg transition-colors ${
-                showFilters 
-                  ? 'bg-cyan-500/20 text-cyan-400' 
-                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400'
-              }`}
+              className={`p-2 rounded-lg transition-colors ${showFilters
+                ? 'bg-cyan-500/20 text-cyan-400'
+                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400'
+                }`}
               title="Filter"
             >
               <Filter className="w-4 h-4" />
@@ -355,6 +354,17 @@ const NearbyHospitalsPanel = ({ ward }) => {
                         <span className="hidden sm:inline">Call</span>
                       </a>
                     )}
+                    {hospital.location && (
+                      <a
+                        href={`https://www.google.com/maps?q=${hospital.location.latitude},${hospital.location.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 transition-colors"
+                      >
+                        <MapPin className="w-3 h-3" />
+                        <span className="hidden sm:inline">Map</span>
+                      </a>
+                    )}
                     {hospital.website && (
                       <a
                         href={hospital.website}
@@ -393,7 +403,7 @@ const NearbyHospitalsPanel = ({ ward }) => {
                 </span>
               ) : (
                 <span>
-                  Total {selectedWard}: 
+                  Total {selectedWard}:
                   <span className="text-green-400 font-semibold ml-1">
                     {hospitals.reduce((sum, h) => sum + (h.wards[selectedWard]?.available || 0), 0)} beds
                   </span>
