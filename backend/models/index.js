@@ -6,11 +6,13 @@ const Bed = require('./Bed');
 const OccupancyLog = require('./OccupancyLog');
 const EmergencyRequest = require('./EmergencyRequest');
 const Alert = require('./Alert');
+const Hospital = require('./Hospital');
 
 module.exports = {
   User,
   Bed,
   OccupancyLog,
   EmergencyRequest,
-  Alert
+  Alert,
+  Hospital
 };

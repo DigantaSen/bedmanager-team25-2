@@ -19,7 +19,7 @@ const getNearbyHospitalsController = async (req, res) => {
     if (maxDistance) filters.maxDistance = maxDistance;
     if (minAvailableBeds) filters.minAvailableBeds = minAvailableBeds;
 
-    const hospitals = getNearbyHospitals(filters);
+    const hospitals = await getNearbyHospitals(filters); // Added await
 
     // Calculate summary statistics
     const summary = {
@@ -60,7 +60,7 @@ const getNearbyHospitalsController = async (req, res) => {
 const getHospitalByIdController = async (req, res) => {
   try {
     const { id } = req.params;
-    const hospital = getHospitalById(id);
+    const hospital = await getHospitalById(id); // Added await
 
     if (!hospital) {
       return res.status(404).json({
@@ -97,7 +97,7 @@ const getAvailableCapacityController = async (req, res) => {
       });
     }
 
-    const hospitals = getHospitalsWithCapacity(ward);
+    const hospitals = await getHospitalsWithCapacity(ward); // Added await
 
     res.status(200).json({
       success: true,
@@ -132,7 +132,7 @@ const getReferralRecommendationsController = async (req, res) => {
     }
 
     let filters = { ward };
-    let hospitals = getNearbyHospitals(filters);
+    let hospitals = await getNearbyHospitals(filters); // Added await
 
     // Filter based on urgency level
     switch (urgency.toLowerCase()) {

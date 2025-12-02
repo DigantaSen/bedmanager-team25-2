@@ -1,8 +1,10 @@
 // backend/services/nearbyHospitalsService.js
-// Service for managing nearby hospital data and availability
+// Service for managing nearby hospital data and availability from MongoDB
 
-// Hardcoded data for 10 nearby hospitals with bed availability
-const nearbyHospitals = [
+const Hospital = require('../models/Hospital');
+
+// Legacy hardcoded data (kept for reference, not used)
+const nearbyHospitalsLegacy = [
   {
     id: 'hosp_001',
     name: 'City General Hospital',
@@ -435,70 +437,150 @@ const nearbyHospitals = [
   }
 ];
 
-// Get nearby hospitals with optional filtering
-const getNearbyHospitals = (filters = {}) => {
-  let filtered = [...nearbyHospitals];
+/**
+ * Get nearby hospitals based on filters (from MongoDB)
+ * @param {Object} filters - Filter options (distance, ward, minAvailableBeds)
+ * @returns {Array} - Array of hospitals matching filters
+ */
+const getNearbyHospitals = async (filters = {}) => {
+  try {
+    const { distance = 20, ward, minAvailableBeds = 1, maxDistance } = filters;
+    const effectiveDistance = maxDistance || distance;
 
-  // Filter by ward type
-  if (filters.ward) {
-    filtered = filtered.filter(hospital => 
-      hospital.wards[filters.ward] && hospital.wards[filters.ward].available > 0
-    );
+    const query = {
+      isActive: true,
+      distance: { $lte: effectiveDistance }
+    };
+
+    // If ward type is specified, filter by that ward
+    if (ward) {
+      query['wards.wardType'] = ward;
+      if (minAvailableBeds > 0) {
+        query['wards.availableBeds'] = { $gte: minAvailableBeds };
+      }
+    }
+
+    const hospitals = await Hospital.find(query).sort({ distance: 1 });
+
+    // Transform data to match frontend format
+    return hospitals.map(hospital => ({
+      id: hospital._id.toString(),
+      name: hospital.name,
+      address: hospital.address,
+      location: hospital.location,
+      distance: hospital.distance,
+      phone: hospital.contactNumber,
+      emergencyContact: hospital.emergencyContact,
+      rating: hospital.rating,
+      wards: hospital.wards.reduce((acc, w) => {
+        acc[w.wardType] = {
+          total: w.totalBeds,
+          available: w.availableBeds,
+          occupied: w.occupiedBeds,
+          cleaning: 0, // Can be calculated if needed
+          occupancyRate: Math.round((w.occupiedBeds / w.totalBeds) * 100)
+        };
+        return acc;
+      }, {}),
+      acceptsReferrals: true,
+      lastUpdated: hospital.lastUpdated
+    }));
+  } catch (error) {
+    console.error('Error fetching nearby hospitals:', error);
+    throw new Error('Failed to fetch nearby hospitals');
   }
-
-  // Filter by maximum distance
-  if (filters.maxDistance) {
-    filtered = filtered.filter(hospital => hospital.distance <= parseFloat(filters.maxDistance));
-  }
-
-  // Filter by minimum available beds
-  if (filters.minAvailableBeds && filters.ward) {
-    filtered = filtered.filter(hospital => 
-      hospital.wards[filters.ward]?.available >= parseInt(filters.minAvailableBeds)
-    );
-  }
-
-  // Sort by distance (closest first)
-  filtered.sort((a, b) => a.distance - b.distance);
-
-  return filtered;
 };
 
-// Get a specific hospital by ID
-const getHospitalById = (hospitalId) => {
-  return nearbyHospitals.find(h => h.id === hospitalId) || null;
+/**
+ * Get a specific hospital by ID (from MongoDB)
+ * @param {String} hospitalId - Hospital ID
+ * @returns {Object} - Hospital details
+ */
+const getHospitalById = async (hospitalId) => {
+  try {
+    const hospital = await Hospital.findById(hospitalId);
+    
+    if (!hospital) {
+      return null;
+    }
+
+    // Transform data to match frontend format
+    return {
+      id: hospital._id.toString(),
+      name: hospital.name,
+      address: hospital.address,
+      location: hospital.location,
+      distance: hospital.distance,
+      phone: hospital.contactNumber,
+      emergencyContact: hospital.emergencyContact,
+      rating: hospital.rating,
+      wards: hospital.wards.reduce((acc, w) => {
+        acc[w.wardType] = {
+          total: w.totalBeds,
+          available: w.availableBeds,
+          occupied: w.occupiedBeds,
+          cleaning: 0,
+          occupancyRate: Math.round((w.occupiedBeds / w.totalBeds) * 100)
+        };
+        return acc;
+      }, {}),
+      acceptsReferrals: true,
+      lastUpdated: hospital.lastUpdated
+    };
+  } catch (error) {
+    console.error('Error fetching hospital by ID:', error);
+    return null;
+  }
 };
 
-// Get hospitals with available capacity in a specific ward
-const getHospitalsWithCapacity = (ward) => {
-  return nearbyHospitals
-    .filter(hospital => {
-      const wardData = hospital.wards[ward];
-      return wardData && wardData.occupancyRate < 85; // Less than 85% occupancy
-    })
-    .sort((a, b) => b.wards[ward].available - a.wards[ward].available); // Sort by most available beds
-};
+/**
+ * Get hospitals with available capacity in a specific ward (from MongoDB)
+ * @param {String} ward - Ward type (ICU, Emergency, General, Pediatrics)
+ * @returns {Array} - Array of hospitals with available capacity
+ */
+const getHospitalsWithCapacity = async (ward) => {
+  try {
+    const hospitals = await Hospital.find({
+      isActive: true,
+      'wards.wardType': ward,
+      'wards.occupancyRate': { $lt: 85 } // Less than 85% occupancy
+    }).sort({ 'wards.availableBeds': -1 });
 
-// Simulate real-time bed availability updates (for future integration)
-const simulateBedAvailabilityUpdate = () => {
-  // This function can be used to update bed availability in real-time
-  // For now, it's a placeholder for future API integration
-  nearbyHospitals.forEach(hospital => {
-    Object.keys(hospital.wards).forEach(wardType => {
-      const ward = hospital.wards[wardType];
-      // Simulate small changes in availability
-      const change = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-      const newAvailable = Math.max(0, Math.min(ward.total - ward.cleaning, ward.available + change));
-      ward.available = newAvailable;
-      ward.occupied = ward.total - ward.available - ward.cleaning;
-      ward.occupancyRate = Math.round((ward.occupied / ward.total) * 100);
-      ward.lastUpdated = new Date();
+    return hospitals.map(hospital => {
+      const wardData = hospital.wards.find(w => w.wardType === ward);
+      return {
+        id: hospital._id.toString(),
+        name: hospital.name,
+        address: hospital.address,
+        distance: hospital.distance,
+        phone: hospital.contactNumber,
+        emergencyContact: hospital.emergencyContact,
+        rating: hospital.rating,
+        wards: {
+          [ward]: {
+            total: wardData.totalBeds,
+            available: wardData.availableBeds,
+            occupied: wardData.occupiedBeds,
+            cleaning: 0,
+            occupancyRate: Math.round((wardData.occupiedBeds / wardData.totalBeds) * 100)
+          }
+        }
+      };
     });
-  });
+  } catch (error) {
+    console.error('Error fetching hospitals with capacity:', error);
+    throw new Error('Failed to fetch hospitals with available capacity');
+  }
+};
+
+// Simulate real-time bed availability updates (not used with MongoDB)
+const simulateBedAvailabilityUpdate = async () => {
+  // This function can be implemented to periodically update MongoDB
+  // For now, it's a placeholder for future real-time updates
+  console.log('Bed availability update simulation - to be implemented with MongoDB');
 };
 
 module.exports = {
-  nearbyHospitals,
   getNearbyHospitals,
   getHospitalById,
   getHospitalsWithCapacity,
