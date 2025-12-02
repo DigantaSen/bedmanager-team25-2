@@ -11,7 +11,12 @@ const ForecastingPanel = ({ ward }) => {
   const [bedsWithDischargeTime, setBedsWithDischargeTime] = useState([]);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [secondsAgo, setSecondsAgo] = useState(0);
+  const [showManual, setShowManual] = useState(true); // Toggle for manual discharge times
+  const [showAI, setShowAI] = useState(true); // Toggle for AI predictions
   const socket = useSocket();
+  
+  // Debug logging
+  console.log('ForecastingPanel - showManual:', showManual, 'showAI:', showAI);
 
   useEffect(() => {
     fetchForecastData();
@@ -408,23 +413,76 @@ const ForecastingPanel = ({ ward }) => {
 
       {/* Enhanced Timeline Section - Now uses backend integrated timing */}
       <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-4">
-        <p className="text-zinc-400 text-sm mb-4 flex items-center gap-2 font-semibold">
-          <Calendar className="w-4 h-4" />
-          Discharge Timeline (Next 72 Hours)
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-zinc-400 text-sm flex items-center gap-2 font-semibold">
+            <Calendar className="w-4 h-4" />
+            Discharge Timeline (Next 72 Hours)
+          </p>
+          
+          {/* Toggle Buttons - Filter Discharge Types */}
+          <div className="flex items-center gap-2 p-2 bg-neutral-800/50 rounded-lg">
+            <span className="text-xs text-zinc-500 mr-2">Show:</span>
+            <button
+              onClick={() => {
+                console.log('Manual toggle clicked, current:', showManual);
+                setShowManual(!showManual);
+              }}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                showManual 
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40' 
+                  : 'bg-neutral-700/50 text-zinc-500 border border-neutral-600'
+              }`}
+            >
+              <div className={`w-2 h-2 rounded ${showManual ? 'bg-cyan-500' : 'bg-zinc-600'}`}></div>
+              Manual ({forecastData?.manualDischarges?.total || 0})
+            </button>
+            <button
+              onClick={() => {
+                console.log('AI toggle clicked, current:', showAI);
+                setShowAI(!showAI);
+              }}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                showAI 
+                  ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40' 
+                  : 'bg-neutral-700/50 text-zinc-500 border border-neutral-600'
+              }`}
+            >
+              <div className={`w-2 h-2 rounded ${showAI ? 'bg-yellow-500' : 'bg-zinc-600'}`}></div>
+              AI Predicted ({forecastData?.aiDischarges?.total || 0})
+            </button>
+          </div>
+        </div>
         <div className="space-y-3">
           {(() => {
             // Backend timeline now includes both confirmed and estimated discharges
             const timelineBuckets = forecastData?.timeline?.slice(0, 12) || [];
 
-            // Separate confirmed vs estimated from discharge details
-            const dischargeDetails = forecastData?.expectedDischarges?.details || [];
-            const confirmedDischarges = dischargeDetails.filter(d => d.isManuallySet);
-            const estimatedDischarges = dischargeDetails.filter(d => !d.isManuallySet);
+            // Get separate manual and AI discharge lists from backend
+            const manualDischarges = forecastData?.manualDischarges?.details || [];
+            const aiDischarges = forecastData?.aiDischarges?.details || [];
 
             const now = new Date();
+            
+            // Calculate max for scaling (only from visible types)
             const maxDischarges = Math.max(
-              ...timelineBuckets.map(b => b.expectedDischarges || 0),
+              ...timelineBuckets.map(b => {
+                const bucketStart = new Date(b.startTime);
+                const bucketEnd = new Date(b.endTime);
+                let count = 0;
+                if (showManual) {
+                  count += manualDischarges.filter(d => {
+                    const dt = new Date(d.expectedDischargeTime);
+                    return dt >= bucketStart && dt < bucketEnd;
+                  }).length;
+                }
+                if (showAI) {
+                  count += aiDischarges.filter(d => {
+                    const dt = new Date(d.expectedDischargeTime);
+                    return dt >= bucketStart && dt < bucketEnd;
+                  }).length;
+                }
+                return count;
+              }),
               5
             );
 
@@ -432,19 +490,22 @@ const ForecastingPanel = ({ ward }) => {
               const bucketStart = new Date(bucket.startTime);
               const bucketEnd = new Date(bucket.endTime);
 
-              // Count confirmed vs estimated in this bucket
-              const confirmedInBucket = confirmedDischarges.filter(d => {
+              // Count manual and AI discharges in this bucket
+              const manualInBucket = manualDischarges.filter(d => {
                 const dischargeTime = new Date(d.expectedDischargeTime);
                 return dischargeTime >= bucketStart && dischargeTime < bucketEnd;
               }).length;
 
-              const estimatedInBucket = estimatedDischarges.filter(d => {
+              const aiInBucket = aiDischarges.filter(d => {
                 const dischargeTime = new Date(d.expectedDischargeTime);
                 return dischargeTime >= bucketStart && dischargeTime < bucketEnd;
               }).length;
 
-              const totalInBucket = bucket.expectedDischarges || 0;
-              const hasAny = totalInBucket > 0;
+              // Apply toggle filters
+              const visibleManual = showManual ? manualInBucket : 0;
+              const visibleAI = showAI ? aiInBucket : 0;
+              const totalVisible = visibleManual + visibleAI;
+              const hasAny = totalVisible > 0;
 
               return (
                 <div key={index} className="flex items-center gap-3 py-1.5">
@@ -452,33 +513,33 @@ const ForecastingPanel = ({ ward }) => {
                   <div className="flex-1 bg-neutral-900 rounded-full h-7 overflow-hidden relative border border-neutral-800">
                     {hasAny ? (
                       <div className="flex h-full">
-                        {/* Confirmed discharges (manager-set times) */}
-                        {confirmedInBucket > 0 && (
+                        {/* Manual discharges (manager-set times) */}
+                        {visibleManual > 0 && (
                           <div
                             className="bg-gradient-to-r from-cyan-500 to-cyan-600 h-full flex items-center justify-center transition-all border-r border-cyan-700"
                             style={{
-                              width: `${(confirmedInBucket / maxDischarges) * 100}%`,
-                              minWidth: confirmedInBucket > 0 ? '30px' : '0'
+                              width: `${(visibleManual / maxDischarges) * 100}%`,
+                              minWidth: visibleManual > 0 ? '30px' : '0'
                             }}
-                            title={`${confirmedInBucket} confirmed discharge${confirmedInBucket > 1 ? 's' : ''}`}
+                            title={`${visibleManual} manual discharge${visibleManual > 1 ? 's' : ''}`}
                           >
                             <span className="text-white text-xs font-bold">
-                              {confirmedInBucket}
+                              {visibleManual}
                             </span>
                           </div>
                         )}
-                        {/* Estimated discharges (AI predicted) */}
-                        {estimatedInBucket > 0 && (
+                        {/* AI predicted discharges */}
+                        {visibleAI > 0 && (
                           <div
                             className="bg-gradient-to-r from-yellow-500/50 to-yellow-600/50 h-full flex items-center justify-center transition-all"
                             style={{
-                              width: `${(estimatedInBucket / maxDischarges) * 100}%`,
-                              minWidth: estimatedInBucket > 0 ? '30px' : '0'
+                              width: `${(visibleAI / maxDischarges) * 100}%`,
+                              minWidth: visibleAI > 0 ? '30px' : '0'
                             }}
-                            title={`${estimatedInBucket} estimated discharge${estimatedInBucket > 1 ? 's' : ''}`}
+                            title={`${visibleAI} AI predicted discharge${visibleAI > 1 ? 's' : ''}`}
                           >
                             <span className="text-zinc-200 text-xs font-bold">
-                              ~{estimatedInBucket}
+                              ~{visibleAI}
                             </span>
                           </div>
                         )}
@@ -490,14 +551,14 @@ const ForecastingPanel = ({ ward }) => {
                     )}
                   </div>
                   <div className="w-20 text-right flex-shrink-0">
-                    {confirmedInBucket > 0 && (
+                    {visibleManual > 0 && (
                       <div className="text-cyan-400 text-xs font-semibold">
-                        {confirmedInBucket} set
+                        {visibleManual} manual
                       </div>
                     )}
-                    {estimatedInBucket > 0 && (
-                      <div className="text-yellow-500 text-xs">
-                        ~{estimatedInBucket} est
+                    {visibleAI > 0 && (
+                      <div className="text-yellow-400 text-xs">
+                        ~{visibleAI} AI
                       </div>
                     )}
                   </div>
@@ -507,46 +568,65 @@ const ForecastingPanel = ({ ward }) => {
           })()}
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 mt-4 pt-3 border-t border-neutral-800">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-gradient-to-r from-cyan-500 to-cyan-600"></div>
-            <span className="text-xs text-zinc-400">Confirmed (Manager Set)</span>
+        {/* Legend & Info */}
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-800">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-gradient-to-r from-cyan-500 to-cyan-600"></div>
+              <span className="text-xs text-zinc-400">Manual (Manager Set)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-gradient-to-r from-yellow-500/50 to-yellow-600/50"></div>
+              <span className="text-xs text-zinc-400">AI Predicted (ML Model)</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-gradient-to-r from-yellow-500/50 to-yellow-600/50"></div>
-            <span className="text-xs text-zinc-400">Estimated (AI Predicted)</span>
+          <div className="text-xs text-zinc-500 italic flex items-center gap-1">
+            <Info className="w-3 h-3" />
+            <span>Toggle to compare manual vs AI predictions</span>
           </div>
         </div>
       </div>
 
 
 
-      {/* All Expected Discharges - Now sorted by backend priority */}
-      {forecastData?.expectedDischarges?.details && forecastData.expectedDischarges.details.length > 0 && (
-        <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-4 mt-6">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-zinc-400 text-sm flex items-center gap-2 font-semibold">
-              <Calendar className="w-4 h-4" />
-              All Expected Discharges
-            </p>
-            <div className="flex items-center gap-2">
-              {forecastData.expectedDischarges.manuallySet > 0 && (
-                <span className="text-xs text-cyan-500 bg-cyan-500/10 px-2 py-1 rounded">
-                  {forecastData.expectedDischarges.manuallySet} confirmed
-                </span>
-              )}
-              {forecastData.expectedDischarges.estimated > 0 && (
-                <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded flex items-center gap-1">
-                  <Info className="w-3 h-3" />
-                  {forecastData.expectedDischarges.estimated} estimated
-                </span>
-              )}
+      {/* All Expected Discharges - Shows both Manual and AI based on toggle */}
+      {(() => {
+        // Build combined discharge list based on toggle states
+        const manualList = showManual ? (forecastData?.manualDischarges?.details || []) : [];
+        const aiList = showAI ? (forecastData?.aiDischarges?.details || []) : [];
+        
+        // Combine and sort by discharge time
+        const combinedList = [...manualList, ...aiList].sort((a, b) => 
+          new Date(a.expectedDischargeTime) - new Date(b.expectedDischargeTime)
+        );
+
+        if (combinedList.length === 0) return null;
+
+        return (
+          <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-4 mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-zinc-400 text-sm flex items-center gap-2 font-semibold">
+                <Calendar className="w-4 h-4" />
+                All Expected Discharges
+              </p>
+              <div className="flex items-center gap-2">
+                {showManual && manualList.length > 0 && (
+                  <span className="text-xs text-cyan-500 bg-cyan-500/10 px-2 py-1 rounded">
+                    {manualList.length} manual
+                  </span>
+                )}
+                {showAI && aiList.length > 0 && (
+                  <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded flex items-center gap-1">
+                    <Info className="w-3 h-3" />
+                    {aiList.length} AI predicted
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-            {forecastData.expectedDischarges.details.map((discharge, index) => {
-              const isManual = discharge.isManuallySet;
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {combinedList.map((discharge, index) => {
+                // Determine if this is from manual list (has no isManuallySet flag, but came from manualDischarges)
+                const isManual = manualList.some(m => m.bedId === discharge.bedId && m.expectedDischargeTime === discharge.expectedDischargeTime);
 
               return (
                 <div
@@ -603,15 +683,20 @@ const ForecastingPanel = ({ ward }) => {
                 </div>
               );
             })}
+            </div>
+            <div className="mt-3 pt-3 border-t border-neutral-800 flex items-start gap-2 text-xs text-zinc-500">
+              <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <p>
+                {showManual && showAI 
+                  ? 'Showing both manual and AI predicted discharge times. Toggle to compare.'
+                  : showManual 
+                    ? 'Showing only manager-set discharge times.'
+                    : 'Showing only AI predicted discharge times.'}
+              </p>
+            </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-neutral-800 flex items-start gap-2 text-xs text-zinc-500">
-            <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-            <p>
-              {forecastData?.metadata?.accuracyNote || 'Discharge times combine manager-confirmed schedules with AI estimates.'}
-            </p>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Capacity Planning Summary */}
       {displayMetrics.totalBeds && (

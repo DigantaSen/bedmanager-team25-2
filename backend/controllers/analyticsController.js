@@ -445,60 +445,92 @@ exports.getForecasting = async (req, res) => {
     // PRIORITY: Use estimatedDischargeTime if set by manager, otherwise use ML prediction
     const mlService = require('../services/mlService');
     
-    // Group beds by ward for efficient ML predictions
-    const bedsWithoutManualTime = occupiedBeds.filter(bed => !bed.estimatedDischargeTime);
+    // Get ML predictions for ALL beds (not just those without manual times)
     const mlPredictionsByWard = {};
+    const uniqueWards = [...new Set(occupiedBeds.map(bed => bed.ward))];
     
-    // Get ML predictions for each ward (one call per ward instead of per bed)
-    if (bedsWithoutManualTime.length > 0) {
-      const uniqueWards = [...new Set(bedsWithoutManualTime.map(bed => bed.ward))];
-      await Promise.all(uniqueWards.map(async ward => {
-        try {
-          const mlPrediction = await mlService.predictDischarge(ward, new Date());
-          if (mlPrediction.success && mlPrediction.data.prediction) {
-            mlPredictionsByWard[ward] = mlPrediction.data.prediction.hours_until_discharge;
-          }
-        } catch (error) {
-          console.error(`ML prediction failed for ward ${ward}:`, error.message);
+    await Promise.all(uniqueWards.map(async ward => {
+      try {
+        const mlPrediction = await mlService.predictDischarge(ward, new Date());
+        if (mlPrediction.success && mlPrediction.data.prediction) {
+          mlPredictionsByWard[ward] = mlPrediction.data.prediction.hours_until_discharge;
         }
-      }));
-    }
+      } catch (error) {
+        console.error(`ML prediction failed for ward ${ward}:`, error.message);
+      }
+    }));
     
-    const expectedDischargesList = occupiedBeds.map(bed => {
+    // Create BOTH manual and AI discharge lists
+    const manualDischargesList = [];
+    const aiDischargesList = [];
+    const expectedDischargesList = []; // Combined list for backward compatibility
+    
+    occupiedBeds.forEach(bed => {
       const admissionTime = bed.updatedAt;
-      let expectedDischargeTime;
-      let isManuallySet = false;
-
-      // Use manager-set discharge time if available, otherwise use ML prediction
+      
+      // Manual discharge (if set)
       if (bed.estimatedDischargeTime) {
-        expectedDischargeTime = new Date(bed.estimatedDischargeTime);
-        isManuallySet = true;
-      } else {
-        // Use ML prediction if available for this ward
+        const manualDischargeTime = new Date(bed.estimatedDischargeTime);
+        const hoursUntilDischarge = (manualDischargeTime - now) / (1000 * 60 * 60);
+        
+        const manualEntry = {
+          bedId: bed.bedId,
+          ward: bed.ward,
+          patientName: bed.patientName,
+          patientId: bed.patientId,
+          admissionTime: admissionTime,
+          expectedDischargeTime: manualDischargeTime,
+          hoursUntilDischarge: Math.max(0, hoursUntilDischarge),
+          daysInBed: (now - admissionTime) / (1000 * 60 * 60 * 24),
+          isManuallySet: true
+        };
+        
+        manualDischargesList.push(manualEntry);
+        expectedDischargesList.push(manualEntry); // Add to combined list
+      }
+      
+      // AI prediction (only for beds WITHOUT manual discharge times)
+      if (!bed.estimatedDischargeTime) {
         if (mlPredictionsByWard[bed.ward]) {
           const hoursToAdd = mlPredictionsByWard[bed.ward];
-          expectedDischargeTime = new Date(admissionTime.getTime() + hoursToAdd * 60 * 60 * 1000);
+          const aiDischargeTime = new Date(admissionTime.getTime() + hoursToAdd * 60 * 60 * 1000);
+          const hoursUntilDischarge = (aiDischargeTime - now) / (1000 * 60 * 60);
+          
+          const aiEntry = {
+            bedId: bed.bedId,
+            ward: bed.ward,
+            patientName: bed.patientName,
+            patientId: bed.patientId,
+            admissionTime: admissionTime,
+            expectedDischargeTime: aiDischargeTime,
+            hoursUntilDischarge: Math.max(0, hoursUntilDischarge),
+            daysInBed: (now - admissionTime) / (1000 * 60 * 60 * 24),
+            isManuallySet: false
+          };
+          
+          aiDischargesList.push(aiEntry);
+          expectedDischargesList.push(aiEntry);
         } else {
-          // Fallback: use average length of stay
-          expectedDischargeTime = new Date(
-            admissionTime.getTime() + averageLengthOfStay * 24 * 60 * 60 * 1000
-          );
+          // Fallback: use average length of stay if no ML prediction and no manual time
+          const fallbackTime = new Date(admissionTime.getTime() + averageLengthOfStay * 24 * 60 * 60 * 1000);
+          const hoursUntilDischarge = (fallbackTime - now) / (1000 * 60 * 60);
+          
+          const fallbackEntry = {
+            bedId: bed.bedId,
+            ward: bed.ward,
+            patientName: bed.patientName,
+            patientId: bed.patientId,
+            admissionTime: admissionTime,
+            expectedDischargeTime: fallbackTime,
+            hoursUntilDischarge: Math.max(0, hoursUntilDischarge),
+            daysInBed: (now - admissionTime) / (1000 * 60 * 60 * 24),
+            isManuallySet: false
+          };
+          
+          aiDischargesList.push(fallbackEntry);
+          expectedDischargesList.push(fallbackEntry);
         }
       }
-
-      const hoursUntilDischarge = (expectedDischargeTime - now) / (1000 * 60 * 60);
-
-      return {
-        bedId: bed.bedId,
-        ward: bed.ward,
-        patientName: bed.patientName,
-        patientId: bed.patientId,
-        admissionTime: admissionTime,
-        expectedDischargeTime: expectedDischargeTime,
-        hoursUntilDischarge: Math.max(0, hoursUntilDischarge),
-        daysInBed: (now - admissionTime) / (1000 * 60 * 60 * 24),
-        isManuallySet: isManuallySet // Flag to indicate if manager set the time
-      };
     });
 
     // Sort by expected discharge time
@@ -661,6 +693,37 @@ exports.getForecasting = async (req, res) => {
             hoursUntilDischarge: Math.round(d.hoursUntilDischarge * 10) / 10,
             daysInBed: Math.round(d.daysInBed * 10) / 10,
             isManuallySet: d.isManuallySet
+          }))
+        },
+        // NEW: Separate manual and AI discharge lists for toggle functionality
+        manualDischarges: {
+          total: manualDischargesList.length,
+          next24Hours: manualDischargesList.filter(d => d.hoursUntilDischarge <= 24).length,
+          next48Hours: manualDischargesList.filter(d => d.hoursUntilDischarge <= 48).length,
+          next72Hours: manualDischargesList.filter(d => d.hoursUntilDischarge <= 72).length,
+          details: manualDischargesList.slice(0, 100).map(d => ({
+            bedId: d.bedId,
+            ward: d.ward,
+            patientId: d.patientId,
+            patientName: d.patientName,
+            expectedDischargeTime: d.expectedDischargeTime,
+            hoursUntilDischarge: Math.round(d.hoursUntilDischarge * 10) / 10,
+            daysInBed: Math.round(d.daysInBed * 10) / 10
+          }))
+        },
+        aiDischarges: {
+          total: aiDischargesList.length,
+          next24Hours: aiDischargesList.filter(d => d.hoursUntilDischarge <= 24).length,
+          next48Hours: aiDischargesList.filter(d => d.hoursUntilDischarge <= 48).length,
+          next72Hours: aiDischargesList.filter(d => d.hoursUntilDischarge <= 72).length,
+          details: aiDischargesList.slice(0, 100).map(d => ({
+            bedId: d.bedId,
+            ward: d.ward,
+            patientId: d.patientId,
+            patientName: d.patientName,
+            expectedDischargeTime: d.expectedDischargeTime,
+            hoursUntilDischarge: Math.round(d.hoursUntilDischarge * 10) / 10,
+            daysInBed: Math.round(d.daysInBed * 10) / 10
           }))
         },
         wardForecasts,
