@@ -1,12 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { 
-  Bed, 
-  Users, 
-  TrendingUp, 
-  Clock, 
-  Shield, 
+import {
+  Bed,
+  Users,
+  TrendingUp,
+  Clock,
+  Shield,
   Zap,
   Linkedin,
   Mail
@@ -95,9 +95,9 @@ export default function About() {
               Transforming Hospital Operations
             </h1>
             <p className="text-xl text-neutral-400 max-w-3xl mx-auto leading-relaxed">
-              BedManager revolutionizes hospital bed management by providing real-time visibility, 
-              predictive analytics, and seamless coordination between departments. Built to solve 
-              the daily challenges faced by healthcare professionals in managing bed availability 
+              BedManager revolutionizes hospital bed management by providing real-time visibility,
+              predictive analytics, and seamless coordination between departments. Built to solve
+              the daily challenges faced by healthcare professionals in managing bed availability
               and patient flow.
             </p>
           </motion.div>
@@ -115,7 +115,7 @@ export default function About() {
             Why Choose BedManager?
           </h2>
           <p className="text-center text-neutral-400 mb-12 max-w-2xl mx-auto">
-            Our platform addresses the critical challenges hospitals face in bed management, 
+            Our platform addresses the critical challenges hospitals face in bed management,
             from emergency admissions to discharge planning and everything in between.
           </p>
 
@@ -128,16 +128,16 @@ export default function About() {
                 transition={{ delay: 0.3 + index * 0.1 }}
               >
                 <Card className="h-full bg-neutral-900/50 border-neutral-800 hover:border-neutral-700 transition-all hover:shadow-lg hover:shadow-neutral-700/20">
-                  <CardContent className="p-6">
+                  <CardContent className="p-6 text-left">
                     <div className="flex items-start space-x-4">
                       <div className="flex-shrink-0 p-3 bg-neutral-800/50 rounded-lg">
                         {useCase.icon}
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white mb-2">
+                        <h3 className="text-lg font-semibold text-white mb-2 text-left">
                           {useCase.title}
                         </h3>
-                        <p className="text-neutral-400 text-sm leading-relaxed">
+                        <p className="text-neutral-400 text-sm leading-relaxed text-left">
                           {useCase.description}
                         </p>
                       </div>
@@ -162,7 +162,7 @@ export default function About() {
               Meet the Team
             </h2>
             <p className="text-center text-neutral-400 mb-12 max-w-2xl mx-auto">
-              Built by a dedicated team of developers passionate about creating solutions 
+              Built by a dedicated team of developers passionate about creating solutions
               that make a real difference in healthcare.
             </p>
 
@@ -180,8 +180,8 @@ export default function About() {
                       {/* Profile Image */}
                       <div className="relative mx-auto w-24 h-24 mb-4 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 via-purple-500 to-cyan-500 p-[2px]">
                         <div className="w-full h-full rounded-full overflow-hidden bg-neutral-800">
-                          <img 
-                            src={dev.image} 
+                          <img
+                            src={dev.image}
                             alt={dev.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -230,9 +230,9 @@ export default function About() {
             The Impact We're Making
           </h2>
           <p className="text-neutral-400 max-w-3xl mx-auto leading-relaxed mb-8">
-            BedManager was created to address a real problem: the inefficiency and communication gaps 
-            in hospital bed management. By providing instant visibility and intelligent coordination, 
-            we help hospitals reduce patient wait times, optimize bed utilization, minimize staff 
+            BedManager was created to address a real problem: the inefficiency and communication gaps
+            in hospital bed management. By providing instant visibility and intelligent coordination,
+            we help hospitals reduce patient wait times, optimize bed utilization, minimize staff
             coordination overhead, and ultimately improve patient care outcomes.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
