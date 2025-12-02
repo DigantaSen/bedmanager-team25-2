@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useState, useRef, useEffect } from "react";
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { login as loginAction, register as registerAction } from '@/features/auth/authSlice';
 import {
   Card,
@@ -32,11 +32,14 @@ import {
 } from "lucide-react";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { HeroHighlight } from "@/components/ui/hero-highlight";
+import Toast from '@/components/ui/Toast';
 
 export default function LoginCardSection() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { status, error } = useSelector((state) => state.auth);
+  const [toast, setToast] = useState(null);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showLoginPw, setShowLoginPw] = useState(false);
@@ -56,6 +59,15 @@ export default function LoginCardSection() {
 
   const [errors, setErrors] = useState({});
   const isSubmitting = status === 'loading';
+
+  // Show notification from navigation state (e.g., after account deletion)
+  useEffect(() => {
+    if (location.state?.notification) {
+      setToast(location.state.notification);
+      // Clear the navigation state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   // Background is provided by HeroHighlight; particle canvas removed.
 
@@ -526,6 +538,17 @@ export default function LoginCardSection() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() => setToast(null)}
+          duration={5000}
+        />
       )}
     </HeroHighlight>
   );

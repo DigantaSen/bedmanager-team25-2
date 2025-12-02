@@ -12,8 +12,7 @@ import {
   ClipboardList,
   Shield,
   TrendingUp,
-  User,
-  Trash2
+  User
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,34 +38,11 @@ const DashboardLayout = ({ children }) => {
   const getLinksForRole = () => {
     const role = currentUser?.role;
 
-    const handleDeleteAccount = async () => {
-      if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-        try {
-          const api = (await import('@/services/api')).default;
-          await api.delete('/auth/account');
-          alert('Account deleted successfully');
-          handleLogout();
-        } catch (error) {
-          console.error('Delete account error:', error);
-          alert(error.response?.data?.message || 'Failed to delete account');
-        }
-      }
-    };
-
     const commonLinks = [
       {
         label: 'Profile',
         href: '/profile',
         icon: <User className="h-5 w-5" />,
-      },
-      {
-        label: 'Delete Account',
-        href: '#delete',
-        icon: <Trash2 className="h-5 w-5" />,
-        onClick: (e) => {
-          e.preventDefault();
-          handleDeleteAccount();
-        },
       },
       {
         label: 'Logout',

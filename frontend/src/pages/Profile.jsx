@@ -9,6 +9,7 @@ import { Label } from '../components/ui/label';
 import { User, Mail, Phone, MapPin, Calendar, Briefcase, FileText, Camera, Edit2, Save, X, Shield, ArrowLeft } from 'lucide-react';
 import { updateUserProfile } from '../features/auth/authSlice';
 import axios from 'axios';
+import Toast from '../components/ui/Toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -31,6 +32,8 @@ const Profile = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     fetchProfile();
@@ -596,10 +599,126 @@ const Profile = () => {
                 </div>
               </div>
             </div>
+
+            {/* Delete Account Section */}
+            <div className="space-y-4 pt-6 border-t-2 border-red-200 dark:border-red-900">
+              <div className="flex items-center gap-3 pb-3">
+                <div className="p-2 bg-red-600 dark:bg-red-700 rounded-lg shadow-md">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <h4 className="text-xl font-bold text-red-600 dark:text-red-400">
+                  Danger Zone
+                </h4>
+              </div>
+              
+              <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border-2 border-red-300 dark:border-red-800">
+                <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+                  Once you delete your account, there is no going back. Please be certain.
+                </p>
+                <Button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold"
+                >
+                  Delete Account Permanently
+                </Button>
+              </div>
+            </div>
           </form>
         </CardContent>
       </Card>
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80">
+          <div className="bg-neutral-900 border-2 border-red-600 rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center justify-center mb-6">
+              <div className="bg-red-600 p-4 rounded-full">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            
+            <h3 className="text-2xl font-bold text-red-500 mb-4 text-center">
+              Delete Account?
+            </h3>
+            
+            <div className="space-y-4 mb-6">
+              <p className="text-neutral-200 text-center">
+                This action <span className="font-bold text-red-500">cannot be undone</span>. 
+                This will permanently delete your account and remove all your data from our servers.
+              </p>
+              
+              <div className="bg-red-950/50 border border-red-800 rounded-lg p-4">
+                <p className="text-red-300 text-sm text-left">
+                  <strong>Warning:</strong> You will lose access to:
+                </p>
+                <ul className="list-disc list-inside text-red-300 text-sm mt-2 space-y-1">
+                  <li>All your profile information</li>
+                  <li>Your account history</li>
+                  <li>Any associated data</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 bg-neutral-700 hover:bg-neutral-600 text-white font-semibold"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    const api = (await import('@/services/api')).default;
+                    await api.delete('/auth/account');
+                    
+                    // Close modal and clear storage immediately
+                    setShowDeleteModal(false);
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('user');
+                    
+                    // Navigate to login immediately
+                    navigate('/login', { 
+                      state: { 
+                        notification: {
+                          type: 'success',
+                          title: '✓ Account Deleted',
+                          message: 'Your account has been permanently deleted.',
+                        }
+                      } 
+                    });
+                  } catch (error) {
+                    console.error('Delete account error:', error);
+                    setShowDeleteModal(false);
+                    
+                    // Show error toast notification on same page
+                    setToast({
+                      type: 'error',
+                      title: '✗ Deletion Failed',
+                      message: error.response?.data?.message || 'Failed to delete account. Please try again.',
+                    });
+                  }
+                }}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold"
+              >
+                Delete Forever
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() => setToast(null)}
+          duration={5000}
+        />
+      )}
     </div>
   );
 };
