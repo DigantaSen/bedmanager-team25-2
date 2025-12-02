@@ -9,7 +9,9 @@ const {
   getOccupantHistory,
   getCleaningQueue,
   markCleaningComplete,
-  updateDischargeTime
+  updateDischargeTime,
+  predictDischarge,
+  predictCleaningDuration
 } = require('../controllers/bedController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const { canReadBeds, canUpdateBedStatus } = require('../middleware/roleGuards');
@@ -30,6 +32,10 @@ router.get('/:id/occupant-history', protect, getOccupantHistory); // Task 2.5: G
 router.patch('/:id/status', protect, canUpdateBedStatus, validateUpdateBedStatus, updateBedStatus);
 router.put('/:id/cleaning/mark-complete', protect, authorize('manager', 'hospital_admin', 'ward_staff'), markCleaningComplete); // Task 2.5b: Mark cleaning complete - ward staff can mark beds as clean
 router.patch('/:id/discharge-time', protect, authorize('manager', 'hospital_admin'), updateDischargeTime); // Update estimated discharge time
+
+// ML-powered prediction routes
+router.post('/:id/predict-discharge', protect, authorize('manager', 'hospital_admin', 'ward_staff'), predictDischarge); // ML: Predict discharge time
+router.post('/:id/predict-cleaning', protect, authorize('manager', 'hospital_admin', 'ward_staff'), predictCleaningDuration); // ML: Predict cleaning duration
 
 module.exports = router;
 

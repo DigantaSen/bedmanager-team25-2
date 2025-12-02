@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import ExecutiveSummary from '@/components/ExecutiveSummary';
 import WardUtilizationReport from '@/components/WardUtilizationReport';
 import OccupancyTrendsChart from '@/components/OccupancyTrendsChart';
@@ -9,7 +10,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import api from '@/services/api';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
   const [backendConnected, setBackendConnected] = useState(true);
 
   // Check backend connectivity
@@ -29,6 +31,13 @@ const AdminDashboard = () => {
     const interval = setInterval(checkBackendConnection, 5000);
     return () => clearInterval(interval);
   }, [checkBackendConnection]);
+
+  // Handle navigation state to set active tab
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state]);
 
   return (
     <DashboardLayout>

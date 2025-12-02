@@ -138,8 +138,12 @@ const DashboardLayout = ({ children }) => {
           },
           {
             label: 'Forecasting',
-            href: '#forecasting',
+            href: '/admin/dashboard',
             icon: <TrendingUp className="h-5 w-5" />,
+            onClick: (e) => {
+              e.preventDefault();
+              navigate('/admin/dashboard', { state: { activeTab: 'forecasting' } });
+            },
           },
           ...commonLinks,
         ];
