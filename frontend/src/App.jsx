@@ -22,6 +22,7 @@ import Unauthorized from './pages/Unauthorized'
 import Profile from './pages/Profile'
 import TermsAndConditions from './pages/TermsAndConditions'
 import PrivacyPolicy from './pages/PrivacyPolicy'
+import About from './pages/About'
 
 function App() {
   const location = useLocation();
@@ -44,8 +45,8 @@ function App() {
 
   const navItems = [
     { name: "Home", link: "/", icon: <Home className="h-4 w-4 text-neutral-500 dark:text-white" /> },
-    // { name: "About", link: "/about", icon: <User className="h-4 w-4 text-neutral-500 dark:text-white" /> },
-    // { name: "Contact", link: "/contact", icon: <MessageSquare className="h-4 w-4 text-neutral-500 dark:text-white" /> },
+    { name: "Login", link: "/login", icon: <User className="h-4 w-4 text-neutral-500 dark:text-white" /> },
+    { name: "About", link: "/about", icon: <MessageSquare className="h-4 w-4 text-neutral-500 dark:text-white" /> },
   ];
 
   // Show floating nav on home page and login (when not authenticated)
@@ -85,6 +86,7 @@ function App() {
       {shouldShowNav && <FloatingNav navItems={navItems} />}
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/about" element={<About />} />
 
         {/* Home page - landing page for unauthenticated users */}
         <Route path="/" element={!isAuthenticated ? <HomePage /> : <Navigate to={getRoleDashboard()} />} />
@@ -162,7 +164,7 @@ function App() {
 function HomePage() {
   const features = [
     {
-      emoji: "⚡",
+      emoji: "🛏️",
       title: "Real-time Updates",
       description: "Live bed status synchronization across all wards with instant notifications",
       span: "col-span-1 row-span-1"
@@ -174,7 +176,7 @@ function HomePage() {
       span: "col-span-1 row-span-1"
     },
     {
-      emoji: "🔒",
+      emoji: "💼",
       title: "Role-Based Access",
       description: "Secure, customized dashboards for ICU managers, ward staff, and administrators",
       span: "col-span-1 row-span-1"

@@ -7,10 +7,6 @@ import { Link, useLocation } from 'react-router-dom'
 export const FloatingNav = ({ navItems, className }) => {
     const location = useLocation();
     const [visible] = useState(true);
-    
-    // Determine which item is active based on current path
-    const isHomeActive = location.pathname === '/';
-    const isLoginActive = location.pathname === '/login';
 
     return (
         <AnimatePresence mode="wait">
@@ -25,48 +21,37 @@ export const FloatingNav = ({ navItems, className }) => {
                     className
                 )}
             >
-                <div className="relative flex items-center space-x-2">
+                <div className="relative flex items-center">
                     {/* Sliding background indicator */}
                     <motion.div
                         className="absolute inset-y-0 rounded-full bg-white/10 border border-white/20"
+                        layoutId="activeNav"
                         initial={false}
                         animate={{
-                            x: isLoginActive ? '100%' : '0%',
-                            width: isLoginActive ? '80px' : '70px'
+                            x: navItems?.findIndex(item => item.link === location.pathname) * 68,
+                            width: '72px'
                         }}
                         transition={{
                             type: "spring",
                             stiffness: 300,
                             damping: 30
                         }}
-                        style={{ left: 0 }}
                     />
                     
-                    {/* Home Link */}
+                    {/* Navigation Links */}
                     {navItems?.map((navItem, idx) => (
                         <Link
                             key={`link=${idx}`}
                             to={navItem.link}
                             className={cn(
                                 "relative z-10 items-center flex space-x-1 px-4 py-2 rounded-full transition-colors",
-                                isHomeActive ? "text-white" : "text-neutral-400 hover:text-neutral-200"
+                                location.pathname === navItem.link ? "text-white" : "text-neutral-400 hover:text-neutral-200"
                             )}
                         >
                             <span className="block sm:hidden">{navItem.icon}</span>
                             <span className="hidden sm:block text-sm font-medium">{navItem.name}</span>
                         </Link>
                     ))}
-                    
-                    {/* Login Link */}
-                    <Link 
-                        to="/login" 
-                        className={cn(
-                            "relative z-10 text-sm font-medium px-4 py-2 rounded-full transition-colors",
-                            isLoginActive ? "text-white" : "text-neutral-400 hover:text-neutral-200"
-                        )}
-                    >
-                        <span>Login</span>
-                    </Link>
                 </div>
             </motion.div>
         </AnimatePresence>
