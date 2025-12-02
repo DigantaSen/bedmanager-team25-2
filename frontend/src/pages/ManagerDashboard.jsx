@@ -11,6 +11,7 @@ import EmergencyRequestsQueue from '@/components/manager/EmergencyRequestsQueue'
 import ForecastingPanel from '@/components/manager/ForecastingPanel';
 import CleaningQueuePanel from '@/components/manager/CleaningQueuePanel';
 import BedUpdateModal from '@/components/manager/BedUpdateModal';
+import NearbyHospitalsPanel from '@/components/manager/NearbyHospitalsPanel';
 import DashboardLayout from '@/components/DashboardLayout';
 import api from '@/services/api';
 
@@ -77,7 +78,9 @@ const ManagerDashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="w-full mx-auto space-y-6">
+      <div className="flex gap-6 w-full">
+        {/* Main Content - Left Side */}
+        <div className="flex-1 space-y-6 min-w-0">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
@@ -151,16 +154,24 @@ const ManagerDashboard = () => {
 
         {/* Forecasting Panel */}
         <ForecastingPanel ward={currentUser?.ward} />
+        </div>
 
-        {/* Bed Update Modal */}
-        <BedUpdateModal
-          bed={selectedBed}
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          onSuccess={handleUpdateSuccess}
-          emergencyPatientData={emergencyPatientData}
-        />
+        {/* Right Sidebar - Nearby Hospitals */}
+        <div className="w-96 flex-shrink-0 hidden xl:block">
+          <div className="sticky top-6">
+            <NearbyHospitalsPanel ward={currentUser?.ward} />
+          </div>
+        </div>
       </div>
+
+      {/* Bed Update Modal */}
+      <BedUpdateModal
+        bed={selectedBed}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSuccess={handleUpdateSuccess}
+        emergencyPatientData={emergencyPatientData}
+      />
     </DashboardLayout>
   );
 };

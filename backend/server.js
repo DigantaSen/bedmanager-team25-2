@@ -104,6 +104,7 @@ app.use('/api/emergency-requests', emergencyRequestRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/profile', require('./routes/profileRoutes'));
+app.use('/api/referrals', require('./routes/referralRoutes'));
 
 // Initialize socket connections
 initializeSocket(io);

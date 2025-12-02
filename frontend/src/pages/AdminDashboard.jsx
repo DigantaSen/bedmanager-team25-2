@@ -6,6 +6,7 @@ import OccupancyTrendsChart from '@/components/OccupancyTrendsChart';
 import ForecastingInsights from '@/components/ForecastingInsights';
 import ReportGenerator from '@/components/ReportGenerator';
 import AlertNotificationPanel from '@/components/manager/AlertNotificationPanel';
+import NearbyHospitalsPanel from '@/components/manager/NearbyHospitalsPanel';
 import DashboardLayout from '@/components/DashboardLayout';
 import api from '@/services/api';
 
@@ -34,7 +35,9 @@ const AdminDashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto">
+      <div className="flex gap-6 w-full">
+        {/* Main Content - Left Side */}
+        <div className="flex-1 space-y-6 min-w-0">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
@@ -128,6 +131,14 @@ const AdminDashboard = () => {
             <ReportGenerator />
           </div>
         )}
+        </div>
+
+        {/* Right Sidebar - Nearby Hospitals */}
+        <div className="w-96 flex-shrink-0 hidden xl:block">
+          <div className="sticky top-6">
+            <NearbyHospitalsPanel />
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );
