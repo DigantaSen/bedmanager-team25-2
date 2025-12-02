@@ -179,15 +179,14 @@ def engineer_features(df):
     
     df['time_of_day'] = df['hour'].apply(get_time_of_day)
     
-    # Ward encoding
+    # Ward encoding - Updated to match actual database schema
+    # Only ICU, General, Emergency exist in the database
     ward_mapping = {
         'ICU': 0,
-        'Emergency': 1,
-        'General': 2,
-        'Pediatrics': 3,
-        'Maternity': 4
+        'General': 1,
+        'Emergency': 2
     }
-    df['ward_encoded'] = df['ward'].map(ward_mapping).fillna(2)
+    df['ward_encoded'] = df['ward'].map(ward_mapping).fillna(1)  # Default to General
     
     # Historical averages by ward
     ward_avg_duration = df.groupby('ward')['duration_hours'].transform('mean')
@@ -234,21 +233,22 @@ def train_model(df):
     
     logger.info(f"Train set: {len(X_train)}, Test set: {len(X_test)}")
     
-    # Train Random Forest model with settings that favor ward-based features
-    # Lower max_depth and higher min_samples_leaf prevent overfitting to random time patterns
+    # Train Random Forest model with STRONG EMPHASIS ON WARD-BASED FEATURES
+    # Configuration prioritizes ward type for predictions
     model = RandomForestRegressor(
-        n_estimators=200,        # More trees for stability
-        max_depth=8,             # Shallower trees to reduce overfitting to noise
-        min_samples_split=10,    # Require more samples to split (reduce noise sensitivity)
-        min_samples_leaf=5,      # Larger leaf size (smoother predictions based on ward patterns)
-        max_features='sqrt',     # Limit features per split (forces focus on important features)
+        n_estimators=250,        # More trees for better ward pattern learning
+        max_depth=10,            # Deeper trees to capture ward-specific patterns
+        min_samples_split=8,     # Balanced splitting to preserve ward groupings
+        min_samples_leaf=3,      # Smaller leaf size to capture ward nuances
+        max_features='sqrt',     # Limit features per split (emphasizes ward features)
         random_state=settings.RANDOM_STATE,
         n_jobs=-1
     )
     
-    logger.info("Training Random Forest Regressor with ward-focused hyperparameters...")
-    logger.info("  - max_depth=8 (prevent overfitting to random patterns)")
-    logger.info("  - min_samples_leaf=5 (favor ward-level patterns)")
+    logger.info("Training Random Forest Regressor with STRONG ward-focused hyperparameters...")
+    logger.info("  - max_depth=10 (capture detailed ward-specific patterns)")
+    logger.info("  - min_samples_leaf=3 (preserve ward behavior nuances)")
+    logger.info("  - Ward type is PRIMARY predictor for discharge timing")
     model.fit(X_train, y_train)
     
     # Evaluate

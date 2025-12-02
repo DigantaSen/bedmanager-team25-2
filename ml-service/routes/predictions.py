@@ -84,7 +84,11 @@ async def predict_discharge(request: DischargeRequest):
             'ward_encoded': ward_encoded,
             'hour': time_features['hour'],
             'day_of_week': time_features['day_of_week'],
+            'month': admission_time.month,
+            'day_of_month': admission_time.day,
             'is_weekend': time_features['is_weekend'],
+            'is_business_hours': time_features['is_business_hours'],
+            'time_of_day': time_features['time_of_day'],
         }
         
         # Calculate actual historical averages from database
@@ -173,10 +177,10 @@ async def predict_discharge(request: DischargeRequest):
             
             # Set features for ward-focused model
             features['ward_avg_duration'] = ward_avg
-            features['ward_weekend_interaction'] = ward_encoded * features['is_weekend']
-            features['ward_hour_interaction'] = ward_encoded * (features['hour'] / 24.0)
+            features['time_avg_duration'] = time_avg
+            features['ward_time_avg_duration'] = ward_time_avg
             
-            logger.info(f"Ward-focused features: ward_avg={ward_avg:.2f}h, ward_encoded={ward_encoded}, is_weekend={features['is_weekend']}")
+            logger.info(f"Ward-focused features: ward_avg={ward_avg:.2f}h, time_avg={time_avg:.2f}h, ward_time_avg={ward_time_avg:.2f}h, ward_encoded={ward_encoded}")
             
             mongo_client.close()
             
@@ -194,8 +198,8 @@ async def predict_discharge(request: DischargeRequest):
             }
             default_duration = ward_defaults.get(request.ward, 36.0)
             features['ward_avg_duration'] = default_duration
-            features['ward_weekend_interaction'] = ward_encoded * features['is_weekend']
-            features['ward_hour_interaction'] = ward_encoded * (features['hour'] / 24.0)
+            features['time_avg_duration'] = default_duration  # Fallback to ward avg
+            features['ward_time_avg_duration'] = default_duration  # Fallback to ward avg
         
         # Create input array in correct order
         X = np.array([[features[col] for col in feature_columns]])
