@@ -13,6 +13,7 @@ pydantic==2.12.5
 pydantic_core==2.41.5
 pymongo==4.15.4
 python-dateutil==2.9.0.post0
+python-dotenv==1.2.3
 pytz==2025.2
 scikit-learn==1.7.2
 scipy==1.16.3

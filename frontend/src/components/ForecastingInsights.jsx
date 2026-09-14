@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchBeds } from '@/features/beds/bedsSlice';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -24,6 +24,8 @@ const ForecastingInsights = () => {
   });
   const [managerDischarges, setManagerDischarges] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  // Beds the current ML predictions were fetched for (skip refetching when unchanged)
+  const predictedBedsKeyRef = useRef('');
 
   useEffect(() => {
     // Always fetch beds when component mounts to get latest data
@@ -39,18 +41,21 @@ const ForecastingInsights = () => {
     return () => clearInterval(interval);
   }, [dispatch]);
 
-  // Fetch ML predictions for occupied beds
+  // Fetch ML predictions for occupied beds and beds being cleaned
   useEffect(() => {
-    const fetchMLPredictions = async () => {
-      if (bedsList.length === 0) return;
+    const occupiedBeds = bedsList.filter(bed => bed.status === 'occupied').slice(0, 10);
+    const cleaningBeds = bedsList.filter(bed => bed.status === 'cleaning').slice(0, 10);
 
+    // The beds list is refreshed every 30 seconds; only refetch predictions when these beds change
+    const bedsKey = [...occupiedBeds, ...cleaningBeds].map(bed => `${bed._id}:${bed.status}`).join(',');
+    if (!bedsKey || bedsKey === predictedBedsKeyRef.current) return;
+    predictedBedsKeyRef.current = bedsKey;
+
+    const fetchMLPredictions = async () => {
       setIsLoading(true);
       try {
-        const occupiedBeds = bedsList.filter(bed => bed.status === 'occupied');
-        const cleaningBeds = bedsList.filter(bed => bed.status === 'maintenance');
-
         // Fetch discharge predictions for occupied beds
-        const dischargePromises = occupiedBeds.slice(0, 10).map(async (bed) => {
+        const dischargePromises = occupiedBeds.map(async (bed) => {
           try {
             const response = await api.post(`/beds/${bed._id}/predict-discharge`);
             const prediction = response.data?.data?.prediction;
@@ -67,8 +72,8 @@ const ForecastingInsights = () => {
           }
         });
 
-        // Fetch cleaning duration predictions for maintenance beds
-        const cleaningPromises = cleaningBeds.slice(0, 10).map(async (bed) => {
+        // Fetch cleaning duration predictions for beds being cleaned
+        const cleaningPromises = cleaningBeds.map(async (bed) => {
           try {
             const response = await api.post(`/beds/${bed._id}/predict-cleaning`, {
               estimatedDuration: 30
@@ -104,9 +109,7 @@ const ForecastingInsights = () => {
       }
     };
 
-    if (bedsList.length > 0) {
-      fetchMLPredictions();
-    }
+    fetchMLPredictions();
   }, [bedsList]);
 
   // Fetch manager-assigned discharge times
