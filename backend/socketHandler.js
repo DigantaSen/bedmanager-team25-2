@@ -1,13 +1,14 @@
 // Socket.IO connection and event handler
 const { verifyToken } = require('./config/jwt');
 const Alert = require('./models/Alert');
+const User = require('./models/User');
 
 const initializeSocket = (io) => {
   // Track authenticated users
   const authenticatedUsers = {};
 
   // Middleware to verify JWT token on connection
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
     
     console.log('🔍 Socket connection attempt:', {
@@ -24,6 +25,14 @@ const initializeSocket = (io) => {
 
     try {
       const decoded = verifyToken(token);
+
+      // Only approved accounts may connect (covers accounts rejected after login)
+      const user = await User.findById(decoded.id).select('status');
+      if (!user || user.status !== 'approved') {
+        console.log(`❌ Connection rejected: Account not approved (${socket.id})`);
+        return next(new Error('Authentication error: Account not approved'));
+      }
+
       socket.user = decoded; // Attach user data to socket
       console.log(`✅ User authenticated: ${decoded.email} (${socket.id})`);
       next();

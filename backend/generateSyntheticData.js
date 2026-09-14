@@ -156,7 +156,7 @@ async function generateUsers() {
     defaultUsers.map(async (u) => {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(u.password, salt);
-      return { ...u, password: hashedPassword };
+      return { ...u, password: hashedPassword, status: "approved" };
     })
   );
 

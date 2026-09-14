@@ -60,21 +60,12 @@ export const register = createAsyncThunk(
       if (department) payload.department = department;
 
       const response = await api.post('/auth/register', payload);
-      
-      // Extract token and user from response
-      const { data } = response.data; // response.data.data contains user and token
-      const token = data?.token;
-      const user = data?.user;
-      
-      if (!token || !user) {
-        console.error('Invalid registration response:', response.data);
-        throw new Error('Invalid response: missing token or user data');
-      }
-      
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      return { token, user }; // Returns { token, user }
+
+      // New accounts need admin approval, so no token is issued at sign-up
+      return {
+        user: response.data.data?.user,
+        message: response.data.message
+      };
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Registration failed';
       return rejectWithValue(errorMessage);
@@ -146,10 +137,9 @@ const authSlice = createSlice({
         state.status = 'loading';
         state.error = null;
       })
-      .addCase(register.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.user = action.payload.user;
-        state.token = action.payload.token;
+      .addCase(register.fulfilled, (state) => {
+        // Account is pending approval - the user stays logged out
+        state.status = 'idle';
         state.error = null;
       })
       .addCase(register.rejected, (state, action) => {

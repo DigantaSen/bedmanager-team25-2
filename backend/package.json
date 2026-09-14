@@ -9,7 +9,8 @@
     "cleanup:db": "node comprehensiveCleanup.js",
     "check:logs": "node checkOccupancyLogs.js && node checkCleaningLogs.js",
     "check:cleaning": "node checkCleaningBeds.js",
-    "fix:cleaning": "node fixCleaningBeds.js"
+    "fix:cleaning": "node fixCleaningBeds.js",
+    "create:admin": "node createAdmin.js"
   },
   "keywords": [],
   "author": "",

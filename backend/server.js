@@ -40,7 +40,9 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const socketIO = require('socket.io');
+const mongoose = require('mongoose');
 const connectDB = require('./config/db');
+const User = require('./models/User');
 const healthRouter = require('./routes/health');
 const authRoutes = require('./routes/authRoutes');
 const bedRoutes = require('./routes/bedRoutes');
@@ -116,6 +118,7 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/profile', require('./routes/profileRoutes'));
 app.use('/api/referrals', require('./routes/referralRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
 
 // Initialize socket connections
 initializeSocket(io);
@@ -152,7 +155,11 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Accounts created before the approval workflow have no status yet - keep them active
+  if (mongoose.connection.readyState === 1) {
+    await User.approveLegacyAccounts();
+  }
   server.listen(PORT, () => console.log(`Backend: listening on port ${PORT}`));
 });
 

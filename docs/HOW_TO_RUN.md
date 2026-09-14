@@ -484,6 +484,24 @@ cd backend
 node seedBeds.js
 ```
 
+### User Accounts & Approval
+
+New sign-ups start as **pending** and cannot log in until a hospital admin approves them
+(Admin Dashboard → **Approvals** tab). The admin can change the requested role or ward while approving.
+`hospital_admin` cannot be requested at sign-up, so create the first admin from the command line:
+
+```bash
+cd backend
+# Create a new approved admin account
+npm run create:admin -- --email admin@hospital.com --password "<at least 8 characters>" --name "Jane Doe"
+
+# Or promote an existing user to admin (password unchanged)
+npm run create:admin -- --email existing.user@hospital.com
+```
+
+Users seeded by `generateSyntheticData.js` are already approved. Accounts that existed before the
+approval workflow are marked approved automatically when the server starts.
+
 ---
 
 ## 🐳 Docker Support (Optional)
