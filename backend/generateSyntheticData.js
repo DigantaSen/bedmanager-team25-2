@@ -4,6 +4,7 @@
 //         duplicate alerts, noisy occupancy logs, wrong discharge times.
 // ======================================================================
 
+require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const Bed = require("./models/Bed");
@@ -16,10 +17,7 @@ const Alert = require("./models/Alert");
 // ----------------------------------------------------------------------
 // DB CONNECT
 // ----------------------------------------------------------------------
-mongoose.connect("mongodb://localhost:27017/bedmanager", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/bedmanager";
 
 // ----------------------------------------------------------------------
 // CONFIGURATION — UPDATED TO MATCH SEEDBEDS.JS
@@ -145,7 +143,7 @@ async function generateUsers() {
     defaultUsers.push({
       name: `ER Staff ${i}`,
       email: `er.staff${i}@hospital.com`,
-      password: "er123",
+      password: "erstaff123",
       role: "er_staff",
       ward: "Emergency",
     });
@@ -421,6 +419,9 @@ async function generateAlerts() {
 // ----------------------------------------------------------------------
 (async () => {
   try {
+    await mongoose.connect(MONGO_URI);
+    console.log(`✔ Connected to MongoDB (${mongoose.connection.name})`);
+
     await clearDatabase(); // Clears logs/users/requests/alerts (NOT beds)
     const users = await generateUsers();
     const beds = await fetchAndUpdateBeds(); // Fetches beds from seedBeds.js, updates status

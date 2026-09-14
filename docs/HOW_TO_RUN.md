@@ -32,8 +32,8 @@ The Bed Manager application consists of three main components:
 
 Before running the application, ensure you have:
 
-- **Node.js** (v14+ recommended, check `.nvmrc` in backend/)
-- **Python** (v3.8+)
+- **Node.js** (v20.19+, see `.nvmrc` in backend/)
+- **Python** (v3.11+)
 - **MongoDB** (local or Atlas cloud instance)
 - **npm** or **yarn**
 - **Git**
@@ -47,7 +47,7 @@ Open **three separate terminals** and run the following commands:
 ### Terminal 1: Backend
 ```bash
 cd backend
-cp .env.example .env
+cp .env.example .env   # then set MONGO_URI and JWT_SECRET
 npm install
 npm run dev
 ```
@@ -293,24 +293,31 @@ Check `frontend/.env` or `frontend/.env.example` for any required configuration.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | 5001 | Backend server port |
-| `MONGO_URI` | mongodb://localhost:27017/bedmanager | MongoDB connection string |
+| `MONGO_URI` | mongodb://localhost:27017/bedmanager | MongoDB connection string (required) |
+| `JWT_SECRET` | (none) | Token signing secret, at least 32 characters (required) |
+| `JWT_EXPIRES_IN` | 7d | Login token lifetime |
 | `NODE_ENV` | development | Environment (development/production) |
 | `ML_SERVICE_URL` | http://localhost:8000 | ML service endpoint |
-| `FRONTEND_URL` | http://localhost:5173 | Frontend URL (for CORS) |
+| `FRONTEND_URL` | (none) | Extra allowed CORS origin (localhost:5173 is always allowed) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | smtp.gmail.com, 587 | Mail server settings for emailed reports |
 
 ### Frontend (`.env`)
 
-Check `frontend/.env.example` for required variables. Typically includes:
-- Backend API base URL
-- Socket.IO connection URL
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_BASE_URL` | http://localhost:5001/api | Backend API base URL |
+| `VITE_SOCKET_URL` | http://localhost:5001 | Socket.IO server URL |
 
-### ML Service (`.env`)
+### ML Service (environment variables)
+
+The ML service reads these from the environment; it does not load a `.env` file.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ML_SERVICE_PORT` | 8000 | ML service port |
-| `MONGO_URI` | (same as backend) | MongoDB URI for training |
-| Model paths and configuration settings |
+| `ML_SERVICE_HOST` | 0.0.0.0 | Bind address (used by `python main.py`) |
+| `ML_SERVICE_PORT` | 8000 | ML service port (used by `python main.py`) |
+| `MONGO_URI` | mongodb://localhost:27017/bedmanager | MongoDB URI used by the training scripts |
+| `LOG_LEVEL` | INFO | Logging level |
 
 ---
 
@@ -333,7 +340,7 @@ curl http://localhost:8000/models/status
 ```
 
 ### 4. End-to-End Test
-- Register/login through the frontend
+- Sign up through the frontend, approve the account as a hospital admin (Admin Dashboard → Approvals), then log in
 - Check that real-time updates work (WebSocket)
 - Test ML predictions (if implemented)
 

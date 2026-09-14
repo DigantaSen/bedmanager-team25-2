@@ -4,6 +4,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { ROLES } = require('../config/roles');
+const { MIN_PASSWORD_LENGTH } = require('../config/passwordPolicy');
 
 const userSchema = new mongoose.Schema(
   {
@@ -28,7 +29,7 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
+      minlength: [MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`],
       select: false // Don't return password by default
     },
     role: {

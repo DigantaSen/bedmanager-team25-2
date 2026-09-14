@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/features/auth/authSlice";
+import { API_ORIGIN } from "@/services/api";
 
 const SidebarContext = createContext(undefined);
 
@@ -260,7 +261,6 @@ export const LogoIcon = () => (
 export const ProfileLink = () => {
   const { open, animate } = useSidebar();
   const currentUser = useSelector(selectCurrentUser);
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
   // Get user initials for avatar
   const getInitials = (name) => {
@@ -277,7 +277,7 @@ export const ProfileLink = () => {
       <div className="h-8 w-8 rounded-full bg-sky-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold overflow-hidden">
         {currentUser?.profilePicture ? (
           <img 
-            src={`${API_URL}${currentUser.profilePicture}`} 
+            src={`${API_ORIGIN}${currentUser.profilePicture}`}
             alt={currentUser.name} 
             className="w-full h-full object-cover"
           />
