@@ -102,6 +102,12 @@ uvicorn main:app --host 0.0.0.0 --port 8000
    NODE_ENV=development
    ML_SERVICE_URL=http://localhost:8000
    FRONTEND_URL=http://localhost:5173
+   JWT_SECRET=<paste output of the command below>
+   ```
+
+   `JWT_SECRET` is required (at least 32 characters) — the server refuses to start without it:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
    ```
 
 4. **Install dependencies:**

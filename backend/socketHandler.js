@@ -1,5 +1,5 @@
 // Socket.IO connection and event handler
-const jwt = require('jsonwebtoken');
+const { verifyToken } = require('./config/jwt');
 const Alert = require('./models/Alert');
 
 const initializeSocket = (io) => {
@@ -23,7 +23,7 @@ const initializeSocket = (io) => {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      const decoded = verifyToken(token);
       socket.user = decoded; // Attach user data to socket
       console.log(`✅ User authenticated: ${decoded.email} (${socket.id})`);
       next();

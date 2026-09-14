@@ -25,6 +25,17 @@
 
 // module.exports = app;
 require('dotenv').config();
+const { getJwtSecret } = require('./config/jwt');
+
+// Fail fast: never run with a missing or weak JWT secret
+try {
+  getJwtSecret();
+} catch (err) {
+  console.error(`❌ ${err.message}`);
+  console.error('💡 Generate one with: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const http = require('http');

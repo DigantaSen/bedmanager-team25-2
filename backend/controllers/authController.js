@@ -1,5 +1,5 @@
 // backend/controllers/authController.js
-const jwt = require('jsonwebtoken');
+const { signToken } = require('../config/jwt');
 const User = require('../models/User');
 const { AppError } = require('../middleware/errorHandler');
 
@@ -76,18 +76,7 @@ exports.register = async (req, res) => {
     const user = await User.create(userData);
 
     // Generate JWT token
-    const token = jwt.sign(
-      { 
-        id: user._id, 
-        email: user.email, 
-        role: user.role,
-        ward: user.ward,
-        assignedWards: user.assignedWards,
-        department: user.department
-      },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    const token = signToken(user);
 
     res.status(201).json({
       success: true,
@@ -166,18 +155,7 @@ exports.login = async (req, res) => {
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      { 
-        id: user._id, 
-        email: user.email, 
-        role: user.role,
-        ward: user.ward,
-        assignedWards: user.assignedWards,
-        department: user.department
-      },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    const token = signToken(user);
 
     res.status(200).json({
       success: true,
