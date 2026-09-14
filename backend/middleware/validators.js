@@ -4,6 +4,7 @@
 const { body, param, query, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 const { ROLES, SELF_SIGNUP_ROLES, WARDS } = require('../config/roles');
+const { MIN_PASSWORD_LENGTH } = require('../config/passwordPolicy');
 
 /**
  * @desc    Middleware to handle validation errors
@@ -54,8 +55,8 @@ const validateRegister = [
   body('password')
     .notEmpty()
     .withMessage('Password is required')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
+    .isLength({ min: MIN_PASSWORD_LENGTH })
+    .withMessage(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`),
   
   body('role')
     .optional()

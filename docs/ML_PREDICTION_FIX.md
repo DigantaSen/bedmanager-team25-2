@@ -148,7 +148,7 @@ The frontend `ForecastingPanel` component should now display:
    - Cleaning duration model (MAE: 8.15 minutes)
    - Bed availability model (Accuracy: 82.37%)
 
-2. **Backend**: `http://localhost:5000/api`
+2. **Backend**: `http://localhost:5001/api`
    - Analytics controller integrated with ML service
    - `/analytics/forecasting` endpoint provides combined data
 

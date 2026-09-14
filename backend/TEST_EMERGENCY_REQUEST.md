@@ -239,7 +239,7 @@ EmergencyRequest {
 
 ### 1. Create Emergency Request
 ```bash
-curl -X POST http://localhost:5000/api/emergency-requests \
+curl -X POST http://localhost:5001/api/emergency-requests \
   -H "Content-Type: application/json" \
   -d '{
     "patientId": "673199c90195bb2bb0a57aa6",
@@ -250,22 +250,22 @@ curl -X POST http://localhost:5000/api/emergency-requests \
 
 ### 2. Get All Requests
 ```bash
-curl http://localhost:5000/api/emergency-requests
+curl http://localhost:5001/api/emergency-requests
 ```
 
 ### 3. Get All Pending Requests
 ```bash
-curl http://localhost:5000/api/emergency-requests?status=pending
+curl http://localhost:5001/api/emergency-requests?status=pending
 ```
 
 ### 4. Get Single Request
 ```bash
-curl http://localhost:5000/api/emergency-requests/{REQUEST_ID}
+curl http://localhost:5001/api/emergency-requests/{REQUEST_ID}
 ```
 
 ### 5. Update Request Status to Approved
 ```bash
-curl -X PUT http://localhost:5000/api/emergency-requests/{REQUEST_ID} \
+curl -X PUT http://localhost:5001/api/emergency-requests/{REQUEST_ID} \
   -H "Content-Type: application/json" \
   -d '{
     "status": "approved"
@@ -274,7 +274,7 @@ curl -X PUT http://localhost:5000/api/emergency-requests/{REQUEST_ID} \
 
 ### 6. Delete Request
 ```bash
-curl -X DELETE http://localhost:5000/api/emergency-requests/{REQUEST_ID}
+curl -X DELETE http://localhost:5001/api/emergency-requests/{REQUEST_ID}
 ```
 
 ---
@@ -283,7 +283,7 @@ curl -X DELETE http://localhost:5000/api/emergency-requests/{REQUEST_ID}
 
 ### Collection Setup
 
-1. **Base URL:** `http://localhost:5000`
+1. **Base URL:** `http://localhost:5001`
 2. **Content-Type Header:** `application/json`
 
 ### Test Sequence

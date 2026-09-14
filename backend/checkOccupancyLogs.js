@@ -8,7 +8,7 @@ require('dotenv').config();
 const checkOccupancyLogs = async () => {
   try {
     // Connect to MongoDB
-    const dbURI = process.env.MONGO_URI || 'mongodb://localhost:27017/hospital_bed_management';
+    const dbURI = process.env.MONGO_URI || 'mongodb://localhost:27017/bedmanager';
     console.log('🔌 Connecting to MongoDB...');
     await mongoose.connect(dbURI);
     console.log('✅ Connected to MongoDB');

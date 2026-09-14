@@ -74,13 +74,14 @@ export default function LoginCardSection() {
 
   const loginSchema = z.object({
     email: z.string().min(1, 'Required').email('Invalid email'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    password: z.string().min(1, 'Password is required'),
   });
 
   const signupSchema = z.object({
     role: z.string().min(1, 'Role is required'),
     name: z.string().min(2, 'Full name is required'),
     email: z.string().min(1, 'Required').email('Invalid email'),
+    // Keep in sync with backend/config/passwordPolicy.js
     password: z.string().min(6, 'Password must be at least 6 characters'),
     ward: z.string().optional(),
     department: z.string().optional(),

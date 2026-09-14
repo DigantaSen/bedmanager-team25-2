@@ -16,6 +16,8 @@ const Unauthorized = () => {
       navigate('/manager/dashboard');
     } else if (currentUser?.role === 'ward_staff') {
       navigate('/staff/dashboard');
+    } else if (currentUser?.role === 'er_staff') {
+      navigate('/er/dashboard');
     } else {
       navigate('/dashboard');
     }

@@ -1,12 +1,12 @@
-# Backend - Task 1 (Node.js + Express)
+# Backend (Node.js + Express)
 
 ## Overview
 
-This folder contains the backend for Task 1: a minimal Node.js + Express server with a health endpoint and a safe, optional DB helper (no MongoDB required for Task 1).
+REST API and Socket.IO server for Bed Manager. It needs MongoDB (`MONGO_URI`) and a JWT signing secret (`JWT_SECRET`). For setting up all services together, see [`docs/HOW_TO_RUN.md`](../docs/HOW_TO_RUN.md).
 
 ## Quickstart
 
-1. Copy `.env.example` to `.env` and (optionally) set values. Example:
+1. Copy `.env.example` to `.env` and set `MONGO_URI` and `JWT_SECRET` (both required). Example:
 
 ```bash
 cp .env.example .env
@@ -34,7 +34,7 @@ npm start
 5. Verify the health endpoint (example):
 
 ```bash
-curl http://localhost:5000/api/health
+curl http://localhost:5001/api/health
 ```
 
 You should receive a JSON response like:

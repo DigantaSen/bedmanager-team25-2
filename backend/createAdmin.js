@@ -9,8 +9,7 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('./models/User');
-
-const MIN_PASSWORD_LENGTH = 8;
+const { MIN_PASSWORD_LENGTH } = require('./config/passwordPolicy');
 
 function parseArgs(argv) {
   const args = {};

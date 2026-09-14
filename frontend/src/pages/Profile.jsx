@@ -10,8 +10,7 @@ import { User, Mail, Phone, MapPin, Calendar, Briefcase, FileText, Camera, Edit2
 import { updateUserProfile } from '../features/auth/authSlice';
 import axios from 'axios';
 import Toast from '../components/ui/Toast';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+import { API_ORIGIN as API_URL } from '../services/api';
 
 const Profile = () => {
   const navigate = useNavigate();

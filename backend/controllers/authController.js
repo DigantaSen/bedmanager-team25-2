@@ -1,5 +1,6 @@
 // backend/controllers/authController.js
 const { signToken } = require('../config/jwt');
+const { MIN_PASSWORD_LENGTH } = require('../config/passwordPolicy');
 const User = require('../models/User');
 const { AppError } = require('../middleware/errorHandler');
 
@@ -40,10 +41,10 @@ exports.register = async (req, res) => {
     }
 
     // Validate password length
-    if (password.length < 6) {
+    if (password.length < MIN_PASSWORD_LENGTH) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 6 characters long'
+        message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`
       });
     }
 
