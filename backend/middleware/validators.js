@@ -3,6 +3,7 @@
 
 const { body, param, query, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
+const { ROLES, SELF_SIGNUP_ROLES, WARDS } = require('../config/roles');
 
 /**
  * @desc    Middleware to handle validation errors
@@ -58,9 +59,46 @@ const validateRegister = [
   
   body('role')
     .optional()
-    .isIn(['technical_team', 'hospital_admin', 'er_staff', 'ward_staff', 'manager'])
-    .withMessage('Role must be one of: technical_team, hospital_admin, er_staff, ward_staff, manager'),
-  
+    .isIn(SELF_SIGNUP_ROLES)
+    .withMessage(`Role must be one of: ${SELF_SIGNUP_ROLES.join(', ')}`),
+
+  body('ward')
+    .optional()
+    .isIn(WARDS)
+    .withMessage(`Ward must be one of: ${WARDS.join(', ')}`),
+
+  handleValidationErrors
+];
+
+/**
+ * @desc    Validation rules for approving a user account (admin may adjust role/ward)
+ */
+const validateApproveUser = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid user ID format'),
+
+  body('role')
+    .optional()
+    .isIn(ROLES)
+    .withMessage(`Role must be one of: ${ROLES.join(', ')}`),
+
+  body('ward')
+    .optional()
+    .isIn(WARDS)
+    .withMessage(`Ward must be one of: ${WARDS.join(', ')}`),
+
+  handleValidationErrors
+];
+
+/**
+ * @desc    Validation rules for routes that take a user ID param
+ */
+const validateUserIdParam = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid user ID format'),
+
   handleValidationErrors
 ];
 
@@ -251,6 +289,8 @@ module.exports = {
   handleValidationErrors,
   validateRegister,
   validateLogin,
+  validateApproveUser,
+  validateUserIdParam,
   validateCreateBed,
   validateUpdateBedStatus,
   validateBedQuery,

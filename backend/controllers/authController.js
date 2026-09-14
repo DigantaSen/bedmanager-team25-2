@@ -10,16 +10,15 @@ const { AppError } = require('../middleware/errorHandler');
  */
 exports.register = async (req, res) => {
   try {
-    const { email, password, name, role, ward, assignedWards, department } = req.body;
-    
+    const { email, password, name, role, ward, department } = req.body;
+
     // Debug log
-    console.log('📝 Register request body:', { 
-      email, 
-      password: password ? '***' : undefined, 
-      name, 
+    console.log('📝 Register request body:', {
+      email,
+      password: password ? '***' : undefined,
+      name,
       role,
       ward,
-      assignedWards,
       department
     });
 
@@ -57,30 +56,26 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Prepare user data
+    // Prepare user data - the requested role only takes effect once an admin approves the account
     const userData = {
       name,
       email: email.toLowerCase(),
       password,
-      role: role || 'ward_staff'
+      role: role || 'ward_staff',
+      status: 'pending'
     };
 
     // Add optional fields if provided
     if (ward) userData.ward = ward;
-    if (assignedWards && Array.isArray(assignedWards) && assignedWards.length > 0) {
-      userData.assignedWards = assignedWards;
-    }
     if (department) userData.department = department;
 
     // Create user (password will be hashed by model pre-save hook)
     const user = await User.create(userData);
 
-    // Generate JWT token
-    const token = signToken(user);
-
+    // No token is issued: the account cannot be used until it is approved
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'Account created. An administrator must approve it before you can log in.',
       data: {
         user: {
           id: user._id,
@@ -88,15 +83,9 @@ exports.register = async (req, res) => {
           email: user.email,
           role: user.role,
           ward: user.ward,
-          assignedWards: user.assignedWards,
           department: user.department,
-          profilePicture: user.profilePicture,
-          phone: user.phone,
-          address: user.address,
-          dateOfBirth: user.dateOfBirth,
-          bio: user.bio
-        },
-        token
+          status: user.status
+        }
       }
     });
   } catch (error) {
@@ -151,6 +140,17 @@ exports.login = async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password'
+      });
+    }
+
+    // Block accounts that have not been approved (checked after the password so status isn't leaked)
+    if (user.status !== 'approved') {
+      return res.status(403).json({
+        success: false,
+        message: user.status === 'rejected'
+          ? 'Your account request was rejected. Please contact the hospital administrator.'
+          : 'Your account is awaiting admin approval.',
+        accountStatus: user.status
       });
     }
 

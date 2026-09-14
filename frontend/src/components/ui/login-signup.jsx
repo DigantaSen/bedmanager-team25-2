@@ -58,6 +58,7 @@ export default function LoginCardSection() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const [errors, setErrors] = useState({});
+  const [signupSuccess, setSignupSuccess] = useState(null);
   const isSubmitting = status === 'loading';
 
   // Show notification from navigation state (e.g., after account deletion)
@@ -135,6 +136,12 @@ export default function LoginCardSection() {
               <div className="tab-shell mt-6">
                 {activeTab === "login" && (
                   <div className="tab-panel space-y-5">
+                    {signupSuccess && (
+                      <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <p className="text-sm text-green-400">{signupSuccess}</p>
+                      </div>
+                    )}
+
                     <div className="grid gap-2 text-left">
                       <Label htmlFor="login-email" className="text-zinc-300">Email</Label>
                       <div className="relative">
@@ -165,6 +172,7 @@ export default function LoginCardSection() {
                     <Button disabled={isSubmitting} onClick={async (e) => {
                       e.preventDefault(); // Prevent form submission/page refresh
                       setErrors({});
+                      setSignupSuccess(null);
                       try {
                         const payload = {
                           email: loginEmailRef.current?.value || '',
@@ -233,10 +241,10 @@ export default function LoginCardSection() {
                               <SelectValue placeholder="Select role" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="hospital_admin">Hospital Admin</SelectItem>
                               <SelectItem value="er_staff">ER Staff</SelectItem>
                               <SelectItem value="ward_staff">Ward Staff</SelectItem>
                               <SelectItem value="manager">Manager</SelectItem>
+                              <SelectItem value="technical_team">Technical Team</SelectItem>
                             </SelectContent>
                           </Select>
                           {errors.role && <p className="text-xs text-red-400 mt-1">{errors.role}</p>}
@@ -374,19 +382,9 @@ export default function LoginCardSection() {
                         const resultAction = await dispatch(registerAction(registrationData));
 
                         if (registerAction.fulfilled.match(resultAction)) {
-                          // Success - navigate to role-specific dashboard
-                          const userRole = resultAction.payload.user.role;
-                          if (userRole === 'hospital_admin') {
-                            navigate('/admin/dashboard');
-                          } else if (userRole === 'manager') {
-                            navigate('/manager/dashboard');
-                          } else if (userRole === 'ward_staff') {
-                            navigate('/staff/dashboard');
-                          } else if (userRole === 'er_staff') {
-                            navigate('/er/dashboard');
-                          } else {
-                            navigate('/dashboard');
-                          }
+                          // Account awaits admin approval - send the user back to the login tab
+                          setSignupSuccess(resultAction.payload.message || 'Account created. An administrator must approve it before you can log in.');
+                          setActiveTab('login');
                         } else {
                           // Error - show message
                           setErrors({ signupError: resultAction.payload || 'Registration failed' });

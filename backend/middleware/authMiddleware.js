@@ -41,6 +41,14 @@ exports.protect = async (req, res, next) => {
         });
       }
 
+      // Only approved accounts may use the API (covers accounts rejected after login)
+      if (user.status !== 'approved') {
+        return res.status(401).json({
+          success: false,
+          message: 'Your account is not approved'
+        });
+      }
+
       // Attach user to request object (with _id, not just id)
       req.user = user;
 
