@@ -13,6 +13,7 @@ try {
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const http = require('http');
 const socketIO = require('socket.io');
 const mongoose = require('mongoose');
@@ -32,6 +33,13 @@ const scheduledReportService = require('./services/scheduledReportService');
 
 const app = express();
 const server = http.createServer(app);
+
+// Security headers. The API serves JSON and the uploaded profile pictures under /uploads,
+// which the frontend loads from its own origin, so resource sharing stays cross-origin -
+// helmet's same-origin default would stop those images loading.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 
 // Enable CORS for all routes - Allow both localhost and 127.0.0.1
 const allowedOrigins = [
@@ -75,7 +83,9 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
-app.use(express.json());
+// Request bodies here are small: form fields, report options and bed updates. Anything
+// larger is an upload, which multer handles with its own limit.
+app.use(express.json({ limit: '100kb' }));
 
 // Make io available to routes via req
 app.use((req, res, next) => {

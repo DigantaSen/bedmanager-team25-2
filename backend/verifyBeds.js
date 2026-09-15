@@ -44,7 +44,8 @@ async function verifyBeds() {
     if (sampleOccupied) {
       console.log("Sample Occupied Bed:");
       console.log(`  Bed: ${sampleOccupied.bedId} (${sampleOccupied.ward})`);
-      console.log(`  Patient: ${sampleOccupied.patientName} (${sampleOccupied.patientId})`);
+      // The patient's name and id are not printed: this is a diagnostic of bed state
+      console.log(`  Patient recorded: ${sampleOccupied.patientName ? 'yes' : 'no'}`);
       if (sampleOccupied.estimatedDischargeTime) {
         console.log(`  Discharge: ${new Date(sampleOccupied.estimatedDischargeTime).toLocaleString()}`);
       }

@@ -69,8 +69,8 @@ python train/train_cleaning_duration.py
 # Development mode (auto-reload)
 python main.py
 
-# Production mode
-uvicorn main:app --host 0.0.0.0 --port 8000
+# Production mode (loopback only; the backend calls this service from the same machine)
+uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
 ## 📡 API Endpoints

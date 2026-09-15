@@ -8,8 +8,6 @@ const fs = require('fs').promises;
 // @access  Private
 exports.getProfile = async (req, res) => {
   try {
-    console.log('GET /api/profile - User ID:', req.user?._id);
-    
     if (!req.user || !req.user._id) {
       return res.status(401).json({
         success: false,
@@ -27,7 +25,6 @@ exports.getProfile = async (req, res) => {
       });
     }
 
-    console.log('Profile fetched successfully for user:', user.email);
     res.status(200).json({
       success: true,
       data: user
@@ -47,10 +44,8 @@ exports.getProfile = async (req, res) => {
 // @access  Private
 exports.updateProfile = async (req, res) => {
   try {
-    console.log('PUT /api/profile - User ID:', req.user?._id);
-    console.log('Request body:', req.body);
-    console.log('Request file:', req.file);
-    
+    // The body holds the user's own name, phone number, address and date of birth, so it is
+    // not logged; the same goes for the email addresses this handler used to print
     const { name, phone, address, dateOfBirth, bio, department } = req.body;
     
     if (!req.user || !req.user._id) {
@@ -70,9 +65,6 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    console.log('Updating user:', user.email);
-    console.log('Before update:', { name: user.name, phone: user.phone, address: user.address });
-
     // Update allowed fields
     if (name && name.trim()) user.name = name.trim();
     if (phone !== undefined) user.phone = phone || null;
@@ -81,8 +73,6 @@ exports.updateProfile = async (req, res) => {
     if (bio !== undefined) user.bio = bio || null;
     if (department !== undefined) user.department = department || null;
     
-    console.log('After update:', { name: user.name, phone: user.phone, address: user.address });
-
     // Handle profile picture upload
     if (req.file) {
       // Delete old profile picture if exists
@@ -100,11 +90,9 @@ exports.updateProfile = async (req, res) => {
     }
 
     await user.save();
-    console.log('User saved successfully');
 
     // Return user without password
     const updatedUser = await User.findById(user._id).select('-password');
-    console.log('Returning updated user:', updatedUser.email);
 
     res.status(200).json({
       success: true,

@@ -82,7 +82,7 @@ export default function LoginCardSection() {
     name: z.string().min(2, 'Full name is required'),
     email: z.string().min(1, 'Required').email('Invalid email'),
     // Keep in sync with backend/config/passwordPolicy.js
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
     ward: z.string().optional(),
     department: z.string().optional(),
     terms: z.literal(true, { errorMap: () => ({ message: 'You must accept Terms & Privacy' }) }),
