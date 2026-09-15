@@ -352,8 +352,15 @@ async function simulateBedHistory(beds, users) {
 // ----------------------------------------------------------------------
 // EMERGENCY REQUESTS
 // ----------------------------------------------------------------------
-async function generateEmergencyRequests() {
+async function generateEmergencyRequests(users) {
   console.log("🚑 Generating emergency requests...");
+
+  // Requests are raised by ER staff, and each one is attributed to a real account
+  // so the ER dashboard shows each user only the requests they raised
+  const erStaff = users.filter((user) => user.role === "er_staff");
+  if (erStaff.length === 0) {
+    throw new Error("No ER staff accounts to raise emergency requests");
+  }
 
   const requests = [];
   const count = random(30, 50);
@@ -368,6 +375,7 @@ async function generateEmergencyRequests() {
       patientName: `${randomChoice(firstNames)} ${randomChoice(lastNames)}`,
       patientContact: "+1" + random(2000000000, 9999999999),
       patientId: null,
+      requestedBy: randomChoice(erStaff)._id,
       ward: randomChoice(CONFIG.wards),
       priority: randomChoice(["critical", "high", "medium", "low"]),
       status,
@@ -441,7 +449,7 @@ async function generateAlerts(requests) {
     await clearDatabase(seedAccounts.map((account) => account.email)); // Keeps beds and non-seed accounts
     const users = await generateUsers(seedAccounts);
     await simulateBedHistory(beds, users);
-    const requests = await generateEmergencyRequests();
+    const requests = await generateEmergencyRequests(users);
     await generateAlerts(requests);
 
     console.log("\n🎉 Synthetic dataset generated successfully!");
