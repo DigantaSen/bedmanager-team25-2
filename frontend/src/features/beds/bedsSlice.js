@@ -128,7 +128,7 @@ export const selectBedStats = (state) => {
     total: beds.length,
     available: beds.filter((bed) => bed.status === 'available').length,
     occupied: beds.filter((bed) => bed.status === 'occupied').length,
-    maintenance: beds.filter((bed) => bed.status === 'maintenance').length,
+    cleaning: beds.filter((bed) => bed.status === 'cleaning').length,
   };
 };
 

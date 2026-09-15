@@ -5,7 +5,8 @@ const CleaningLog = require('../models/CleaningLog');
 const Alert = require('../models/Alert');
 const mongoose = require('mongoose');
 const { AppError } = require('../middleware/errorHandler');
-const mlService = require('../services/mlService');
+const { estimateDischarge, estimateCleaning } = require('../services/predictionService');
+const { getAverageCleaningMinutes } = require('../services/historicalAverages');
 
 /**
  * @desc    Get all beds with optional filtering
@@ -181,39 +182,65 @@ exports.updateBedStatus = async (req, res) => {
     
     // Handle cleaning start time - set for any transition TO cleaning status
     if (finalStatus === 'cleaning' && previousStatus !== 'cleaning') {
+      // Without a duration from staff, use the ward's average recorded cleaning time
+      const averageCleaning = cleaningDuration ? null : await getAverageCleaningMinutes(bed.ward);
+      const estimatedDuration = cleaningDuration || (averageCleaning && Math.round(averageCleaning.minutes));
+      if (!estimatedDuration) {
+        return res.status(400).json({
+          success: false,
+          message: 'cleaningDuration is required: no completed cleanings are recorded for this ward to estimate from'
+        });
+      }
       bed.cleaningStartTime = new Date();
-      bed.estimatedCleaningDuration = cleaningDuration || 30; // Default 30 minutes
-      bed.estimatedCleaningEndTime = new Date(Date.now() + (bed.estimatedCleaningDuration) * 60 * 1000);
+      bed.estimatedCleaningDuration = estimatedDuration;
+      bed.estimatedCleaningEndTime = new Date(Date.now() + estimatedDuration * 60 * 1000);
     }
     
     await bed.save();
 
-    // Determine status change type for logging
-    let statusChangeType;
-    if (finalStatus === 'occupied') {
+    // Determine status change type for logging. Occupancy history is rebuilt from these
+    // events, so only real transitions are logged (no log when the status is unchanged)
+    let statusChangeType = null;
+    if (finalStatus === 'occupied' && previousStatus !== 'occupied') {
       statusChangeType = 'assigned';
-    } else if (previousStatus === 'occupied' && finalStatus === 'cleaning') {
+    } else if (previousStatus === 'occupied' && finalStatus !== 'occupied') {
       statusChangeType = 'released'; // Patient left, now needs cleaning
+    } else if (finalStatus === 'cleaning' && previousStatus !== 'cleaning') {
+      statusChangeType = 'maintenance_start'; // Available bed sent for cleaning
     } else if (previousStatus === 'cleaning' && finalStatus === 'available') {
       statusChangeType = 'maintenance_end'; // Cleaning completed
-    } else {
-      // Default to assigned for any other transitions
-      statusChangeType = 'assigned';
     }
 
     // Create occupancy log entry
-    try {
-      console.log('Creating log - User ID:', req.user._id, 'Bed ID:', bed._id);
-      await OccupancyLog.create({
-        bedId: bed._id,
-        userId: req.user._id, // User who made the change (from JWT)
-        statusChange: statusChangeType,
-        timestamp: new Date()
-      });
-      console.log('✅ Occupancy log created successfully');
-    } catch (logError) {
-      console.error('Error creating occupancy log:', logError);
-      // Continue even if logging fails - don't block the main operation
+    if (statusChangeType) {
+      try {
+        console.log('Creating log - User ID:', req.user._id, 'Bed ID:', bed._id);
+        await OccupancyLog.create({
+          bedId: bed._id,
+          userId: req.user._id, // User who made the change (from JWT)
+          statusChange: statusChangeType,
+          timestamp: new Date()
+        });
+        console.log('✅ Occupancy log created successfully');
+      } catch (logError) {
+        console.error('Error creating occupancy log:', logError);
+        // Continue even if logging fails - don't block the main operation
+      }
+    }
+
+    // Leaving cleaning through a status update also completes the active cleaning log
+    if (previousStatus === 'cleaning' && finalStatus !== 'cleaning') {
+      try {
+        const activeCleaning = await CleaningLog.findOne({ bedId: bed._id, status: 'in_progress' });
+        if (activeCleaning) {
+          activeCleaning.endTime = new Date();
+          activeCleaning.status = 'completed';
+          activeCleaning.completedBy = req.user._id;
+          await activeCleaning.save();
+        }
+      } catch (cleaningLogError) {
+        console.error('Error completing cleaning log:', cleaningLogError);
+      }
     }
 
     // Create cleaning log entry when starting cleaning (any transition TO cleaning status)
@@ -967,38 +994,37 @@ exports.predictDischarge = async (req, res) => {
       });
     }
 
-    // Admission time is the bed's most recent assignment (fall back to its last update)
+    // Admission time is the bed's most recent recorded assignment
     const lastAssignment = await OccupancyLog.findOne({ bedId: bed._id, statusChange: 'assigned' })
       .sort({ timestamp: -1 })
       .select('timestamp')
       .lean();
-    const admissionTime = lastAssignment?.timestamp || bed.updatedAt;
-
-    // Call ML service for prediction
-    const prediction = await mlService.predictDischarge(bed.ward, admissionTime);
-
-    if (prediction.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Discharge prediction generated successfully',
-        data: {
-          bed: bed.toObject(),
-          prediction: prediction.data.prediction,
-          metadata: prediction.data.metadata
-        }
-      });
-    } else {
-      // Use fallback if ML service failed
-      res.status(200).json({
-        success: true,
-        message: 'Discharge prediction generated (using fallback)',
-        data: {
-          bed: bed.toObject(),
-          prediction: prediction.fallback,
-          note: 'ML service unavailable, using fallback estimate'
-        }
+    if (!lastAssignment) {
+      return res.status(422).json({
+        success: false,
+        message: 'No admission is recorded for this bed, so its discharge time cannot be estimated'
       });
     }
+
+    // ML prediction, or the ward's recorded average stay when the ML service is unavailable
+    const prediction = await estimateDischarge(bed.ward, lastAssignment.timestamp);
+    if (!prediction) {
+      return res.status(503).json({
+        success: false,
+        message: 'Discharge estimate unavailable: the ML service is unreachable and no completed stays are recorded for this ward'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: prediction.source === 'ml'
+        ? 'Discharge prediction generated successfully'
+        : 'ML service unavailable - estimated from the ward\'s recorded average stay',
+      data: {
+        bed: bed.toObject(),
+        prediction
+      }
+    });
   } catch (error) {
     console.error('Predict discharge error:', error);
     res.status(500).json({
@@ -1034,35 +1060,42 @@ exports.predictCleaningDuration = async (req, res) => {
       });
     }
 
-    // Call ML service for prediction
-    const prediction = await mlService.predictCleaningDuration(
-      bed.ward,
-      estimatedDuration || 30,
-      new Date()
-    );
-
-    if (prediction.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Cleaning duration prediction generated successfully',
-        data: {
-          bed: bed.toObject(),
-          prediction: prediction.data.prediction,
-          metadata: prediction.data.metadata
-        }
-      });
-    } else {
-      // Use fallback if ML service failed
-      res.status(200).json({
-        success: true,
-        message: 'Cleaning duration prediction generated (using fallback)',
-        data: {
-          bed: bed.toObject(),
-          prediction: prediction.fallback,
-          note: 'ML service unavailable, using fallback estimate'
-        }
+    if (estimatedDuration !== undefined && !(typeof estimatedDuration === 'number' && estimatedDuration > 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'estimatedDuration must be a positive number (in minutes)'
       });
     }
+
+    // A bed being cleaned uses its recorded start time and staff estimate
+    const isBeingCleaned = bed.status === 'cleaning' && bed.cleaningStartTime;
+    const duration = estimatedDuration || (isBeingCleaned ? bed.estimatedCleaningDuration : null);
+    if (!duration) {
+      return res.status(400).json({
+        success: false,
+        message: 'estimatedDuration is required for beds that are not being cleaned'
+      });
+    }
+
+    // ML prediction, or the ward's recorded average cleaning time when the ML service is unavailable
+    const prediction = await estimateCleaning(bed.ward, duration, isBeingCleaned ? bed.cleaningStartTime : new Date());
+    if (!prediction) {
+      return res.status(503).json({
+        success: false,
+        message: 'Cleaning estimate unavailable: the ML service is unreachable and no completed cleanings are recorded for this ward'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: prediction.source === 'ml'
+        ? 'Cleaning duration prediction generated successfully'
+        : 'ML service unavailable - estimated from the ward\'s recorded average cleaning time',
+      data: {
+        bed: bed.toObject(),
+        prediction
+      }
+    });
   } catch (error) {
     console.error('Predict cleaning duration error:', error);
     res.status(500).json({

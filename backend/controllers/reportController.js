@@ -2,6 +2,19 @@ const reportService = require('../services/reportService');
 const emailService = require('../services/emailService');
 const scheduledReportService = require('../services/scheduledReportService');
 
+const { REPORT_TYPES, DATE_RANGES } = reportService;
+
+// Reject unknown report types and date ranges instead of silently producing a different report
+const getReportOptionsError = ({ reportType = 'comprehensive', dateRange = 'last7days' }) => {
+  if (!REPORT_TYPES.includes(reportType)) {
+    return `Invalid reportType. Must be one of: ${REPORT_TYPES.join(', ')}`;
+  }
+  if (!DATE_RANGES.includes(dateRange)) {
+    return `Invalid dateRange. Must be one of: ${DATE_RANGES.join(', ')}`;
+  }
+  return null;
+};
+
 /**
  * @desc    Generate PDF report
  * @route   POST /api/reports/generate/pdf
@@ -12,6 +25,11 @@ exports.generatePDFReport = async (req, res) => {
     console.log('📊 PDF Report generation requested');
     const { reportType, dateRange, wards } = req.body;
     console.log('Config:', { reportType, dateRange, wards: wards?.length || 0 });
+
+    const optionsError = getReportOptionsError(req.body);
+    if (optionsError) {
+      return res.status(400).json({ success: false, message: optionsError });
+    }
 
     // Generate report data
     console.log('🔍 Fetching report data from database...');
@@ -52,6 +70,11 @@ exports.generateCSVReport = async (req, res) => {
   try {
     const { reportType, dateRange, wards } = req.body;
 
+    const optionsError = getReportOptionsError(req.body);
+    if (optionsError) {
+      return res.status(400).json({ success: false, message: optionsError });
+    }
+
     // Generate report data
     const reportData = await reportService.generateReportData({
       reportType,
@@ -84,6 +107,11 @@ exports.generateCSVReport = async (req, res) => {
 exports.emailReport = async (req, res) => {
   try {
     const { reportType, dateRange, wards, email, format = 'pdf' } = req.body;
+
+    const optionsError = getReportOptionsError(req.body);
+    if (optionsError) {
+      return res.status(400).json({ success: false, message: optionsError });
+    }
 
     if (!email) {
       return res.status(400).json({

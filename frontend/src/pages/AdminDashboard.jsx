@@ -8,6 +8,7 @@ import ReportGenerator from '@/components/ReportGenerator';
 import AlertNotificationPanel from '@/components/manager/AlertNotificationPanel';
 import NearbyHospitalsPanel from '@/components/manager/NearbyHospitalsPanel';
 import UserApprovalsPanel from '@/components/admin/UserApprovalsPanel';
+import HospitalDirectoryPanel from '@/components/admin/HospitalDirectoryPanel';
 import DashboardLayout from '@/components/DashboardLayout';
 import api from '@/services/api';
 
@@ -109,6 +110,16 @@ const AdminDashboard = () => {
           >
             Approvals
           </button>
+          <button
+            onClick={() => setActiveTab('hospitals')}
+            className={`flex-1 px-6 py-3 rounded-md font-semibold transition-colors ${
+              activeTab === 'hospitals'
+                ? 'bg-blue-600 text-white'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+            }`}
+          >
+            Hospitals
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -146,6 +157,12 @@ const AdminDashboard = () => {
         {activeTab === 'users' && (
           <div className="space-y-6">
             <UserApprovalsPanel />
+          </div>
+        )}
+
+        {activeTab === 'hospitals' && (
+          <div className="space-y-6">
+            <HospitalDirectoryPanel />
           </div>
         )}
         </div>

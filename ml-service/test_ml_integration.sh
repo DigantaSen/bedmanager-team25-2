@@ -31,7 +31,7 @@ echo ""
 echo "5. Testing Bed Availability Prediction..."
 curl -s -X POST http://localhost:8000/api/ml/predict/bed-availability \
   -H "Content-Type: application/json" \
-  -d '{"ward": "Emergency", "prediction_horizon_hours": 6}' | python3 -m json.tool
+  -d '{"ward": "Emergency", "bed_status": "occupied"}' | python3 -m json.tool
 echo ""
 
 echo "6. Testing Models Status..."

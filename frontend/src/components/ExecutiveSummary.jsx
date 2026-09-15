@@ -62,43 +62,41 @@ const ExecutiveSummary = () => {
     .filter(Boolean)
     .slice(0, 3);
 
-  // Get week-over-week changes from analytics data
+  // Week-over-week changes from recorded history (null when history cannot provide one)
   const weekOverWeek = analyticsData?.weekOverWeek || {};
-  const totalBedsChange = weekOverWeek.totalBedsChange || 0;
-  const occupiedChange = weekOverWeek.occupiedChange || 0;
-  const availableChange = weekOverWeek.availableChange || 0;
-  const occupancyRateChange = weekOverWeek.occupancyRateChange || '+0%';
+  const formatChange = (change) => (change == null ? null : `${change >= 0 ? '+' : ''}${change}`);
+  const getChangeType = (change) => (change != null && change < 0 ? 'negative' : 'positive');
 
   const kpis = [
     {
       title: 'Total Beds',
       value: totalBeds.toString(),
-      change: totalBedsChange === 0 ? '+0' : `${totalBedsChange > 0 ? '+' : ''}${totalBedsChange}`,
-      changeType: totalBedsChange >= 0 ? 'positive' : 'negative',
+      change: formatChange(weekOverWeek.totalBedsChange),
+      changeType: getChangeType(weekOverWeek.totalBedsChange),
       icon: Bed,
       color: 'from-blue-500 to-cyan-500',
     },
     {
       title: 'Occupancy Rate',
       value: `${occupancyRate}%`,
-      change: occupancyRateChange,
-      changeType: occupancyRateChange.includes('-') ? 'negative' : 'positive',
+      change: weekOverWeek.occupancyRateChange ?? null,
+      changeType: weekOverWeek.occupancyRateChange?.startsWith('-') ? 'negative' : 'positive',
       icon: Activity,
       color: 'from-purple-500 to-pink-500',
     },
     {
       title: 'Active Patients',
       value: occupiedBeds.toString(),
-      change: occupiedChange === 0 ? '+0' : `${occupiedChange > 0 ? '+' : ''}${occupiedChange}`,
-      changeType: occupiedChange >= 0 ? 'positive' : 'negative',
+      change: formatChange(weekOverWeek.occupiedChange),
+      changeType: getChangeType(weekOverWeek.occupiedChange),
       icon: Users,
       color: 'from-green-500 to-emerald-500',
     },
     {
       title: 'Available Beds',
       value: availableBeds.toString(),
-      change: availableChange === 0 ? '+0' : `${availableChange > 0 ? '+' : ''}${availableChange}`,
-      changeType: availableChange >= 0 ? 'positive' : 'negative',
+      change: formatChange(weekOverWeek.availableChange),
+      changeType: getChangeType(weekOverWeek.availableChange),
       icon: TrendingUp,
       color: 'from-orange-500 to-yellow-500',
     },
@@ -120,12 +118,14 @@ const ExecutiveSummary = () => {
                   <div className="flex-1">
                     <p className="text-sm text-neutral-400 mb-1">{kpi.title}</p>
                     <h3 className="text-3xl font-bold text-white mb-2">{kpi.value}</h3>
-                    <Badge
-                      variant={kpi.changeType === 'positive' ? 'default' : 'destructive'}
-                      className="text-xs"
-                    >
-                      {kpi.change} vs last week
-                    </Badge>
+                    {kpi.change && (
+                      <Badge
+                        variant={kpi.changeType === 'positive' ? 'default' : 'destructive'}
+                        className="text-xs"
+                      >
+                        {kpi.change} vs last week
+                      </Badge>
+                    )}
                   </div>
                   <div
                     className={`p-3 rounded-xl bg-gradient-to-br ${kpi.color} bg-opacity-10`}

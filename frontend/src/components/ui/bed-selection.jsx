@@ -18,12 +18,13 @@ const Bed = React.memo(({
     return <div className="w-4 h-6 sm:w-5 sm:h-8 md:w-8 md:h-10" aria-hidden="true" />;
   }
 
-  const isOccupied = status === 'occupied';
+  // Occupied beds and beds being cleaned cannot be selected
+  const isUnavailable = status === 'occupied' || status === 'cleaning';
 
   return (
     <motion.button
-      onClick={() => !isOccupied && onBedSelect(bed.id)}
-      disabled={isOccupied}
+      onClick={() => !isUnavailable && onBedSelect(bed.id)}
+      disabled={isUnavailable}
       aria-label={`Bed ${bed.id}, ${status}`}
       aria-pressed={status === 'selected'}
       className={cn(
@@ -35,14 +36,15 @@ const Bed = React.memo(({
           // selected -> keep primary token (unchanged)
           'bg-primary text-primary-foreground border-primary cursor-pointer': status === 'selected',
           // occupied -> red
-          'bg-red-600 text-white border-red-600 cursor-not-allowed opacity-90': isOccupied,
+          'bg-red-600 text-white border-red-600 cursor-not-allowed opacity-90': status === 'occupied',
+          // being cleaned -> yellow
+          'bg-yellow-500 text-black border-yellow-500 cursor-not-allowed opacity-90': status === 'cleaning',
         }
       )}
       // Animation props for visual feedback
       initial={{ opacity: 0, scale: 0.6 }}
       animate={{ opacity: 1, scale: 1 }}
-      whileHover={isOccupied ? {} : {}}
-      whileTap={{ scale: isOccupied ? 1 : 0.97 }}
+      whileTap={{ scale: isUnavailable ? 1 : 0.97 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25 }}>
       {bed.number}
     </motion.button>
@@ -56,6 +58,7 @@ const BedSelection = ({
   layout,
   selectedBeds,
   occupiedBeds,
+  cleaningBeds = [],
   onBedSelect,
   className
 }) => {
@@ -68,6 +71,12 @@ const BedSelection = ({
   const rowVariants = {
     hidden: { opacity: 0, x: -20 },
     visible: { opacity: 1, x: 0, transition: { staggerChildren: 0.02 } },
+  };
+
+  const getStatus = (bedId) => {
+    if (occupiedBeds.includes(bedId)) return 'occupied';
+    if (cleaningBeds.includes(bedId)) return 'cleaning';
+    return selectedBeds.includes(bedId) ? 'selected' : 'available';
   };
 
   return (
@@ -98,13 +107,7 @@ const BedSelection = ({
                           key={bed.id}
                           bed={bed}
                           onBedSelect={onBedSelect}
-                          status={
-                            occupiedBeds.includes(bed.id)
-                              ? 'occupied'
-                              : selectedBeds.includes(bed.id)
-                                ? 'selected'
-                                : 'available'
-                          } />
+                          status={getStatus(bed.id)} />
                       ))}
                     </div>
                     <div className="w-6 text-sm font-medium text-muted-foreground select-none">{row.rowId}</div>

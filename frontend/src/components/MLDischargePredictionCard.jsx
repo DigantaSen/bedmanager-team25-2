@@ -4,19 +4,21 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Clock, Activity } from 'lucide-react';
 
 /**
- * MLDischargePredictionCard - Displays AI-predicted discharge times
- * 
- * @param {Array} predictions - Array of discharge predictions
- * @param {string} predictions[].bedNumber - Bed identifier (e.g., "ICU-01")
+ * MLDischargePredictionCard - Displays estimated discharge times for occupied beds
+ *
+ * @param {Array} predictions - Estimated discharges, soonest first (aiDischarges.details from /analytics/forecasting)
+ * @param {string} predictions[].bedId - Bed identifier (e.g., "ICU-01")
  * @param {string} predictions[].ward - Ward name
- * @param {number} predictions[].predicted_hours_until_discharge - Hours until discharge
- * @param {string} predictions[].estimated_discharge_time - ISO datetime string
+ * @param {string} predictions[].expectedDischargeTime - ISO datetime of the estimated discharge
+ * @param {number} predictions[].hoursUntilDischarge - Hours from now until the estimated discharge (0 once passed)
+ * @param {boolean} predictions[].isOverdue - The patient is still in bed after the estimated discharge time
+ * @param {string} predictions[].source - 'ml' (ML model) or 'historical_average' (ward's recorded average stay)
  * @param {number} maxDisplay - Maximum number of predictions to show (default: 5)
  */
 const MLDischargePredictionCard = ({ predictions = [], maxDisplay = 5 }) => {
   // Filter out invalid predictions and limit display
   const validPredictions = predictions
-    .filter(p => p && p.predicted_hours_until_discharge != null)
+    .filter(p => p && p.expectedDischargeTime && p.hoursUntilDischarge != null)
     .slice(0, maxDisplay);
 
   if (validPredictions.length === 0) {
@@ -33,7 +35,7 @@ const MLDischargePredictionCard = ({ predictions = [], maxDisplay = 5 }) => {
             <Activity className="w-12 h-12 mx-auto mb-3 text-slate-600" />
             <p className="text-sm">No discharge predictions available</p>
             <p className="text-xs text-slate-500 mt-1">
-              Predictions will appear for occupied beds
+              Predictions will appear for occupied beds without a manager-set discharge time
             </p>
           </div>
         </CardContent>
@@ -41,7 +43,9 @@ const MLDischargePredictionCard = ({ predictions = [], maxDisplay = 5 }) => {
     );
   }
 
-  const formatHours = (hours) => {
+  const formatRemaining = (prediction) => {
+    if (prediction.isOverdue) return 'Past estimate';
+    const hours = prediction.hoursUntilDischarge;
     if (hours < 24) {
       return `~${Math.round(hours)}h`;
     } else {
@@ -65,11 +69,16 @@ const MLDischargePredictionCard = ({ predictions = [], maxDisplay = 5 }) => {
     }
   };
 
-  const getUrgencyColor = (hours) => {
-    if (hours < 6) return 'border-red-500/50 bg-red-500/10';
-    if (hours < 24) return 'border-orange-500/50 bg-orange-500/10';
+  const getUrgencyColor = (prediction) => {
+    if (prediction.isOverdue || prediction.hoursUntilDischarge < 6) return 'border-red-500/50 bg-red-500/10';
+    if (prediction.hoursUntilDischarge < 24) return 'border-orange-500/50 bg-orange-500/10';
     return 'border-purple-500/30 bg-neutral-900/50';
   };
+
+  const averageCount = validPredictions.filter(p => p.source === 'historical_average').length;
+  const sourceBadge = averageCount === 0
+    ? 'ML Model'
+    : averageCount === validPredictions.length ? 'Ward averages' : 'ML + ward averages';
 
   return (
     <Card className="bg-neutral-900 border-neutral-700">
@@ -80,22 +89,23 @@ const MLDischargePredictionCard = ({ predictions = [], maxDisplay = 5 }) => {
             Predicted Discharges
           </CardTitle>
           <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/40">
-            ML Model
+            {sourceBadge}
           </Badge>
         </div>
         <p className="text-xs text-slate-400 mt-1">
-          Top {validPredictions.length} predicted discharge{validPredictions.length !== 1 ? 's' : ''} based on historical patterns
+          Next {validPredictions.length} estimated discharge{validPredictions.length !== 1 ? 's' : ''}, counted from each patient's recorded admission
+          {averageCount > 0 && ' (ward average stay used where the ML service was unavailable)'}
         </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {validPredictions.map((prediction, index) => {
-            const hours = prediction.predicted_hours_until_discharge;
-            const urgencyClass = getUrgencyColor(hours);
+          {validPredictions.map((prediction) => {
+            const hours = prediction.isOverdue ? 0 : prediction.hoursUntilDischarge;
+            const urgencyClass = getUrgencyColor(prediction);
 
             return (
               <div
-                key={index}
+                key={prediction.bedId}
                 className={`p-3 rounded-lg border ${urgencyClass} hover:border-purple-400/50 transition-all`}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -105,18 +115,18 @@ const MLDischargePredictionCard = ({ predictions = [], maxDisplay = 5 }) => {
                     </span>
                     <span className="text-slate-500">•</span>
                     <span className="text-slate-300 text-sm">
-                      Bed {prediction.bedNumber}
+                      Bed {prediction.bedId}
                     </span>
                   </div>
                   <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/40 text-xs">
-                    {formatHours(hours)}
+                    {formatRemaining(prediction)}
                   </Badge>
                 </div>
 
                 <div className="flex items-center gap-1.5 text-xs text-slate-400">
                   <Clock className="w-3 h-3" />
                   <span>
-                    Estimated discharge: {formatDateTime(prediction.estimated_discharge_time)}
+                    Estimated discharge: {formatDateTime(prediction.expectedDischargeTime)}
                   </span>
                 </div>
 

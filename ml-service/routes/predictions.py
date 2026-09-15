@@ -39,18 +39,8 @@ models = {
     'cleaning_duration': None
 }
 
-# Fallback averages used until historical data has been loaded from MongoDB
-DEFAULT_STAY_HOURS = {
-    'ICU': 48.0,
-    'Emergency': 24.0,
-    'General': 36.0
-}
-DEFAULT_CLEANING_MINUTES = {
-    'ICU': 35.0,
-    'Emergency': 28.0,
-    'General': 30.0
-}
-DEFAULT_CLEANING_STD_MINUTES = 10.0
+# The bed availability model was trained to predict a release within this many hours
+AVAILABILITY_HORIZON_HOURS = 6
 
 # Historical averages are cached in memory and refreshed in a background thread,
 # so prediction requests never wait on MongoDB
@@ -159,10 +149,52 @@ def _compute_cleaning_stats(db):
     return {
         'samples': len(all_minutes),
         'overall': _mean(all_minutes),
+        'overall_std': statistics.stdev(all_minutes) if len(all_minutes) > 1 else 0.0,
         'ward': {key: _mean(values) for key, values in by_ward.items()},
         'ward_std': {key: statistics.stdev(values) if len(values) > 1 else 0.0 for key, values in by_ward.items()},
         'time_of_day': {key: _mean(values) for key, values in by_time.items()},
         'ward_time_of_day': {key: _mean(values) for key, values in by_ward_time.items()}
+    }
+
+
+def _compute_availability_stats(db):
+    """
+    Ward occupancy rate and hour-of-day availability rate.
+    Mirrors the sampling and feature definitions in train/train_bed_availability.py.
+    """
+    bed_wards = {bed['_id']: bed.get('ward', 'General') for bed in db.beds.find({}, {'ward': 1})}
+
+    timelines = defaultdict(list)  # bedId -> logs in time order
+    logs = db.occupancylogs.find({}, {'bedId': 1, 'statusChange': 1, 'timestamp': 1}).sort('timestamp', 1)
+    for log in logs:
+        timelines[log['bedId']].append(log)
+
+    by_ward, by_hour = defaultdict(list), defaultdict(list)
+    for bed_id, timeline in timelines.items():
+        if bed_id not in bed_wards:
+            continue
+        ward = bed_wards[bed_id]
+        for i in range(0, len(timeline) - 1, max(1, len(timeline) // 20)):
+            log = timeline[i]
+            horizon_end = log['timestamp'] + timedelta(hours=AVAILABILITY_HORIZON_HOURS)
+            became_available = False
+            for future_log in timeline[i + 1:]:
+                if future_log['timestamp'] > horizon_end:
+                    break
+                if future_log['statusChange'] == 'released':
+                    became_available = True
+                    break
+            by_ward[ward].append(1 if log['statusChange'] in ('assigned', 'reserved') else 0)
+            by_hour[log['timestamp'].hour].append(1 if became_available else 0)
+
+    all_occupied = [value for values in by_ward.values() for value in values]
+    all_available = [value for values in by_hour.values() for value in values]
+    return {
+        'samples': len(all_occupied),
+        'overall_occupancy_rate': _mean(all_occupied),
+        'overall_availability_rate': _mean(all_available),
+        'ward_occupancy_rate': {key: _mean(values) for key, values in by_ward.items()},
+        'hour_availability_rate': {key: _mean(values) for key, values in by_hour.items()}
     }
 
 
@@ -173,19 +205,21 @@ def _refresh_history():
         db = _get_database()
         stats = {
             'stay': _compute_stay_stats(db),
-            'cleaning': _compute_cleaning_stats(db)
+            'cleaning': _compute_cleaning_stats(db),
+            'availability': _compute_availability_stats(db)
         }
         with _history_lock:
             _history['stats'] = stats
             _history['next_refresh_at'] = time.monotonic() + settings.HISTORY_CACHE_TTL_SECONDS
         logger.info(
             f"Historical averages loaded in {time.monotonic() - started:.1f}s "
-            f"({stats['stay']['samples']} stays, {stats['cleaning']['samples']} cleanings)"
+            f"({stats['stay']['samples']} stays, {stats['cleaning']['samples']} cleanings, "
+            f"{stats['availability']['samples']} occupancy samples)"
         )
     except Exception as e:
         with _history_lock:
             _history['next_refresh_at'] = time.monotonic() + settings.HISTORY_RETRY_SECONDS
-        logger.warning(f"Could not load historical averages from MongoDB, using defaults: {e}")
+        logger.warning(f"Could not load historical averages from MongoDB, predictions are unavailable until it loads: {e}")
     finally:
         with _history_lock:
             _history['refreshing'] = False
@@ -210,7 +244,7 @@ def predict_discharge(request: DischargeRequest):
     """
     Predict patient discharge time in hours from admission
 
-    Returns estimated hours until discharge based on:
+    Returns the predicted length of stay in hours, counted from admission, based on:
     - Ward type
     - Admission time (hour, day of week)
     - Historical patterns
@@ -230,18 +264,18 @@ def predict_discharge(request: DischargeRequest):
         admission_time = to_utc(request.admission_time)
         time_features = extract_time_features(admission_time)
 
-        # Historical averages (same definitions as training), or ward defaults until loaded
+        # Historical averages from MongoDB (same definitions as training)
         history = _get_history()
         stay = history['stay'] if history else None
-        if stay and stay['overall'] is not None:
-            time_of_day = time_features['time_of_day']
-            ward_avg = stay['ward'].get(request.ward, stay['overall'])
-            time_avg = stay['time_of_day'].get(time_of_day, ward_avg)
-            ward_time_avg = stay['ward_time_of_day'].get((request.ward, time_of_day), ward_avg)
-            history_source = 'database'
-        else:
-            ward_avg = time_avg = ward_time_avg = DEFAULT_STAY_HOURS.get(request.ward, 36.0)
-            history_source = 'defaults'
+        if not stay or stay['overall'] is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Historical stay data is not available yet (still loading from MongoDB, or no completed stays recorded)"
+            )
+        time_of_day = time_features['time_of_day']
+        ward_avg = stay['ward'].get(request.ward, stay['overall'])
+        time_avg = stay['time_of_day'].get(time_of_day, ward_avg)
+        ward_time_avg = stay['ward_time_of_day'].get((request.ward, time_of_day), ward_avg)
 
         features = {
             **time_features,
@@ -266,7 +300,7 @@ def predict_discharge(request: DischargeRequest):
             metadata={
                 "ward": request.ward,
                 "admission_time": admission_time.isoformat(),
-                "history_source": history_source,
+                "history_samples": stay['samples'],
                 "model_version": model_package.get('version', '1.0.0')
             }
         )
@@ -299,14 +333,25 @@ def predict_bed_availability(request: BedAvailabilityRequest):
         current_time = to_utc(request.current_time)
         time_features = extract_time_features(current_time)
 
-        # Build feature vector
+        # Bed state from the request; ward and hour rates from MongoDB history (same definitions as training)
+        history = _get_history()
+        availability = history['availability'] if history else None
+        if not availability or not availability['samples']:
+            raise HTTPException(
+                status_code=503,
+                detail="Historical occupancy data is not available yet (still loading from MongoDB, or no occupancy logs recorded)"
+            )
         features = {
             **time_features,
             'ward_encoded': ward_to_numeric(request.ward),
-            'is_occupied': 1,  # Assume bed is currently occupied
-            'is_cleaning': 0,
-            'ward_occupancy_rate': 0.75,  # Default occupancy rate
-            'hour_availability_rate': 0.15  # Default availability rate
+            'is_occupied': int(request.bed_status == 'occupied'),
+            'is_cleaning': int(request.bed_status == 'cleaning'),
+            'ward_occupancy_rate': availability['ward_occupancy_rate'].get(
+                request.ward, availability['overall_occupancy_rate']
+            ),
+            'hour_availability_rate': availability['hour_availability_rate'].get(
+                time_features['hour'], availability['overall_availability_rate']
+            )
         }
 
         X = pd.DataFrame([features], columns=feature_columns)
@@ -319,12 +364,14 @@ def predict_bed_availability(request: BedAvailabilityRequest):
             prediction={
                 "will_be_available": bool(will_be_available),
                 "probability": round(probability, 4),
-                "prediction_horizon_hours": request.prediction_horizon_hours
+                "prediction_horizon_hours": AVAILABILITY_HORIZON_HOURS
             },
             confidence=probability,
             metadata={
                 "ward": request.ward,
+                "bed_status": request.bed_status,
                 "current_time": current_time.isoformat(),
+                "history_samples": availability['samples'],
                 "model_version": model_package.get('version', '1.0.0')
             }
         )
@@ -360,22 +407,21 @@ def predict_cleaning_duration(request: CleaningDurationRequest):
 
         start_time = to_utc(request.start_time)
         time_features = extract_time_features(start_time)
-        estimated_duration = request.estimated_duration or 30
+        estimated_duration = request.estimated_duration
 
-        # Historical averages (same definitions as training), or ward defaults until loaded
+        # Historical averages from MongoDB (same definitions as training)
         history = _get_history()
         cleaning = history['cleaning'] if history else None
-        if cleaning and cleaning['overall'] is not None:
-            time_of_day = time_features['time_of_day']
-            ward_avg = cleaning['ward'].get(request.ward, cleaning['overall'])
-            time_avg = cleaning['time_of_day'].get(time_of_day, ward_avg)
-            ward_time_avg = cleaning['ward_time_of_day'].get((request.ward, time_of_day), ward_avg)
-            ward_std = cleaning['ward_std'].get(request.ward, DEFAULT_CLEANING_STD_MINUTES)
-            history_source = 'database'
-        else:
-            ward_avg = time_avg = ward_time_avg = DEFAULT_CLEANING_MINUTES.get(request.ward, 30.0)
-            ward_std = DEFAULT_CLEANING_STD_MINUTES
-            history_source = 'defaults'
+        if not cleaning or cleaning['overall'] is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Historical cleaning data is not available yet (still loading from MongoDB, or no completed cleanings recorded)"
+            )
+        time_of_day = time_features['time_of_day']
+        ward_avg = cleaning['ward'].get(request.ward, cleaning['overall'])
+        time_avg = cleaning['time_of_day'].get(time_of_day, ward_avg)
+        ward_time_avg = cleaning['ward_time_of_day'].get((request.ward, time_of_day), ward_avg)
+        ward_std = cleaning['ward_std'].get(request.ward, cleaning['overall_std'])
 
         features = {
             **time_features,
@@ -403,7 +449,7 @@ def predict_cleaning_duration(request: CleaningDurationRequest):
                 "ward": request.ward,
                 "start_time": start_time.isoformat(),
                 "estimated_duration": estimated_duration,
-                "history_source": history_source,
+                "history_samples": cleaning['samples'],
                 "model_version": model_package.get('version', '1.0.0')
             }
         )

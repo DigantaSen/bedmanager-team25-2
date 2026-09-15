@@ -1,13 +1,16 @@
 // backend/models/Hospital.js
-// Hospital model for nearby hospitals referral system
+// Nearby hospital directory for referrals. Entries and bed counts are maintained by hospital admins.
 
 const mongoose = require('mongoose');
+
+const WARD_TYPES = ['ICU', 'Emergency', 'General', 'Pediatrics'];
+const PHONE_PATTERN = /^[\d\s\-+()]+$/;
 
 const wardBedSchema = new mongoose.Schema({
   wardType: {
     type: String,
     required: true,
-    enum: ['ICU', 'Emergency', 'General', 'Pediatrics']
+    enum: WARD_TYPES
   },
   totalBeds: {
     type: Number,
@@ -17,12 +20,13 @@ const wardBedSchema = new mongoose.Schema({
   availableBeds: {
     type: Number,
     required: true,
-    min: 0
-  },
-  occupiedBeds: {
-    type: Number,
-    required: true,
-    min: 0
+    min: 0,
+    validate: {
+      validator: function(value) {
+        return value <= this.totalBeds;
+      },
+      message: 'Available beds cannot exceed total beds'
+    }
   }
 }, { _id: false });
 
@@ -40,62 +44,65 @@ const hospitalSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, 'Address cannot exceed 500 characters']
     },
+    // Optional coordinates for the map link
     location: {
       latitude: {
         type: Number,
-        required: true,
         min: -90,
-        max: 90
+        max: 90,
+        default: null
       },
       longitude: {
         type: Number,
-        required: true,
         min: -180,
-        max: 180
+        max: 180,
+        default: null
       }
     },
     distance: {
       type: Number,
-      required: true,
-      min: 0,
-      // Distance in kilometers from the main hospital
+      required: [true, 'Distance is required'],
+      min: 0
+      // Distance in kilometers from this hospital, entered by the admin
     },
     contactNumber: {
       type: String,
       required: [true, 'Contact number is required'],
       trim: true,
-      match: [/^[\d\s\-\+\(\)]+$/, 'Please provide a valid contact number']
+      match: [PHONE_PATTERN, 'Please provide a valid contact number']
     },
     emergencyContact: {
       type: String,
-      required: [true, 'Emergency contact is required'],
       trim: true,
-      match: [/^[\d\s\-\+\(\)]+$/, 'Please provide a valid emergency contact']
-    },
-    rating: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 5,
-      default: 4
+      default: null,
+      match: [PHONE_PATTERN, 'Please provide a valid emergency contact']
     },
     wards: {
       type: [wardBedSchema],
-      required: true,
-      validate: {
-        validator: function(wards) {
-          return wards && wards.length > 0;
+      validate: [
+        {
+          validator: (wards) => Array.isArray(wards) && wards.length > 0,
+          message: 'Hospital must have at least one ward'
         },
-        message: 'Hospital must have at least one ward'
-      }
+        {
+          validator: (wards) => new Set(wards.map((ward) => ward.wardType)).size === wards.length,
+          message: 'Each ward type can only be listed once'
+        }
+      ]
     },
     isActive: {
       type: Boolean,
       default: true
     },
+    // When the bed counts were last updated, and by which admin
     lastUpdated: {
       type: Date,
       default: Date.now
+    },
+    lastUpdatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     }
   },
   {
@@ -103,51 +110,10 @@ const hospitalSchema = new mongoose.Schema(
   }
 );
 
-// Index for geospatial queries
-hospitalSchema.index({ 'location.latitude': 1, 'location.longitude': 1 });
-
 // Index for distance-based queries
 hospitalSchema.index({ distance: 1 });
-
-// Method to update bed availability for a specific ward
-hospitalSchema.methods.updateWardBeds = function(wardType, availableBeds, occupiedBeds) {
-  const ward = this.wards.find(w => w.wardType === wardType);
-  if (ward) {
-    ward.availableBeds = availableBeds;
-    ward.occupiedBeds = occupiedBeds;
-    ward.totalBeds = availableBeds + occupiedBeds;
-    this.lastUpdated = Date.now();
-  }
-  return this;
-};
-
-// Static method to get hospitals with available capacity
-hospitalSchema.statics.getHospitalsWithCapacity = async function(wardType, minBeds = 1) {
-  return this.find({
-    isActive: true,
-    'wards.wardType': wardType,
-    'wards.availableBeds': { $gte: minBeds }
-  }).sort({ distance: 1 });
-};
-
-// Static method to get nearby hospitals within distance
-hospitalSchema.statics.getNearbyHospitals = async function(maxDistance, filters = {}) {
-  const query = {
-    isActive: true,
-    distance: { $lte: maxDistance }
-  };
-
-  if (filters.wardType) {
-    query['wards.wardType'] = filters.wardType;
-  }
-
-  if (filters.minAvailableBeds) {
-    query['wards.availableBeds'] = { $gte: filters.minAvailableBeds };
-  }
-
-  return this.find(query).sort({ distance: 1 });
-};
 
 const Hospital = mongoose.model('Hospital', hospitalSchema);
 
 module.exports = Hospital;
+module.exports.WARD_TYPES = WARD_TYPES;
