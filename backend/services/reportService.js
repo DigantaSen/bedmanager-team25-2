@@ -33,8 +33,9 @@ class ReportService {
     const { reportType = 'comprehensive', dateRange = 'last7days', wards = [] } = options;
     const selectedWards = Array.isArray(wards) ? wards.filter((ward) => ward && ward !== 'All Wards') : [];
 
-    // Current bed snapshot
-    const beds = await getBedsInScope(selectedWards);
+    // Current bed snapshot (beds in service); retired beds still count for the history they were part of
+    const historyBeds = await getBedsInScope(selectedWards, { includeRetired: true });
+    const beds = historyBeds.filter((bed) => !bed.retiredAt);
     const totalBeds = beds.length;
     const occupiedBeds = beds.filter(bed => bed.status === 'occupied').length;
     const availableBeds = beds.filter(bed => bed.status === 'available').length;
@@ -67,10 +68,10 @@ class ReportService {
     };
 
     if (reportType === 'comprehensive' || reportType === 'occupancy') {
-      reportData.occupancy = await this.getOccupancyMetrics(beds, summary, startDate, endDate);
+      reportData.occupancy = await this.getOccupancyMetrics(historyBeds, summary, startDate, endDate);
     }
     if (reportType === 'comprehensive' || reportType === 'performance') {
-      reportData.performance = await this.getPerformanceMetrics(beds, selectedWards, startDate, endDate);
+      reportData.performance = await this.getPerformanceMetrics(historyBeds, selectedWards, startDate, endDate);
     }
 
     return reportData;
@@ -80,20 +81,21 @@ class ReportService {
    * @desc    Occupancy over the period, reconstructed from recorded assignments and releases
    */
   async getOccupancyMetrics(beds, summary, startDate, endDate) {
-    const totalBeds = beds.length;
-    if (totalBeds === 0) {
+    const { totalBeds } = summary;
+    if (beds.length === 0) {
       return { averageOccupancy: null, peakOccupancy: null, lowOccupancy: null, availabilityRate: null, cleaningRate: null };
     }
 
-    const { points, historyStart } = await buildOccupancyPoints(beds, startDate);
-    const [period] = summarizeOccupancy(points, [{ start: startDate, end: endDate }], totalBeds, historyStart);
+    // `beds` includes retired beds, which count only for the time they were in service
+    const { points, capacityPoints, historyStart } = await buildOccupancyPoints(beds, startDate);
+    const [period] = summarizeOccupancy(points, [{ start: startDate, end: endDate }], capacityPoints, historyStart);
 
     return {
       averageOccupancy: period.averageOccupancy,
       peakOccupancy: period.peakOccupancy,
       lowOccupancy: period.lowOccupancy,
-      availabilityRate: Math.round((summary.availableBeds / totalBeds) * 100),
-      cleaningRate: Math.round((summary.cleaningBeds / totalBeds) * 100)
+      availabilityRate: totalBeds > 0 ? Math.round((summary.availableBeds / totalBeds) * 100) : null,
+      cleaningRate: totalBeds > 0 ? Math.round((summary.cleaningBeds / totalBeds) * 100) : null
     };
   }
 

@@ -72,6 +72,16 @@ const bedSchema = new mongoose.Schema(
       default: null,
       trim: true,
       maxlength: [500, 'Discharge notes cannot exceed 500 characters']
+    },
+    // Retired beds are out of service: hidden from bed maps and counts, but kept for their history
+    retiredAt: {
+      type: Date,
+      default: null
+    },
+    retiredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     }
   },
   {

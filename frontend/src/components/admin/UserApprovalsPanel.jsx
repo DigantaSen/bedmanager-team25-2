@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '@/services/api';
 
+// Technical team and hospital admin accounts are only created from the server command line
 const ROLE_OPTIONS = [
   { value: 'ward_staff', label: 'Ward Staff' },
   { value: 'er_staff', label: 'ER Staff' },
   { value: 'manager', label: 'Manager' },
-  { value: 'technical_team', label: 'Technical Team' },
-  { value: 'hospital_admin', label: 'Hospital Admin' },
 ];
 const WARD_OPTIONS = ['ICU', 'General', 'Emergency'];
 const WARD_REQUIRED_ROLES = ['ward_staff', 'manager'];
 
 /**
- * Admin panel for reviewing self-registered accounts.
- * The admin can adjust the requested role/ward before approving.
+ * Technical team panel for reviewing self-registered accounts.
+ * The reviewer can adjust the requested role/ward before approving.
  */
 const UserApprovalsPanel = () => {
   const [users, setUsers] = useState([]);

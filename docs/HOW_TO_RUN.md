@@ -344,7 +344,7 @@ curl http://localhost:8000/models/status
 ```
 
 ### 4. End-to-End Test
-- Sign up through the frontend, approve the account as a hospital admin (Admin Dashboard → Approvals), then log in
+- Sign up through the frontend, approve the account as the technical team (Technical Team Dashboard → Approvals), then log in
 - Check that real-time updates work (WebSocket)
 - Test ML predictions (if implemented)
 
@@ -499,17 +499,28 @@ node seedBeds.js
 
 ### User Accounts & Approval
 
-New sign-ups start as **pending** and cannot log in until a hospital admin approves them
-(Admin Dashboard → **Approvals** tab). The admin can change the requested role or ward while approving.
-`hospital_admin` cannot be requested at sign-up, so create the first admin from the command line:
+New sign-ups (ward staff, ER staff and managers) start as **pending** and cannot log in until the
+technical team approves them (Technical Team Dashboard → **Approvals** tab). The reviewer can change the
+requested role or ward while approving, but only to one of those sign-up roles.
+
+Roles and responsibilities:
+- **Technical team:** bed inventory (add, edit, retire beds), account approvals, nearby hospital directory
+- **Hospital admin:** overview, trends, forecasting and reports
+
+`technical_team` and `hospital_admin` accounts cannot be requested at sign-up or given through approvals,
+so they are created from the command line:
 
 ```bash
 cd backend
-# Create a new approved admin account
+# Create an approved technical team account (reviews sign-ups)
+npm run create:technical -- --email tech@hospital.com --password "<at least 8 characters>" --name "Sam Lee"
+
+# Create an approved hospital admin account
 npm run create:admin -- --email admin@hospital.com --password "<at least 8 characters>" --name "Jane Doe"
 
-# Or promote an existing user to admin (password unchanged)
+# Or promote an existing user (password unchanged)
 npm run create:admin -- --email existing.user@hospital.com
+npm run create:technical -- --email existing.user@hospital.com
 ```
 
 Users seeded by `generateSyntheticData.js` are already approved. Accounts that existed before the

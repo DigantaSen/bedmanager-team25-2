@@ -15,6 +15,7 @@ const {
 } = require('../services/occupancyHistory');
 const { getAverageStayHours } = require('../services/historicalAverages');
 const { estimateDischarge } = require('../services/predictionService');
+const { ACTIVE_BEDS } = require('../services/bedAccess');
 
 /**
  * @desc    Get occupancy summary for all beds with week-over-week comparison
@@ -27,8 +28,9 @@ exports.getOccupancySummary = async (req, res) => {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * DAY_MS);
 
-    // Count beds by status (only 3 statuses now: available, cleaning, occupied)
-    const beds = await getBedsInScope();
+    // Count beds in service by status (only 3 statuses now: available, cleaning, occupied)
+    const historyBeds = await getBedsInScope([], { includeRetired: true });
+    const beds = historyBeds.filter((bed) => !bed.retiredAt);
     const totalBeds = beds.length;
     const occupied = beds.filter((bed) => bed.status === 'occupied').length;
     const available = beds.filter((bed) => bed.status === 'available').length;
@@ -37,15 +39,16 @@ exports.getOccupancySummary = async (req, res) => {
     // Calculate occupancy percentage
     const occupancyPercentage = totalBeds > 0 ? Math.round((occupied / totalBeds) * 100) : 0;
 
-    // Occupied beds 7 days ago, rebuilt from recorded assignments and releases
-    // (unknown when recorded history does not reach back that far)
-    const { points, historyStart } = await buildOccupancyPoints(beds, oneWeekAgo, now);
+    // Beds in service and occupied 7 days ago, rebuilt from when beds were added or retired and from
+    // recorded assignments and releases (occupancy is unknown before recorded history)
+    const { points, capacityPoints, historyStart } = await buildOccupancyPoints(historyBeds, oneWeekAgo, now);
+    const bedsWeekAgo = capacityPoints[0].capacity;
     const occupiedWeekAgo = historyStart && historyStart <= oneWeekAgo ? points[0].occupied : null;
 
     const occupiedChange = occupiedWeekAgo === null ? null : occupied - occupiedWeekAgo;
-    const occupancyRateChange = occupiedWeekAgo === null || totalBeds === 0
+    const occupancyRateChange = occupiedWeekAgo === null || totalBeds === 0 || bedsWeekAgo === 0
       ? null
-      : occupancyPercentage - Math.round((occupiedWeekAgo / totalBeds) * 100);
+      : occupancyPercentage - Math.round((occupiedWeekAgo / bedsWeekAgo) * 100);
 
     res.status(200).json({
       success: true,
@@ -54,10 +57,10 @@ exports.getOccupancySummary = async (req, res) => {
       availableBeds: available,
       cleaningBeds: cleaning,
       occupancyRate: occupancyPercentage,
-      // Changes vs 7 days ago. Bed additions/removals and past cleaning states are not
-      // reconstructed, so those changes are unknown (null), as is anything before recorded history
+      // Changes vs 7 days ago. Past cleaning states are not reconstructed, so the available-beds
+      // change is unknown (null), as is any occupancy change before recorded history
       weekOverWeek: {
-        totalBedsChange: null,
+        totalBedsChange: totalBeds - bedsWeekAgo,
         occupiedChange,
         availableChange: null,
         occupancyRateChange: occupancyRateChange === null
@@ -89,10 +92,10 @@ exports.getOccupancyByWard = async (req, res) => {
     // If specific ward is requested, return data for that ward only
     if (ward) {
       const [totalBeds, occupied, available, cleaning] = await Promise.all([
-        Bed.countDocuments({ ward }),
-        Bed.countDocuments({ ward, status: 'occupied' }),
-        Bed.countDocuments({ ward, status: 'available' }),
-        Bed.countDocuments({ ward, status: 'cleaning' })
+        Bed.countDocuments({ ward, ...ACTIVE_BEDS }),
+        Bed.countDocuments({ ward, status: 'occupied', ...ACTIVE_BEDS }),
+        Bed.countDocuments({ ward, status: 'available', ...ACTIVE_BEDS }),
+        Bed.countDocuments({ ward, status: 'cleaning', ...ACTIVE_BEDS })
       ]);
 
       const occupancyRate = totalBeds > 0 ? Math.round((occupied / totalBeds) * 100) : 0;
@@ -108,16 +111,16 @@ exports.getOccupancyByWard = async (req, res) => {
     }
 
     // Get all unique wards
-    const wards = await Bed.distinct('ward');
+    const wards = await Bed.distinct('ward', ACTIVE_BEDS);
 
     // For each ward, get the count of beds by status
     const wardData = await Promise.all(
       wards.map(async (ward) => {
         const [totalBeds, occupied, available, cleaning] = await Promise.all([
-          Bed.countDocuments({ ward }),
-          Bed.countDocuments({ ward, status: 'occupied' }),
-          Bed.countDocuments({ ward, status: 'available' }),
-          Bed.countDocuments({ ward, status: 'cleaning' })
+          Bed.countDocuments({ ward, ...ACTIVE_BEDS }),
+          Bed.countDocuments({ ward, status: 'occupied', ...ACTIVE_BEDS }),
+          Bed.countDocuments({ ward, status: 'available', ...ACTIVE_BEDS }),
+          Bed.countDocuments({ ward, status: 'cleaning', ...ACTIVE_BEDS })
         ]);
 
         const occupancyPercentage = totalBeds > 0 ? Math.round((occupied / totalBeds) * 100) : 0;
@@ -294,7 +297,7 @@ exports.getOccupancyTrends = async (req, res) => {
     ]);
 
     // Get total beds for context
-    const totalBeds = await Bed.countDocuments({});
+    const totalBeds = await Bed.countDocuments(ACTIVE_BEDS);
 
     res.status(200).json({
       success: true,
@@ -358,7 +361,7 @@ exports.getForecasting = async (req, res) => {
       : null;
 
     // ===== 2. Get Current Occupancy and Expected Discharges =====
-    const occupiedBeds = await Bed.find({ status: 'occupied', ...wardFilter })
+    const occupiedBeds = await Bed.find({ status: 'occupied', ...wardFilter, ...ACTIVE_BEDS })
       .select('bedId ward patientName patientId estimatedDischargeTime')
       .lean();
     const currentlyOccupied = occupiedBeds.length;
@@ -973,7 +976,7 @@ exports.getWardUtilization = async (req, res) => {
     const sevenDaysAgo = new Date(now.getTime() - 7 * DAY_MS);
 
     // Get all unique wards
-    const wards = await Bed.distinct('ward');
+    const wards = await Bed.distinct('ward', ACTIVE_BEDS);
 
     // For each ward, calculate detailed metrics
     const utilizationData = await Promise.all(
@@ -1150,8 +1153,8 @@ exports.getPeakDemandAnalysis = async (req, res) => {
     }
 
     // Calculate current total beds for capacity planning
-    const totalBeds = await Bed.countDocuments({});
-    const currentOccupied = await Bed.countDocuments({ status: 'occupied' });
+    const totalBeds = await Bed.countDocuments(ACTIVE_BEDS);
+    const currentOccupied = await Bed.countDocuments({ status: 'occupied', ...ACTIVE_BEDS });
     const currentOccupancyRate = totalBeds > 0 ? Math.round((currentOccupied / totalBeds) * 100) : 0;
 
     res.status(200).json({
@@ -1238,18 +1241,19 @@ exports.getOccupancyTimeline = async (req, res) => {
 
     // Managers only see their own ward
     const scopedWard = req.user.role === 'manager' && req.user.ward ? req.user.ward : ward;
-    const beds = await getBedsInScope(scopedWard ? [scopedWard] : []);
+    // Retired beds are included for the time they were in service
+    const beds = await getBedsInScope(scopedWard ? [scopedWard] : [], { includeRetired: true });
 
     const now = new Date();
     const start = new Date(now.getTime() - config.days * DAY_MS);
     const previousStart = new Date(start.getTime() - config.days * DAY_MS);
 
-    const { points, historyStart } = await buildOccupancyPoints(beds, previousStart, now);
-    const periods = summarizeOccupancy(points, splitPeriods(start, now, config.periods), beds.length, historyStart);
+    const { points, capacityPoints, historyStart } = await buildOccupancyPoints(beds, previousStart, now);
+    const periods = summarizeOccupancy(points, splitPeriods(start, now, config.periods), capacityPoints, historyStart);
     const [previousSummary, summary] = summarizeOccupancy(
       points,
       [{ start: previousStart, end: start }, { start, end: now }],
-      beds.length,
+      capacityPoints,
       historyStart
     );
 
@@ -1258,7 +1262,7 @@ exports.getOccupancyTimeline = async (req, res) => {
       data: {
         range,
         ward: scopedWard || null,
-        totalBeds: beds.length,
+        totalBeds: beds.filter((bed) => !bed.retiredAt).length,
         periods,
         summary,
         previousSummary,

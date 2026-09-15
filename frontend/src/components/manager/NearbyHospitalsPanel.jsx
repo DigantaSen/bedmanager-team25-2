@@ -1,5 +1,5 @@
 // frontend/src/components/manager/NearbyHospitalsPanel.jsx
-// Nearby hospitals with bed availability for referrals (bed counts are entered by hospital admins)
+// Nearby hospitals with bed availability for referrals (bed counts are entered by the technical team)
 
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
@@ -186,7 +186,7 @@ const NearbyHospitalsPanel = ({ ward }) => {
             <Building2 className="w-10 h-10 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No hospitals found</p>
             <p className="text-xs mt-1">
-              {isAdmin ? 'Add hospitals in the Hospitals tab' : 'Try adjusting filters'}
+              {isAdmin ? 'The technical team adds hospitals to the directory' : 'Try adjusting filters'}
             </p>
           </div>
         ) : (
@@ -291,7 +291,7 @@ const NearbyHospitalsPanel = ({ ward }) => {
                   <span
                     className={`flex items-center gap-1 text-xs ${stale ? 'text-yellow-500' : 'text-zinc-500'}`}
                     title={hospital.lastUpdated
-                      ? `Bed counts entered by an admin on ${new Date(hospital.lastUpdated).toLocaleString()}`
+                      ? `Bed counts entered by the technical team on ${new Date(hospital.lastUpdated).toLocaleString()}`
                       : 'Bed counts have not been updated'}
                   >
                     <Clock className="w-3 h-3" />
@@ -326,7 +326,7 @@ const NearbyHospitalsPanel = ({ ward }) => {
               )}
             </span>
             <span className="text-zinc-500 text-right">
-              Counts entered by admins
+              Counts entered by the technical team
             </span>
           </div>
         </div>

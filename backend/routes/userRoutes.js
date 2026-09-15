@@ -1,5 +1,5 @@
 // backend/routes/userRoutes.js
-// Admin-only routes for managing user accounts
+// Technical team routes for reviewing user accounts
 
 const express = require('express');
 const router = express.Router();
@@ -14,9 +14,9 @@ const {
   validateUserIdParam
 } = require('../middleware/validators');
 
-// All routes require an approved hospital admin
+// All routes require an approved technical team account
 router.use(protect);
-router.use(authorize('hospital_admin'));
+router.use(authorize('technical_team'));
 
 // @route   GET /api/users
 // @query   status (optional: pending/approved/rejected)

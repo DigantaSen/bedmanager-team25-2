@@ -1,88 +1,44 @@
 // backend/middleware/roleGuards.js
 
-const Bed = require('../models/Bed');
-const mongoose = require('mongoose');
-
 /**
  * @desc    Role-based read access control for beds
  * @access  Private (requires protect middleware first)
- * @note    Modifies req.query to filter beds based on user role
+ * @note    Express 5 re-parses req.query on every read, so the scope is stored on req.bedScope
+ *          (applied in getAllBeds). Patient fields are removed per role when beds are returned.
  */
 exports.canReadBeds = (req, res, next) => {
-  try {
-    const { role, ward } = req.user;
+  const { role, ward } = req.user;
 
-    // ER staff → only available beds
-    if (role === 'er_staff') {
-      req.query.status = 'available';
+  // Ward staff → only their assigned ward
+  if (role === 'ward_staff') {
+    if (!ward) {
+      return res.status(403).json({
+        success: false,
+        message: 'No ward is assigned to your account. Ask an administrator to assign one.'
+      });
     }
-
-    // Ward staff → only their assigned ward
-    if (role === 'ward_staff' && ward) {
-      req.query.ward = ward;
-    }
-
-    // Manager, hospital admin, technical team → full access (no filtering)
-
+    req.bedScope = { ward };
     return next();
-  } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: 'Authorization error: ' + err.message
-    });
   }
+
+  // Manager, hospital admin, ER staff and technical team → all beds
+  // (ER staff and the technical team without patient details)
+  req.bedScope = {};
+  return next();
 };
 
 /**
  * @desc    Role-based write access control for bed status updates
  * @access  Private (requires protect middleware first)
- * @note    Only ward_staff and manager can update bed status
+ * @note    Only ward_staff and manager can update bed status; the ward check happens when the
+ *          bed is loaded (services/bedAccess.findBedForUser)
  */
-exports.canUpdateBedStatus = async (req, res, next) => {
-  try {
-    const { role, ward } = req.user;
-    const { id } = req.params;
-
-    // Only ward_staff and manager can update bed status
-    if (!['ward_staff', 'manager'].includes(role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to update bed status.'
-      });
-    }
-
-    // For ward staff, verify they can only update beds in their assigned ward
-    if (role === 'ward_staff') {
-      // Find the bed to check its ward
-      let bed;
-      if (mongoose.Types.ObjectId.isValid(id)) {
-        bed = await Bed.findById(id);
-      } else {
-        bed = await Bed.findOne({ bedId: id });
-      }
-
-      if (!bed) {
-        return res.status(404).json({
-          success: false,
-          message: 'Bed not found'
-        });
-      }
-
-      // Check if bed's ward matches user's assigned ward
-      if (bed.ward !== ward) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to update this ward.'
-        });
-      }
-    }
-
-    // Manager role can update any bed in their ward (to be filtered at controller level if needed)
-    return next();
-  } catch (err) {
-    return res.status(500).json({
+exports.canUpdateBedStatus = (req, res, next) => {
+  if (!['ward_staff', 'manager'].includes(req.user.role)) {
+    return res.status(403).json({
       success: false,
-      message: 'Authorization error: ' + err.message
+      message: 'You do not have permission to update bed status.'
     });
   }
+  return next();
 };

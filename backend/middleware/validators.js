@@ -73,7 +73,8 @@ const validateRegister = [
 ];
 
 /**
- * @desc    Validation rules for approving a user account (admin may adjust role/ward)
+ * @desc    Validation rules for approving a user account (the reviewer may adjust role/ward;
+ *          technical team and admin roles are only given from the command line)
  */
 const validateApproveUser = [
   param('id')
@@ -82,8 +83,8 @@ const validateApproveUser = [
 
   body('role')
     .optional()
-    .isIn(ROLES)
-    .withMessage(`Role must be one of: ${ROLES.join(', ')}`),
+    .isIn(SELF_SIGNUP_ROLES)
+    .withMessage(`Role must be one of: ${SELF_SIGNUP_ROLES.join(', ')}`),
 
   body('ward')
     .optional()
@@ -127,39 +128,39 @@ const validateLogin = [
 /**
  * @desc    Validation rules for creating a bed
  */
+// Bed ID and ward rules shared by adding and editing beds
+const bedIdRule = (chain) => chain
+  .trim()
+  .notEmpty()
+  .withMessage('Bed ID is required')
+  .isLength({ max: 20 })
+  .withMessage('Bed ID cannot exceed 20 characters')
+  .matches(/^[A-Za-z0-9-]+$/)
+  .withMessage('Bed ID must contain only letters, numbers, and hyphens');
+
+const bedWardRule = (chain) => chain
+  .isIn(WARDS)
+  .withMessage(`Ward must be one of: ${WARDS.join(', ')}`);
+
 const validateCreateBed = [
-  body('bedId')
-    .trim()
-    .notEmpty()
-    .withMessage('Bed ID is required')
-    .matches(/^[A-Za-z0-9-]+$/)
-    .withMessage('Bed ID must contain only letters, numbers, and hyphens'),
-  
-  body('ward')
-    .trim()
-    .notEmpty()
-    .withMessage('Ward is required')
-    .isLength({ max: 100 })
-    .withMessage('Ward name cannot exceed 100 characters')
-    .escape(),
-  
-  body('status')
-    .optional()
-    .isIn(['available', 'cleaning', 'occupied'])
-    .withMessage('Status must be one of: available, cleaning, occupied'),
-  
-  body('patientName')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Patient name cannot exceed 100 characters'),
-  
-  body('patientId')
-    .optional()
-    .trim()
-    .isLength({ max: 50 })
-    .withMessage('Patient ID cannot exceed 50 characters'),
-  
+  bedIdRule(body('bedId')),
+  bedWardRule(body('ward')),
+  handleValidationErrors
+];
+
+/**
+ * @desc    Validation rules for changing a bed's ID or ward
+ */
+const validateUpdateBedDetails = [
+  bedIdRule(body('bedId').optional()),
+  bedWardRule(body('ward').optional()),
+  body()
+    .custom((value) => {
+      if (value?.bedId === undefined && value?.ward === undefined) {
+        throw new Error('Provide a new bedId or ward');
+      }
+      return true;
+    }),
   handleValidationErrors
 ];
 
@@ -421,6 +422,7 @@ module.exports = {
   validateApproveUser,
   validateUserIdParam,
   validateCreateBed,
+  validateUpdateBedDetails,
   validateUpdateBedStatus,
   validateBedQuery,
   validateObjectId,
