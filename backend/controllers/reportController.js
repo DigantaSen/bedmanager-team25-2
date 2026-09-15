@@ -29,7 +29,7 @@ const getReportOptionsError = ({ reportType = 'comprehensive', dateRange = 'last
 /**
  * @desc    Generate PDF report
  * @route   POST /api/reports/generate/pdf
- * @access  Private
+ * @access  Private (Manager, Hospital Admin)
  */
 exports.generatePDFReport = async (req, res) => {
   try {
@@ -75,7 +75,7 @@ exports.generatePDFReport = async (req, res) => {
 /**
  * @desc    Generate CSV report
  * @route   POST /api/reports/generate/csv
- * @access  Private
+ * @access  Private (Manager, Hospital Admin)
  */
 exports.generateCSVReport = async (req, res) => {
   try {
@@ -113,7 +113,7 @@ exports.generateCSVReport = async (req, res) => {
 /**
  * @desc    Email report
  * @route   POST /api/reports/email
- * @access  Private
+ * @access  Private (Manager, Hospital Admin)
  */
 exports.emailReport = async (req, res) => {
   try {
@@ -189,7 +189,7 @@ exports.emailReport = async (req, res) => {
 /**
  * @desc    Get report history
  * @route   GET /api/reports/history
- * @access  Private
+ * @access  Private (Manager, Hospital Admin)
  */
 exports.getReportHistory = async (req, res) => {
   try {
@@ -214,7 +214,7 @@ exports.getReportHistory = async (req, res) => {
 /**
  * @desc    Download report from history
  * @route   GET /api/reports/download/:fileName
- * @access  Private
+ * @access  Private (Manager, Hospital Admin)
  */
 exports.downloadReport = async (req, res) => {
   try {
@@ -256,7 +256,7 @@ exports.downloadReport = async (req, res) => {
 /**
  * @desc    Delete report from history
  * @route   DELETE /api/reports/:fileName
- * @access  Private
+ * @access  Private (Manager, Hospital Admin)
  */
 exports.deleteReport = async (req, res) => {
   try {
@@ -296,7 +296,7 @@ exports.deleteReport = async (req, res) => {
 /**
  * @desc    Get scheduled reports
  * @route   GET /api/reports/schedules
- * @access  Private
+ * @access  Private (Manager, Hospital Admin)
  */
 exports.getSchedules = async (req, res) => {
   try {
@@ -320,7 +320,7 @@ exports.getSchedules = async (req, res) => {
 /**
  * @desc    Update scheduled report
  * @route   PUT /api/reports/schedules/:scheduleId
- * @access  Private
+ * @access  Private (Hospital Admin)
  */
 exports.updateSchedule = async (req, res) => {
   try {
@@ -348,7 +348,7 @@ exports.updateSchedule = async (req, res) => {
 /**
  * @desc    Run scheduled report now
  * @route   POST /api/reports/schedules/:scheduleId/run
- * @access  Private
+ * @access  Private (Hospital Admin)
  */
 exports.runScheduleNow = async (req, res) => {
   try {
