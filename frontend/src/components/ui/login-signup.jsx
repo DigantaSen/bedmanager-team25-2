@@ -38,10 +38,9 @@ export default function LoginCardSection() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { status, error } = useSelector((state) => state.auth);
+  const { status } = useSelector((state) => state.auth);
   const [toast, setToast] = useState(null);
 
-  const [showPassword, setShowPassword] = useState(false);
   const [showLoginPw, setShowLoginPw] = useState(false);
   const [showSignupPw, setShowSignupPw] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
@@ -209,7 +208,7 @@ export default function LoginCardSection() {
                           // Error - show message
                           setErrors({ loginPassword: resultAction.payload || 'Login failed' });
                         }
-                      } catch (err) {
+                      } catch {
                         setErrors({ loginPassword: 'An unexpected error occurred' });
                       }
                     }} className="w-full h-10 rounded-lg bg-zinc-50 text-zinc-900 hover:bg-zinc-200">
@@ -389,7 +388,7 @@ export default function LoginCardSection() {
                           // Error - show message
                           setErrors({ signupError: resultAction.payload || 'Registration failed' });
                         }
-                      } catch (err) {
+                      } catch {
                         setErrors({ signupError: 'An unexpected error occurred' });
                       }
                     }} className="w-full h-10 rounded-lg bg-zinc-50 text-zinc-900 hover:bg-zinc-200">

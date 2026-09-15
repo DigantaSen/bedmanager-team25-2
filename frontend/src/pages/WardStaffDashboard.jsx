@@ -17,7 +17,8 @@ const WardStaffDashboard = () => {
   // Task 4.3: Add online status tracking for offline capability
   const [online, setOnline] = useState(isOnline());
   const [backendConnected, setBackendConnected] = useState(true);
-  const [lastUpdateTime, setLastUpdateTime] = useState(null);
+  // Only the setter is used: the time is recorded on refresh, not displayed
+  const [, setLastUpdateTime] = useState(null);
 
   // Check backend connectivity
   const checkBackendConnection = useCallback(async () => {

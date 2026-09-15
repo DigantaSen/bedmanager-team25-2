@@ -8,7 +8,8 @@ const ForecastingPanel = ({ ward }) => {
   const [forecastData, setForecastData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [bedsWithDischargeTime, setBedsWithDischargeTime] = useState([]);
+  // Only the setter is used: the list is fetched to refresh the panel, not rendered directly
+  const [, setBedsWithDischargeTime] = useState([]);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [showManual, setShowManual] = useState(true); // Toggle for manual discharge times
@@ -461,8 +462,6 @@ const ForecastingPanel = ({ ward }) => {
             const manualDischarges = forecastData?.manualDischarges?.details || [];
             const aiDischarges = forecastData?.aiDischarges?.details || [];
 
-            const now = new Date();
-            
             // Calculate max for scaling (only from visible types)
             const maxDischarges = Math.max(
               ...timelineBuckets.map(b => {

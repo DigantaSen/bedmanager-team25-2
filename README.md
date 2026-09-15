@@ -172,7 +172,7 @@ Each service has its own `.env.example`. Copy it to `.env` in `backend/`, `front
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Backend    | For email reports | Mail server settings                                    |
 | `VITE_API_BASE_URL`                                             | Frontend   | No                | Backend API URL (default: `http://localhost:5001/api`)  |
 | `VITE_SOCKET_URL`                                               | Frontend   | No                | Socket.IO server URL (default: `http://localhost:5001`) |
-| `ML_SERVICE_HOST`, `ML_SERVICE_PORT`                            | ML Service | No                | Bind address and port (default: `0.0.0.0:8000`)         |
+| `ML_SERVICE_HOST`, `ML_SERVICE_PORT`                            | ML Service | No                | Bind address and port (default: `127.0.0.1:8000`)         |
 | `MONGO_URI`                                                     | ML Service | Recommended       | Same database as the backend; used for training and for prediction history (defaults are used if unreachable) |
 | `MONGO_TIMEOUT_MS`, `HISTORY_CACHE_TTL_SECONDS`, `HISTORY_RETRY_SECONDS` | ML Service | No       | MongoDB timeout and history cache timings (defaults: `20000` ms, `600` s, `60` s) |
 | `LOG_LEVEL`                                                     | ML Service | No                | Logging level (default: `INFO`)                         |

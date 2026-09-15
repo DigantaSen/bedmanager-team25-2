@@ -66,7 +66,7 @@ cp .env.example .env   # then set MONGO_URI (same database as the backend)
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
 **Access the application:**
@@ -268,12 +268,12 @@ Check `frontend/.env` or `frontend/.env.example` for any required configuration.
    
    **Production mode (recommended):**
    ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8000
+   uvicorn main:app --host 127.0.0.1 --port 8000
    ```
    
    **With auto-reload (development):**
    ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   uvicorn main:app --host 127.0.0.1 --port 8000 --reload
    ```
 
 8. **Verify ML service is running:**
@@ -315,7 +315,7 @@ Copy `ml-service/.env.example` to `ml-service/.env`; it is loaded automatically 
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ML_SERVICE_HOST` | 0.0.0.0 | Bind address (used by `python main.py`) |
+| `ML_SERVICE_HOST` | 127.0.0.1 | Bind address (used by `python main.py`) |
 | `ML_SERVICE_PORT` | 8000 | ML service port (used by `python main.py`) |
 | `MONGO_URI` | mongodb://localhost:27017/bedmanager | Same database as the backend; used for training and for prediction history (defaults are used if unreachable) |
 | `MONGO_TIMEOUT_MS` | 20000 | MongoDB connection timeout for background history loading |
@@ -364,7 +364,7 @@ PORT=5002
 # Frontend: Vite will auto-increment (5174, 5175, etc.)
 
 # ML Service: Use different port
-uvicorn main:app --host 0.0.0.0 --port 8001
+uvicorn main:app --host 127.0.0.1 --port 8001
 
 # Find and kill process using a port (Linux/Mac)
 lsof -ti:5001 | xargs kill -9
@@ -582,9 +582,7 @@ docker-compose up
 
 - **Backend README:** `backend/README.md`
 - **ML Service README:** `ml-service/README.md`
-- **Frontend README:** `frontend/README.md`
 - **API Documentation:** http://localhost:8000/docs (ML Service Swagger)
-- **Redux Implementation:** `frontend/REDUX_IMPLEMENTATION.md`
 
 ---
 

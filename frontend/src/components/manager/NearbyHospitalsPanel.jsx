@@ -27,7 +27,7 @@ const NearbyHospitalsPanel = ({ ward }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const isAdmin = currentUser?.role === 'hospital_admin';
-  const [selectedWard, setSelectedWard] = useState(ward || currentUser?.ward || 'ICU');
+  const [selectedWard] = useState(ward || currentUser?.ward || 'ICU');
   const [maxDistance, setMaxDistance] = useState(10);
   const [sliderValue, setSliderValue] = useState(10);
   const [showFilters, setShowFilters] = useState(false);

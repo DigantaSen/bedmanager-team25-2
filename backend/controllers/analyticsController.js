@@ -432,8 +432,15 @@ exports.getForecasting = async (req, res) => {
     aiDischargesList.sort(byExpectedTime);
     const expectedDischargesList = [...manualDischargesList, ...aiDischargesList].sort(byExpectedTime);
 
-    // Count discharges by time window
-    const countWithin = (list, hours) => list.filter((d) => d.hoursUntilDischarge <= hours).length;
+    // Count discharges by time window, from the expected time itself rather than from
+    // hoursUntilDischarge. For an ML estimate those are two separately computed values -
+    // hours_remaining is measured against the ML service's own clock - so at the edge of a
+    // window they can disagree, and the headline figure would count a discharge that the
+    // timeline below it leaves out. Comparing timestamps keeps the two consistent.
+    const countWithin = (list, hours) => {
+      const cutoff = new Date(now.getTime() + hours * HOUR_MS);
+      return list.filter((d) => d.expectedDischargeTime < cutoff).length;
+    };
     const dischargesNext24h = countWithin(expectedDischargesList, 24);
     const dischargesNext48h = countWithin(expectedDischargesList, 48);
     const dischargesNext72h = countWithin(expectedDischargesList, 72);

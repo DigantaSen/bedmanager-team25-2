@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Analytics API provides comprehensive reporting and forecasting endpoints for hospital bed management. All endpoints are currently public (no authentication required) for MVP, but should be protected with role-based access control in production.
+The Analytics API provides comprehensive reporting and forecasting endpoints for hospital bed management.
+
+Every endpoint below requires a valid token and the role `manager` or `hospital_admin`. A request without a token is refused with 401, and any other role with 403. Occupancy figures are hospital-wide, and the forecasting endpoint includes patient names, which is why the other roles are excluded rather than given a reduced view.
 
 ## Base URL
 
@@ -387,13 +389,7 @@ The system uses MongoDB indexes for optimal performance:
 
 ## Future Enhancements
 
-1. **Role-Based Access Control**
-   - Add `protect` middleware for authentication
-   - ICU Manager: Full access
-   - Hospital Admin: Read-only
-   - ER Staff: Summary only
-
-2. **Advanced Forecasting**
+1. **Advanced Forecasting**
    - Integrate machine learning models
    - Account for seasonal patterns
    - Emergency admission weighting

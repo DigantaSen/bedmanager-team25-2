@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectAuthToken, selectIsAuthenticated } from '../features/auth/authSlice';
-import { connectSocket, disconnectSocket, getSocket } from '../services/socketService';
+import { connectSocket, disconnectSocket } from '../services/socketService';
 
 // Create Socket Context
 const SocketContext = createContext(null);
