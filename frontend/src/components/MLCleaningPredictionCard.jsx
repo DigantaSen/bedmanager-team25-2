@@ -33,7 +33,7 @@ const MLCleaningPredictionCard = ({ predictions = [], maxDisplay = 5 }) => {
             <Sparkles className="w-12 h-12 mx-auto mb-3 text-slate-600" />
             <p className="text-sm">No cleaning predictions available</p>
             <p className="text-xs text-slate-500 mt-1">
-              Predictions will appear for beds in maintenance
+              Predictions will appear for beds being cleaned
             </p>
           </div>
         </CardContent>

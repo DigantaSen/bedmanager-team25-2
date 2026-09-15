@@ -144,7 +144,7 @@ The frontend `ForecastingPanel` component should now display:
 ## Services Running
 
 1. **ML Service**: `http://localhost:8000/api/ml`
-   - Discharge prediction model (MAE: 38.25 hours)
+   - Discharge prediction model v1.1.0 (MAE: 35.75 hours, retrained September 2026)
    - Cleaning duration model (MAE: 8.15 minutes)
    - Bed availability model (Accuracy: 82.37%)
 
@@ -161,8 +161,9 @@ The frontend `ForecastingPanel` component should now display:
 ### Discharge Prediction Model
 - **Algorithm**: Random Forest Regressor
 - **Features**: 11 (ward-focused)
-- **Test MAE**: 38.25 hours
-- **Test R²**: 0.2069
+- **Version**: 1.1.0 (retrained September 2026 after fixing the ward-labelling bug in `train_discharge.py`)
+- **Test MAE**: 35.75 hours (5-fold cross-validation: 34.2 hours)
+- **Test R²**: 0.31 (5-fold cross-validation: 0.34)
 - **Hyperparameters**:
   - n_estimators: 250
   - max_depth: 10

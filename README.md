@@ -158,7 +158,7 @@ For **step-by-step installation**, environment setup, and troubleshooting, see [
 
 ## Environment Variables
 
-Each service has its own `.env.example`. Copy it to `.env` in `backend/` and `frontend/`. The ML service reads its settings from environment variables.
+Each service has its own `.env.example`. Copy it to `.env` in `backend/`, `frontend/` and `ml-service/`.
 
 | Variable                                                        | Service    | Required          | Description                                             |
 | --------------------------------------------------------------- | ---------- | ----------------- | ------------------------------------------------------- |
@@ -173,7 +173,8 @@ Each service has its own `.env.example`. Copy it to `.env` in `backend/` and `fr
 | `VITE_API_BASE_URL`                                             | Frontend   | No                | Backend API URL (default: `http://localhost:5001/api`)  |
 | `VITE_SOCKET_URL`                                               | Frontend   | No                | Socket.IO server URL (default: `http://localhost:5001`) |
 | `ML_SERVICE_HOST`, `ML_SERVICE_PORT`                            | ML Service | No                | Bind address and port (default: `0.0.0.0:8000`)         |
-| `MONGO_URI`                                                     | ML Service | For training      | MongoDB connection string used by the training scripts  |
+| `MONGO_URI`                                                     | ML Service | Recommended       | Same database as the backend; used for training and for prediction history (defaults are used if unreachable) |
+| `MONGO_TIMEOUT_MS`, `HISTORY_CACHE_TTL_SECONDS`, `HISTORY_RETRY_SECONDS` | ML Service | No       | MongoDB timeout and history cache timings (defaults: `20000` ms, `600` s, `60` s) |
 | `LOG_LEVEL`                                                     | ML Service | No                | Logging level (default: `INFO`)                         |
 
 > See `docs/HOW_TO_RUN.md` for a complete `.env` template.

@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import joblib
 import os
@@ -94,13 +94,16 @@ async def lifespan(app: FastAPI):
     load_ml_models()
     
     # Set models in prediction routes
-    from routes.predictions import set_models
+    from routes.predictions import set_models, warm_history_cache
     set_models(
         loaded_models['discharge'],
         loaded_models['bed_availability'],
         loaded_models['cleaning_duration']
     )
-    
+
+    # Load historical averages from MongoDB in the background
+    warm_history_cache()
+
     logger.info("ML Service started successfully")
     
     yield
@@ -134,7 +137,7 @@ async def root():
         "service": settings.SERVICE_NAME,
         "version": settings.VERSION,
         "status": "running",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "endpoints": {
             "health": "/health",
             "docs": "/docs",
@@ -154,7 +157,7 @@ async def health_check():
         "status": "healthy",
         "service": settings.SERVICE_NAME,
         "version": settings.VERSION,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "models_loaded": models_loaded
     }
 

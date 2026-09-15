@@ -6,6 +6,11 @@ Handles environment variables and service settings
 import os
 from typing import Optional
 
+from dotenv import load_dotenv
+
+# Load ml-service/.env if present (existing environment variables take precedence)
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
 class Settings:
     """Application settings and configuration"""
     
@@ -18,8 +23,13 @@ class Settings:
     HOST: str = os.getenv("ML_SERVICE_HOST", "0.0.0.0")
     PORT: int = int(os.getenv("ML_SERVICE_PORT", "8000"))
     
-    # MongoDB Configuration (for training only)
+    # MongoDB Configuration (training scripts and historical averages used by predictions)
     MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://localhost:27017/bedmanager")
+    MONGO_TIMEOUT_MS: int = int(os.getenv("MONGO_TIMEOUT_MS", "20000"))
+
+    # Historical averages are recomputed in the background at most this often
+    HISTORY_CACHE_TTL_SECONDS: int = int(os.getenv("HISTORY_CACHE_TTL_SECONDS", "600"))
+    HISTORY_RETRY_SECONDS: int = int(os.getenv("HISTORY_RETRY_SECONDS", "60"))
     
     # Model Paths
     MODELS_DIR: str = os.path.join(os.path.dirname(__file__), "models")

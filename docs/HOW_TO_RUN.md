@@ -62,6 +62,7 @@ npm run dev
 ### Terminal 3: ML Service
 ```bash
 cd ml-service
+cp .env.example .env   # then set MONGO_URI (same database as the backend)
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -308,15 +309,18 @@ Check `frontend/.env` or `frontend/.env.example` for any required configuration.
 | `VITE_API_BASE_URL` | http://localhost:5001/api | Backend API base URL |
 | `VITE_SOCKET_URL` | http://localhost:5001 | Socket.IO server URL |
 
-### ML Service (environment variables)
+### ML Service (`.env`)
 
-The ML service reads these from the environment; it does not load a `.env` file.
+Copy `ml-service/.env.example` to `ml-service/.env`; it is loaded automatically at startup.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ML_SERVICE_HOST` | 0.0.0.0 | Bind address (used by `python main.py`) |
 | `ML_SERVICE_PORT` | 8000 | ML service port (used by `python main.py`) |
-| `MONGO_URI` | mongodb://localhost:27017/bedmanager | MongoDB URI used by the training scripts |
+| `MONGO_URI` | mongodb://localhost:27017/bedmanager | Same database as the backend; used for training and for prediction history (defaults are used if unreachable) |
+| `MONGO_TIMEOUT_MS` | 20000 | MongoDB connection timeout for background history loading |
+| `HISTORY_CACHE_TTL_SECONDS` | 600 | How often historical averages are recomputed |
+| `HISTORY_RETRY_SECONDS` | 60 | Retry delay after MongoDB could not be reached |
 | `LOG_LEVEL` | INFO | Logging level |
 
 ---

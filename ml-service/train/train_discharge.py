@@ -121,20 +121,9 @@ def extract_occupancy_data(db):
         df['released_time'] - df['assigned_time']
     ).dt.total_seconds() / 3600.0
     
-    # Get bed information
-    beds_data = list(beds.find())
-    beds_df = pd.DataFrame(beds_data)
-    
-    if len(beds_df) > 0:
-        # Create bed mapping
-        bed_info = beds_df.set_index('_id')[['ward', 'bedId']].to_dict('index')
-        
-        # Map bed info to sessions
-        df['ward'] = df['bed_id'].apply(
-            lambda x: bed_info.get(x, {}).get('ward', 'General') if x in [str(k) for k in bed_info.keys()] else 'General'
-        )
-    else:
-        df['ward'] = 'General'
+    # Map each session to its bed's ward (session bed_id values are strings)
+    bed_wards = {str(bed['_id']): bed.get('ward', 'General') for bed in beds.find({}, {'ward': 1})}
+    df['ward'] = df['bed_id'].map(bed_wards).fillna('General')
     
     # Filter out invalid durations
     df = df[
@@ -307,7 +296,7 @@ def save_model(model, feature_columns, metrics):
         'feature_columns': feature_columns,
         'metrics': metrics,
         'trained_at': datetime.utcnow().isoformat(),
-        'version': '1.0.0'
+        'version': '1.1.0'
     }
     
     # Save model

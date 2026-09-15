@@ -2,11 +2,27 @@
 Utility functions for ML Service
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+def to_utc(dt: Optional[datetime]) -> datetime:
+    """
+    Normalize a datetime to timezone-aware UTC
+
+    Args:
+        dt: datetime (naive values are treated as UTC); None means now
+
+    Returns:
+        Timezone-aware UTC datetime
+    """
+    if dt is None:
+        return datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 def extract_time_features(dt: datetime) -> Dict[str, Any]:
     """
@@ -63,25 +79,23 @@ def calculate_duration_minutes(start_time: datetime, end_time: datetime) -> floa
 
 def ward_to_numeric(ward: str) -> int:
     """
-    Convert ward name to numeric encoding
-    
+    Convert ward name to the numeric encoding the models were trained with
+
+    Must match ward_mapping in train/train_discharge.py, train_cleaning_duration.py
+    and train_bed_availability.py.
+
     Args:
         ward: Ward name (e.g., 'ICU', 'General', 'Emergency')
-        
+
     Returns:
         Numeric encoding
     """
     ward_mapping = {
         "ICU": 0,
-        "Emergency": 1,
-        "General": 2,
-        "Pediatrics": 3,
-        "Pediatric": 3,  # Alternative spelling
-        "Surgery": 4,
-        "Cardiology": 5,
-        "Maternity": 6
+        "General": 1,
+        "Emergency": 2
     }
-    return ward_mapping.get(ward, 2)  # Default to General
+    return ward_mapping.get(ward, 1)  # Unknown wards default to General, as in training
 
 def priority_to_numeric(priority: str) -> int:
     """
@@ -138,7 +152,7 @@ def format_prediction_response(
     response = {
         "success": True,
         "prediction": prediction,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     
     if confidence is not None:

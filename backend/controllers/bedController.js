@@ -967,8 +967,15 @@ exports.predictDischarge = async (req, res) => {
       });
     }
 
+    // Admission time is the bed's most recent assignment (fall back to its last update)
+    const lastAssignment = await OccupancyLog.findOne({ bedId: bed._id, statusChange: 'assigned' })
+      .sort({ timestamp: -1 })
+      .select('timestamp')
+      .lean();
+    const admissionTime = lastAssignment?.timestamp || bed.updatedAt;
+
     // Call ML service for prediction
-    const prediction = await mlService.predictDischarge(bed.ward, bed.createdAt);
+    const prediction = await mlService.predictDischarge(bed.ward, admissionTime);
 
     if (prediction.success) {
       res.status(200).json({
