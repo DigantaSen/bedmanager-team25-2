@@ -87,7 +87,7 @@ export const restoreSession = createAsyncThunk(
       }
       
       return rejectWithValue('No session found');
-    } catch (error) {
+    } catch {
       return rejectWithValue('Failed to restore session');
     }
   }

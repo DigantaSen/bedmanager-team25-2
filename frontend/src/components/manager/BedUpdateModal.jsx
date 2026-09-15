@@ -606,7 +606,6 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
                                           type="button"
                                           onClick={() => {
                                             const currentTime = estimatedDischargeTime.split('T')[1] || '12:00';
-                                            const [currentHour] = currentTime.split(':');
                                             const [currentHour24] = currentTime.split(':').map(Number);
                                             const period = currentHour24 >= 12 ? 'PM' : 'AM';
                                             const hour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24;

@@ -98,8 +98,7 @@ export const DesktopSidebar = ({
 
 export const MobileSidebar = ({
   className,
-  children,
-  ...props
+  children
 }) => {
   const { open, setOpen } = useSidebar();
   return (
