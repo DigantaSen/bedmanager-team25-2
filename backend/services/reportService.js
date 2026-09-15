@@ -18,6 +18,16 @@ const DATE_RANGES = ['today', 'yesterday', 'last7days', 'last30days', 'last90day
 // Exactly the file names the generator produces: report_<timestamp>.pdf|csv (see generatePDF/generateCSV)
 const REPORT_FILE_NAME = /^report_\d+\.(pdf|csv)$/;
 
+// Ward names come from bed records and from the request body, so nothing is written into the
+// report HTML unescaped - otherwise a ward called "<script>..." would run while the PDF renders
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 class ReportService {
   constructor() {
     this.reportsDir = path.join(__dirname, '../reports');
@@ -227,11 +237,24 @@ class ReportService {
       console.log('✅ Browser launched successfully');
       const page = await browser.newPage();
 
+      // The report is a self-contained document: no script needs to run and nothing is fetched.
+      // Turning both off means a value that slipped through escaping still cannot execute or
+      // call out to a remote host while the PDF renders.
+      await page.setJavaScriptEnabled(false);
+      await page.setRequestInterception(true);
+      page.on('request', (request) => {
+        const url = request.url();
+        if (url === 'about:blank' || url.startsWith('data:')) {
+          return request.continue();
+        }
+        return request.abort();
+      });
+
       console.log('📄 Generating HTML report...');
       const html = this.generateHTMLReport(reportData);
 
       console.log('📝 Setting page content...');
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
 
       console.log('🖨️  Generating PDF...');
       const pdfBuffer = await page.pdf({
@@ -387,10 +410,10 @@ class ReportService {
         </div>
 
         <div class="meta-info">
-          <div><span class="meta-label">Report Type:</span> ${reportTypeLabel}</div>
-          <div><span class="meta-label">Date Range:</span> ${data.dateRangeLabel} (${new Date(data.startDate).toLocaleString()} - ${new Date(data.endDate).toLocaleString()})</div>
-          <div><span class="meta-label">Generated:</span> ${new Date(data.generatedDate).toLocaleString()}</div>
-          <div><span class="meta-label">Wards:</span> ${data.selectedWards.join(', ')}</div>
+          <div><span class="meta-label">Report Type:</span> ${escapeHtml(reportTypeLabel)}</div>
+          <div><span class="meta-label">Date Range:</span> ${escapeHtml(data.dateRangeLabel)} (${escapeHtml(new Date(data.startDate).toLocaleString())} - ${escapeHtml(new Date(data.endDate).toLocaleString())})</div>
+          <div><span class="meta-label">Generated:</span> ${escapeHtml(new Date(data.generatedDate).toLocaleString())}</div>
+          <div><span class="meta-label">Wards:</span> ${data.selectedWards.map(escapeHtml).join(', ')}</div>
         </div>
 
         <div class="summary-section">
@@ -436,7 +459,7 @@ class ReportService {
                 const wardOccupancy = stats.total > 0 ? Math.round((stats.occupied / stats.total) * 100) : 0;
                 return `
                   <tr>
-                    <td><strong>${ward}</strong></td>
+                    <td><strong>${escapeHtml(ward)}</strong></td>
                     <td>${stats.total}</td>
                     <td>${stats.occupied}</td>
                     <td>${stats.available}</td>
@@ -460,7 +483,7 @@ class ReportService {
 
   generateReportTypeSpecificHTML(data) {
     // Metrics without recorded data are shown as "No data" instead of an estimate
-    const show = (value, suffix = '') => (value === null || value === undefined ? 'No data' : `${value}${suffix}`);
+    const show = (value, suffix = '') => (value === null || value === undefined ? 'No data' : `${escapeHtml(value)}${suffix}`);
     let html = '';
 
     if (data.occupancy) {

@@ -4,7 +4,6 @@ import { fetchRequests, approveRequest, rejectRequest } from '@/features/request
 import { AlertOctagon, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { getSocket } from '@/services/socketService';
 import Toast from '@/components/ui/Toast';
-import api from '@/services/api';
 
 const EmergencyRequestsQueue = ({ ward, onApprovalSuccess }) => {
   const dispatch = useDispatch();
@@ -65,18 +64,8 @@ const EmergencyRequestsQueue = ({ ward, onApprovalSuccess }) => {
             message: `Priority: ${data.priority.toUpperCase()} - ${data.patientName} needs ${data.ward} bed from ${data.location}`,
           });
 
-          // Create an alert in the Alerts & Notifications panel
-          try {
-            await api.post('/alerts', {
-              type: 'emergency_request',
-              message: `New emergency request: ${data.patientName} (${data.priority.toUpperCase()}) needs ${data.ward} bed`,
-              severity: data.priority === 'critical' ? 'critical' : data.priority === 'high' ? 'high' : 'medium',
-              ward: data.ward,
-              targetRole: 'manager'
-            });
-          } catch (error) {
-            // Silently fail - alert creation is not critical
-          }
+          // The alert for this request is created by the server when the request is raised,
+          // so there is nothing to post from here
 
           // Show browser notification if permission granted
           if ('Notification' in window && Notification.permission === 'granted') {

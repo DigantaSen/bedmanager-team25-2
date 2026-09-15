@@ -23,14 +23,6 @@ export const rejectRequest = createAsyncThunk(
   }
 );
 
-export const updateRequestStatus = createAsyncThunk(
-  'requests/updateStatus',
-  async ({ id, status }) => {
-    const res = await api.patch(`/emergency-requests/${id}`, { status });
-    return res.data;
-  }
-);
-
 const requestsSlice = createSlice({
   name: 'requests',
   initialState: {
@@ -65,10 +57,6 @@ const requestsSlice = createSlice({
         if (idx >= 0) state.requests[idx] = action.payload;
       })
       .addCase(rejectRequest.fulfilled, (state, action) => {
-        const idx = state.requests.findIndex(r => r._id === action.payload._id);
-        if (idx >= 0) state.requests[idx] = action.payload;
-      })
-      .addCase(updateRequestStatus.fulfilled, (state, action) => {
         const idx = state.requests.findIndex(r => r._id === action.payload._id);
         if (idx >= 0) state.requests[idx] = action.payload;
       });

@@ -11,21 +11,30 @@ const {
   updateSchedule,
   runScheduleNow
 } = require('../controllers/reportController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
+
+// Reports aggregate occupancy across the hospital, so they need a login and a role
+router.use(protect);
+
+// Managers and hospital admins run and read reports
+const canUseReports = authorize('manager', 'hospital_admin');
+
+// Only hospital admins change what gets emailed on a schedule, or trigger a send
+const canManageSchedules = authorize('hospital_admin');
 
 // Report generation routes
-router.post('/generate/pdf', protect, generatePDFReport);
-router.post('/generate/csv', protect, generateCSVReport);
-router.post('/email', protect, emailReport);
+router.post('/generate/pdf', canUseReports, generatePDFReport);
+router.post('/generate/csv', canUseReports, generateCSVReport);
+router.post('/email', canUseReports, emailReport);
 
 // Report history routes
-router.get('/history', protect, getReportHistory);
-router.get('/download/:fileName', protect, downloadReport);
-router.delete('/:fileName', protect, deleteReport);
+router.get('/history', canUseReports, getReportHistory);
+router.get('/download/:fileName', canUseReports, downloadReport);
+router.delete('/:fileName', canUseReports, deleteReport);
 
 // Scheduled report routes
-router.get('/schedules', protect, getSchedules);
-router.put('/schedules/:scheduleId', protect, updateSchedule);
-router.post('/schedules/:scheduleId/run', protect, runScheduleNow);
+router.get('/schedules', canUseReports, getSchedules);
+router.put('/schedules/:scheduleId', canManageSchedules, updateSchedule);
+router.post('/schedules/:scheduleId/run', canManageSchedules, runScheduleNow);
 
 module.exports = router;
