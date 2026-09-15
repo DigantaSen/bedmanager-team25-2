@@ -10,7 +10,8 @@
     "check:logs": "node checkOccupancyLogs.js && node checkCleaningLogs.js",
     "check:cleaning": "node checkCleaningBeds.js",
     "fix:cleaning": "node fixCleaningBeds.js",
-    "create:admin": "node createAdmin.js"
+    "create:admin": "node createAdmin.js",
+    "create:technical": "node createAdmin.js --role technical_team"
   },
   "keywords": [],
   "author": "",

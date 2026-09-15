@@ -245,7 +245,6 @@ export default function LoginCardSection() {
                               <SelectItem value="er_staff">ER Staff</SelectItem>
                               <SelectItem value="ward_staff">Ward Staff</SelectItem>
                               <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="technical_team">Technical Team</SelectItem>
                             </SelectContent>
                           </Select>
                           {errors.role && <p className="text-xs text-red-400 mt-1">{errors.role}</p>}

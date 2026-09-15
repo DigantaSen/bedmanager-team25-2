@@ -174,7 +174,7 @@ async function generateUsers(seedAccounts) {
 async function loadBeds() {
   console.log("🛏 Fetching beds from database...");
 
-  const beds = await Bed.find({}).lean();
+  const beds = await Bed.find({ retiredAt: null }).lean();
 
   if (beds.length === 0) {
     console.error("❌ No beds found! Please run seedBeds.js first.");
@@ -406,8 +406,8 @@ async function generateAlerts(requests) {
     }));
 
   for (const ward of CONFIG.wards) {
-    const totalBeds = await Bed.countDocuments({ ward });
-    const occupiedBeds = await Bed.countDocuments({ ward, status: "occupied" });
+    const totalBeds = await Bed.countDocuments({ ward, retiredAt: null });
+    const occupiedBeds = await Bed.countDocuments({ ward, status: "occupied", retiredAt: null });
     const occupancyRate = totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0;
 
     if (occupancyRate > 90) {

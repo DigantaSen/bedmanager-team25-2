@@ -123,6 +123,16 @@ const DashboardLayout = ({ children }) => {
           ...commonLinks,
         ];
 
+      case 'technical_team':
+        return [
+          {
+            label: 'Dashboard',
+            href: '/dashboard',
+            icon: <BedDouble className="h-5 w-5" />,
+          },
+          ...commonLinks,
+        ];
+
       default:
         return [
           {

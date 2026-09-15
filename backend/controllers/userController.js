@@ -1,12 +1,16 @@
 // backend/controllers/userController.js
-// Admin-only user account management (sign-up approval workflow)
+// User account management for the technical team (sign-up approval workflow)
 
 const User = require('../models/User');
-const { WARD_REQUIRED_ROLES } = require('../config/roles');
+const { SELF_SIGNUP_ROLES, WARD_REQUIRED_ROLES } = require('../config/roles');
 
 const ACCOUNT_STATUSES = ['pending', 'approved', 'rejected'];
 
-// Fields safe to return to the admin UI
+// Technical team and hospital admin accounts are only created from the command line (createAdmin.js),
+// so reviewers can only give, or revoke, the roles people can sign up for
+const REVIEWABLE_ROLES = SELF_SIGNUP_ROLES;
+
+// Fields safe to return to the approvals UI
 const toPublicUser = (user) => ({
   id: user._id,
   name: user.name,
@@ -20,10 +24,25 @@ const toPublicUser = (user) => ({
   createdAt: user.createdAt
 });
 
+// Checks shared by approve and reject; returns an error response, or null when the review may go ahead
+const getReviewError = (req, user) => {
+  if (!user) {
+    return { status: 404, message: 'User not found' };
+  }
+  if (user._id.equals(req.user._id)) {
+    return { status: 400, message: 'You cannot change the status of your own account' };
+  }
+  // Pending sign-ups can always be reviewed; existing technical team and admin accounts cannot
+  if (user.status !== 'pending' && !REVIEWABLE_ROLES.includes(user.role)) {
+    return { status: 403, message: 'Technical team and hospital admin accounts are managed from the server command line' };
+  }
+  return null;
+};
+
 /**
  * @desc    List user accounts, optionally filtered by status
  * @route   GET /api/users?status=pending
- * @access  Private (hospital_admin)
+ * @access  Private (technical_team)
  */
 exports.getUsers = async (req, res) => {
   try {
@@ -62,29 +81,27 @@ exports.getUsers = async (req, res) => {
 /**
  * @desc    Approve a user account, optionally adjusting the requested role/ward
  * @route   PATCH /api/users/:id/approve
- * @access  Private (hospital_admin)
+ * @access  Private (technical_team)
  * @body    role (optional), ward (optional)
  */
 exports.approveUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    if (user._id.equals(req.user._id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'You cannot change the status of your own account'
-      });
+    const reviewError = getReviewError(req, user);
+    if (reviewError) {
+      return res.status(reviewError.status).json({ success: false, message: reviewError.message });
     }
 
     const role = req.body.role || user.role;
     const ward = req.body.ward || user.ward;
+
+    if (!REVIEWABLE_ROLES.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: `Accounts can only be approved as: ${REVIEWABLE_ROLES.join(', ')}`
+      });
+    }
 
     if (WARD_REQUIRED_ROLES.includes(role) && !ward) {
       return res.status(400).json({
@@ -126,24 +143,15 @@ exports.approveUser = async (req, res) => {
 /**
  * @desc    Reject a pending account (or revoke access for an approved one)
  * @route   PATCH /api/users/:id/reject
- * @access  Private (hospital_admin)
+ * @access  Private (technical_team)
  */
 exports.rejectUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    if (user._id.equals(req.user._id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'You cannot change the status of your own account'
-      });
+    const reviewError = getReviewError(req, user);
+    if (reviewError) {
+      return res.status(reviewError.status).json({ success: false, message: reviewError.message });
     }
 
     user.status = 'rejected';

@@ -1,403 +1,446 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { selectCurrentUser, selectIsAuthenticated, logout } from '@/features/auth/authSlice';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSelector } from 'react-redux';
+import { Wrench } from 'lucide-react';
+import { selectCurrentUser } from '@/features/auth/authSlice';
+import DashboardLayout from '@/components/DashboardLayout';
+import UserApprovalsPanel from '@/components/admin/UserApprovalsPanel';
+import HospitalDirectoryPanel from '@/components/admin/HospitalDirectoryPanel';
 import api from '@/services/api';
-import {
-    Sidebar,
-    SidebarBody,
-    SidebarLink,
-    Logo,
-    ProfileLink,
-} from "@/components/ui/sidebar";
-import { Home, Settings, BarChart2, Bell } from "lucide-react";
-import { motion, AnimatePresence } from 'framer-motion';
-import { BedSelection } from '@/components/ui/bed-selection';
-import {
-    Select,
-    SelectTrigger,
-    SelectContent,
-    SelectItem,
-    SelectValue,
-} from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 
 // Wards in the hospital's usual order; any other ward follows alphabetically
 const WARD_ORDER = ['ICU', 'General', 'Emergency'];
+
+const TABS = [
+  { id: 'beds', label: 'Bed Inventory' },
+  { id: 'approvals', label: 'Approvals' },
+  { id: 'hospitals', label: 'Hospitals' }
+];
+
+const INPUT_CLASS = 'h-10 px-3 rounded-md bg-neutral-950 border border-neutral-700 text-white disabled:opacity-50';
+const PRIMARY_BUTTON = 'px-4 py-2 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-500 disabled:opacity-50 transition-colors';
+const SECONDARY_BUTTON = 'px-4 py-2 rounded-md bg-neutral-800 text-neutral-200 hover:bg-neutral-700 disabled:opacity-50 transition-colors';
+
+// Same status colours as the manager's bed grid
+const STATUS_STYLES = {
+  available: 'bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500/30 cursor-pointer',
+  occupied: 'bg-red-500/20 border-red-500 text-red-400 cursor-default opacity-75',
+  cleaning: 'bg-orange-500/20 border-orange-500 text-orange-400 cursor-default opacity-75'
+};
+
+const tabClass = (isActive) => `flex-1 px-6 py-3 rounded-md font-semibold transition-colors ${isActive
+  ? 'bg-blue-600 text-white'
+  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+  }`;
+
 const wardRank = (ward) => (WARD_ORDER.includes(ward) ? WARD_ORDER.indexOf(ward) : WARD_ORDER.length);
 const byNaturalOrder = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true });
 
-// Bed map built from the beds in the database: a section per ward and a row per bed ID prefix (e.g. "iA" in "iA5")
-const buildBedLayout = (beds) => {
-    const wards = new Map();
-    beds.forEach((bed) => {
-        const match = /^(.*?)-?(\d+)$/.exec(bed.bedId);
-        const rowId = match && match[1] ? match[1] : bed.ward;
-        if (!wards.has(bed.ward)) wards.set(bed.ward, new Map());
-        const rows = wards.get(bed.ward);
-        if (!rows.has(rowId)) rows.set(rowId, []);
-        rows.get(rowId).push({ id: bed.bedId, number: match ? Number(match[2]) : bed.bedId });
-    });
-
-    return [...wards.entries()]
-        .sort(([a], [b]) => wardRank(a) - wardRank(b) || a.localeCompare(b))
-        .map(([ward, rows]) => ({
-            categoryName: ward,
-            rows: [...rows.entries()]
-                .sort(([a], [b]) => byNaturalOrder(a, b))
-                .map(([rowId, rowBeds]) => ({ rowId, beds: rowBeds.sort((a, b) => byNaturalOrder(a.id, b.id)) })),
-        }));
+// Beds grouped by bed ID prefix (e.g. "iA" in "iA5"), as in the other dashboards' bed grids
+const groupByPrefix = (beds) => {
+  const groups = new Map();
+  [...beds].sort((a, b) => byNaturalOrder(a.bedId, b.bedId)).forEach((bed) => {
+    const match = /^(.*?)-?(\d+)$/.exec(bed.bedId);
+    const prefix = match && match[1] ? match[1] : 'Other';
+    if (!groups.has(prefix)) groups.set(prefix, []);
+    groups.get(prefix).push(bed);
+  });
+  return [...groups.entries()].sort(([a], [b]) => byNaturalOrder(a, b));
 };
 
-const Legend = () => (
-    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4 p-4 rounded-md border bg-card text-card-foreground">
-        <div className="flex items-center gap-2"><div className="w-5 h-5 rounded border-emerald-600 bg-emerald-600" /><span className="text-sm">Available</span></div>
-        <div className="flex items-center gap-2"><div className="w-5 h-5 rounded border-primary bg-primary" /><span className="text-sm">Selected</span></div>
-        <div className="flex items-center gap-2"><div className="w-5 h-5 rounded border-red-600 bg-red-600" /><span className="text-sm">Occupied</span></div>
-        <div className="flex items-center gap-2"><div className="w-5 h-5 rounded border-yellow-500 bg-yellow-500" /><span className="text-sm">Cleaning</span></div>
-    </div>
-);
+const getApiError = (error, fallback) =>
+  error.response?.data?.errors?.[0]?.message || error.response?.data?.message || fallback;
 
-function Dashboard() {
-    const navigate = useNavigate();
-    const dispatch = useDispatch();
-    const currentUser = useSelector(selectCurrentUser);
-    const isAuthenticated = useSelector(selectIsAuthenticated);
-    const [selectedBeds, setSelectedBeds] = useState([]);
-    const [selectedCategory, setSelectedCategory] = useState('ALL');
-    const [isBooking, setIsBooking] = useState(false);
-    const [allBeds, setAllBeds] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [loadError, setLoadError] = useState(null);
-    const [showSettings, setShowSettings] = useState(false);
+/**
+ * Bed inventory: add beds, change a bed's ID or ward, retire and reactivate beds.
+ * Patient details are not shown (the API leaves them out for the technical team).
+ */
+const BedInventoryPanel = ({ canManage }) => {
+  const [beds, setBeds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [wardFilter, setWardFilter] = useState('ALL');
+  const [selectedId, setSelectedId] = useState(null);
+  const [editForm, setEditForm] = useState({ bedId: '', ward: '' });
+  const [newBed, setNewBed] = useState({ bedId: '', ward: WARD_ORDER[0] });
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
-    const links = [
-        { label: "Overview", href: "#overview", icon: <BarChart2 className="h-4 w-4" /> },
-        { label: "Requests", href: "#requests", icon: <Bell className="h-4 w-4" /> },
-        {
-            label: "Settings",
-            href: "#settings",
-            icon: <Settings className="h-4 w-4" />,
-            onClick: (e) => {
-                e.preventDefault();
-                setShowSettings(true);
-            }
-        },
-        {
-            label: "Logout",
-            href: "/login",
-            icon: <Home className="h-4 w-4" />,
-            onClick: (e) => {
-                e.preventDefault();
-                // Clear session and logout
-                dispatch(logout());
-                navigate('/login');
-            }
-        },
-    ];
+  const fetchBeds = useCallback(async () => {
+    try {
+      const response = await api.get('/beds', { params: { includeRetired: true } });
+      setBeds(response.data?.data?.beds || []);
+      setLoadError(null);
+    } catch (error) {
+      console.error('Error fetching beds:', error);
+      setLoadError(getApiError(error, 'Could not load beds from the server'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    // Fetch beds from backend on mount
-    useEffect(() => {
-        fetchBeds();
-    }, []);
+  useEffect(() => {
+    fetchBeds();
+  }, [fetchBeds]);
 
-    const fetchBeds = async () => {
-        try {
-            setLoading(true);
-            const response = await api.get('/beds');
-            setAllBeds(response.data?.data?.beds || []);
-            setLoadError(null);
-        } catch (error) {
-            console.error('Error fetching beds:', error);
-            setLoadError(error.response?.data?.message || 'Could not load beds from the server');
-        } finally {
-            setLoading(false);
-        }
-    };
+  const activeBeds = useMemo(() => beds.filter((bed) => !bed.retiredAt), [beds]);
+  const retiredBeds = useMemo(() => beds.filter((bed) => bed.retiredAt).sort((a, b) => byNaturalOrder(a.bedId, b.bedId)), [beds]);
+  const wards = useMemo(() => [...new Set(activeBeds.map((bed) => bed.ward))].sort((a, b) => wardRank(a) - wardRank(b) || a.localeCompare(b)), [activeBeds]);
+  const visibleBeds = wardFilter === 'ALL' ? activeBeds : activeBeds.filter((bed) => bed.ward === wardFilter);
+  const selectedBed = activeBeds.find((bed) => bed._id === selectedId && bed.status === 'available') || null;
 
-    const occupiedBeds = useMemo(() => allBeds.filter(bed => bed.status === 'occupied').map(bed => bed.bedId), [allBeds]);
-    const cleaningBeds = useMemo(() => allBeds.filter(bed => bed.status === 'cleaning').map(bed => bed.bedId), [allBeds]);
-    const bedLayout = useMemo(() => buildBedLayout(allBeds), [allBeds]);
+  const stats = {
+    total: visibleBeds.length,
+    available: visibleBeds.filter((bed) => bed.status === 'available').length,
+    cleaning: visibleBeds.filter((bed) => bed.status === 'cleaning').length,
+    occupied: visibleBeds.filter((bed) => bed.status === 'occupied').length
+  };
 
-    const filteredLayout = useMemo(() => {
-        if (selectedCategory === 'ALL') return bedLayout;
-        return bedLayout.filter((c) => c.categoryName === selectedCategory);
-    }, [bedLayout, selectedCategory]);
+  // Only available beds can be changed; occupied beds and beds being cleaned cannot
+  const handleBedClick = (bed) => {
+    if (!canManage || bed.status !== 'available') return;
+    if (bed._id === selectedId) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId(bed._id);
+    setEditForm({ bedId: bed.bedId, ward: bed.ward });
+    setMessage(null);
+    setActionError(null);
+  };
 
-    const categories = useMemo(() => ['ALL', ...bedLayout.map(c => c.categoryName)], [bedLayout]);
+  // Runs an inventory request, reports the outcome and reloads the beds
+  const runAction = async (request, fallbackError) => {
+    setBusy(true);
+    setMessage(null);
+    setActionError(null);
+    try {
+      const response = await request();
+      setMessage(response.data.message);
+      await fetchBeds();
+      return true;
+    } catch (error) {
+      setActionError(getApiError(error, fallbackError));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
 
-    const handleBedSelect = (bedId) => {
-        // Prevent selecting occupied beds or beds being cleaned
-        if (occupiedBeds.includes(bedId)) {
-            alert(`Bed ${bedId} is already occupied and cannot be selected.`);
-            return;
-        }
-        if (cleaningBeds.includes(bedId)) {
-            alert(`Bed ${bedId} is being cleaned and cannot be selected yet.`);
-            return;
-        }
-        setSelectedBeds((prev) => prev.includes(bedId) ? prev.filter(id => id !== bedId) : [...prev, bedId]);
-    };
+  const handleAddBed = async (e) => {
+    e.preventDefault();
+    const bedId = newBed.bedId.trim();
+    if (!bedId) {
+      setActionError('Enter a bed ID');
+      return;
+    }
+    const added = await runAction(() => api.post('/beds', { bedId, ward: newBed.ward }), 'Failed to add bed');
+    if (added) setNewBed((prev) => ({ ...prev, bedId: '' }));
+  };
 
-    const handleProceedToBook = async () => {
-        if (selectedBeds.length === 0) {
-            alert("Please select at least one bed to proceed.");
-            return;
-        }
+  const handleSaveDetails = async (e) => {
+    e.preventDefault();
+    const changes = {};
+    if (editForm.bedId.trim() !== selectedBed.bedId) changes.bedId = editForm.bedId.trim();
+    if (editForm.ward !== selectedBed.ward) changes.ward = editForm.ward;
+    if (Object.keys(changes).length === 0) {
+      setActionError('Nothing to change');
+      return;
+    }
+    await runAction(() => api.patch(`/beds/${selectedBed._id}`, changes), 'Failed to update bed');
+  };
 
-        // Check if user is logged in
-        if (!isAuthenticated || !currentUser) {
-            alert("Please log in to book beds.");
-            navigate('/login');
-            return;
-        }
+  const handleRetire = async () => {
+    if (!window.confirm(`Retire bed ${selectedBed.bedId}? It will be hidden from bed maps and counts; its history stays in reports.`)) return;
+    const retired = await runAction(() => api.patch(`/beds/${selectedBed._id}/retire`), 'Failed to retire bed');
+    if (retired) setSelectedId(null);
+  };
 
-        // Staff can assign beds - prompt for patient information
-        const patientName = prompt("Enter patient name:");
-        if (!patientName || patientName.trim() === '') {
-            alert("Patient name is required to assign a bed.");
-            return;
-        }
+  const handleReactivate = (bed) => runAction(() => api.patch(`/beds/${bed._id}/reactivate`), 'Failed to reactivate bed');
 
-        const patientId = prompt("Enter patient ID (optional):");
+  if (loading) {
+    return <p className="text-zinc-400">Loading beds...</p>;
+  }
 
-        // Double-check no unavailable beds are selected
-        const invalidBeds = selectedBeds.filter(bedId => occupiedBeds.includes(bedId) || cleaningBeds.includes(bedId));
-        if (invalidBeds.length > 0) {
-            alert(`Cannot book beds that are occupied or being cleaned: ${invalidBeds.join(', ')}`);
-            setSelectedBeds(selectedBeds.filter(bedId => !invalidBeds.includes(bedId)));
-            return;
-        }
+  return (
+    <div className="space-y-6">
+      {loadError && (
+        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-between gap-3">
+          <p className="text-sm text-red-400">{loadError}</p>
+          <button onClick={fetchBeds} className={SECONDARY_BUTTON}>Try again</button>
+        </div>
+      )}
+      {message && (
+        <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+          <p className="text-sm text-green-400">{message}</p>
+        </div>
+      )}
+      {actionError && (
+        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+          <p className="text-sm text-red-400">{actionError}</p>
+        </div>
+      )}
 
-        setIsBooking(true);
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-4">
+          <div className="text-neutral-400 text-sm mb-1">Total Beds</div>
+          <div className="text-2xl font-bold text-white">{stats.total}</div>
+        </div>
+        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+          <div className="text-green-400 text-sm mb-1">Available</div>
+          <div className="text-2xl font-bold text-green-400">{stats.available}</div>
+        </div>
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+          <div className="text-orange-400 text-sm mb-1">Being Cleaned</div>
+          <div className="text-2xl font-bold text-orange-400">{stats.cleaning}</div>
+        </div>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+          <div className="text-red-400 text-sm mb-1">Occupied</div>
+          <div className="text-2xl font-bold text-red-400">{stats.occupied}</div>
+        </div>
+        <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-4">
+          <div className="text-neutral-400 text-sm mb-1">Retired</div>
+          <div className="text-2xl font-bold text-white">{retiredBeds.length}</div>
+        </div>
+      </div>
 
-        try {
-            const results = [];
-            const errors = [];
+      {/* Ward filter */}
+      <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-1 flex gap-1">
+        {['ALL', ...wards].map((ward) => (
+          <button key={ward} onClick={() => setWardFilter(ward)} className={tabClass(wardFilter === ward)}>
+            {ward === 'ALL' ? 'All Wards' : ward}
+          </button>
+        ))}
+      </div>
 
-            // Book each bed via backend API
-            for (const bedId of selectedBeds) {
-                try {
-                    const response = await api.patch(`/beds/${bedId}/status`, {
-                        status: 'occupied',
-                        patientName: patientName.trim(),
-                        patientId: patientId?.trim() || null
-                    });
-                    results.push({ bedId, success: true, data: response.data });
-                } catch (error) {
-                    console.error(`Failed to book bed ${bedId}:`, error);
-                    const errorMsg = error.response?.data?.message ||
-                        error.response?.data?.errors?.[0]?.message ||
-                        'Booking failed';
-                    errors.push({ bedId, error: errorMsg });
-                }
-            }
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Bed grid */}
+        <div className={`${canManage ? 'lg:col-span-2' : 'lg:col-span-3'} bg-neutral-900 border border-neutral-700 rounded-lg p-6`}>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="text-2xl font-bold text-white">Beds</h2>
+            <div className="flex items-center gap-4 text-sm text-neutral-400">
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-green-500" />Available</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-orange-500" />Cleaning</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-500" />Occupied</span>
+            </div>
+          </div>
 
-            // Show results
-            if (errors.length === 0) {
-                alert(`✅ Successfully booked ${results.length} bed(s):\n${selectedBeds.join(', ')}`);
-                setSelectedBeds([]);
-            } else {
-                const successCount = results.length;
-                const errorCount = errors.length;
-                const errorDetails = errors.map(e => `${e.bedId}: ${e.error}`).join('\n');
+          {canManage && (
+            <div className="mb-4 p-3 bg-neutral-900 border border-neutral-700 rounded-lg">
+              <p className="text-sm text-neutral-400">
+                ℹ️ <span className="font-semibold">Tip:</span> Select an <span className="text-green-400 font-semibold">available</span> bed
+                to change or retire it. Occupied beds and beds being cleaned cannot be changed.
+              </p>
+            </div>
+          )}
 
-                alert(
-                    `Booking completed with some errors:\n\n` +
-                    `✅ Success: ${successCount} bed(s)\n` +
-                    `❌ Failed: ${errorCount} bed(s)\n\n` +
-                    `Failed beds:\n${errorDetails}`
-                );
-
-                // Remove successfully booked beds from selection
-                setSelectedBeds(errors.map(e => e.bedId));
-            }
-
-            // Refresh bed data from backend so the map shows the saved statuses
-            await fetchBeds();
-        } catch (error) {
-            console.error('Booking error:', error);
-            alert('Failed to process booking. Please try again.');
-        } finally {
-            setIsBooking(false);
-        }
-    };
-
-    // Pricing removed for hospital bed allocation; no totalPrice calculation
-
-    return (
-        <Sidebar>
-            <div className="flex h-screen w-full bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-50">
-                <SidebarBody className="flex-col justify-between">
-                    <div className="flex flex-col gap-2">
-                        {/* Logo */}
-                        <div className="mt-2"><Logo /></div>
-
-                        <div className="mt-6 flex flex-col gap-2 px-1">
-                            {links.map((l) => (
-                                <SidebarLink key={l.href} link={l} className="rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-800" />
-                            ))}
-                        </div>
+          {visibleBeds.length === 0 ? (
+            <p className="text-zinc-400">No beds in service{wardFilter === 'ALL' ? '' : ` in ${wardFilter}`}.</p>
+          ) : (
+            <div className="space-y-6 max-h-[700px] overflow-y-auto pr-1">
+              {(wardFilter === 'ALL' ? wards : [wardFilter]).map((ward) => (
+                <div key={ward} className="space-y-4">
+                  {wardFilter === 'ALL' && <h3 className="text-xl font-bold text-white">{ward}</h3>}
+                  {groupByPrefix(visibleBeds.filter((bed) => bed.ward === ward)).map(([prefix, groupBeds]) => (
+                    <div key={`${ward}-${prefix}`} className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <h4 className="text-lg font-semibold text-cyan-400">{prefix} Beds</h4>
+                        <div className="flex-1 h-px bg-gradient-to-r from-cyan-500/50 to-transparent" />
+                      </div>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                        {groupBeds.map((bed) => (
+                          <button
+                            key={bed._id}
+                            onClick={() => handleBedClick(bed)}
+                            className={`border-2 rounded-lg p-3 text-center transition-all min-h-[72px] ${STATUS_STYLES[bed.status] || ''} ${bed._id === selectedId ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-neutral-900' : ''}`}
+                            aria-label={`Bed ${bed.bedId}, ${bed.status}`}
+                          >
+                            <div className="font-bold text-lg">{bed.bedId}</div>
+                            <div className="text-xs mt-1 capitalize">{bed.status}</div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-
-                    {/* Profile */}
-                    <div className="mb-4">
-                        <ProfileLink />
-                    </div>
-                </SidebarBody>
-
-                <div className="flex-1 p-8 overflow-auto">
-                    <div className="w-full max-w-5xl mx-auto flex flex-col md:flex-row items-center md:items-start justify-between mb-6 gap-4">
-                        <div className="w-full md:w-auto text-center md:text-left">
-                            <h1 className="text-4xl font-bold">Dashboard</h1>
-                            <p className="text-md text-neutral-600 dark:text-neutral-300">
-                                {loading ? 'Loading beds...' : `Select available beds to book`}
-                            </p>
-                        </div>
-
-                        <div className="flex gap-2 items-center">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={fetchBeds}
-                                disabled={loading}
-                            >
-                                {loading ? 'Refreshing...' : 'Refresh'}
-                            </Button>
-                            <div className="w-48">
-                                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Show All" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {categories.map(cat => (
-                                            <SelectItem key={cat} value={cat}>{cat === 'ALL' ? 'Show All' : cat}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="w-full max-w-5xl mx-auto flex flex-col items-center py-4">
-                        {loadError && (
-                            <div className="w-full mb-4 p-4 rounded-md border border-red-500/40 bg-red-500/10 text-center">
-                                <p className="text-sm text-red-500">{loadError}</p>
-                                <Button variant="outline" size="sm" className="mt-2" onClick={fetchBeds} disabled={loading}>
-                                    Try again
-                                </Button>
-                            </div>
-                        )}
-
-                        {loading ? (
-                            <div className="flex items-center justify-center py-20">
-                                <div className="text-center">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                                    <p className="text-neutral-600 dark:text-neutral-400">Loading beds...</p>
-                                </div>
-                            </div>
-                        ) : allBeds.length === 0 ? (
-                            !loadError && (
-                                <p className="py-20 text-neutral-600 dark:text-neutral-400">No beds have been added yet.</p>
-                            )
-                        ) : (
-                            <>
-                                <BedSelection
-                                    key={`${selectedCategory}-${occupiedBeds.length}-${cleaningBeds.length}`}
-                                    layout={filteredLayout}
-                                    selectedBeds={selectedBeds}
-                                    occupiedBeds={occupiedBeds}
-                                    cleaningBeds={cleaningBeds}
-                                    onBedSelect={handleBedSelect}
-                                />
-
-                                <Legend />
-
-                                <AnimatePresence>
-                                    {selectedBeds.length > 0 && (
-                                        <motion.div
-                                            className="mt-8 w-full max-w-md p-4 bg-card border rounded-lg shadow-lg"
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: 20 }}
-                                            transition={{ duration: 0.3 }}
-                                        >
-                                            <h3 className="text-lg font-semibold mb-2 text-foreground">Your Selection</h3>
-                                            <div className="flex flex-wrap gap-2 mb-4">
-                                                {selectedBeds.slice().sort().map(bedId => (
-                                                    <span key={bedId} className="bg-primary text-primary-foreground text-sm font-medium px-3 py-1 rounded-full">
-                                                        {bedId}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                            <div className="border-t pt-4" />
-                                            <Button
-                                                className="w-full mt-4"
-                                                onClick={handleProceedToBook}
-                                                disabled={isBooking}
-                                            >
-                                                {isBooking ? 'Processing...' : 'Proceed to Book'}
-                                            </Button>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </>
-                        )}
-                    </div>
+                  ))}
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Side panels */}
+        {canManage && (
+          <div className="space-y-6">
+            <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6">
+              <h2 className="text-xl font-bold text-white mb-4">Selected Bed</h2>
+              {selectedBed ? (
+                <form onSubmit={handleSaveDetails} className="space-y-3">
+                  <p className="text-sm text-zinc-400">
+                    <span className="text-white font-semibold">{selectedBed.bedId}</span> · {selectedBed.ward} ·{' '}
+                    <span className="text-green-400">available</span>
+                  </p>
+                  <label className="flex flex-col gap-1 text-sm text-zinc-400">
+                    Bed ID
+                    <input
+                      value={editForm.bedId}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, bedId: e.target.value }))}
+                      disabled={busy}
+                      className={INPUT_CLASS}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-zinc-400">
+                    Ward
+                    <select
+                      value={editForm.ward}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, ward: e.target.value }))}
+                      disabled={busy}
+                      className={INPUT_CLASS}
+                    >
+                      {WARD_ORDER.map((ward) => <option key={ward} value={ward}>{ward}</option>)}
+                    </select>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="submit" disabled={busy} className={PRIMARY_BUTTON}>Save changes</button>
+                    <button
+                      type="button"
+                      onClick={handleRetire}
+                      disabled={busy}
+                      className="px-4 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-500 disabled:opacity-50 transition-colors"
+                    >
+                      Retire bed
+                    </button>
+                    <button type="button" onClick={() => setSelectedId(null)} disabled={busy} className={SECONDARY_BUTTON}>
+                      Cancel
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    A bed&apos;s history moves with it if its ward changes. Retired beds are hidden from bed maps and counts but stay in past reports.
+                  </p>
+                </form>
+              ) : (
+                <p className="text-sm text-zinc-400">Select an available bed in the grid to change or retire it.</p>
+              )}
             </div>
 
-            {/* Settings Modal */}
-            {showSettings && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowSettings(false)}>
-                    <div className="bg-neutral-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-2xl font-bold text-white">User Profile</h2>
-                            <button
-                                onClick={() => setShowSettings(false)}
-                                className="text-zinc-400 hover:text-white"
-                            >
-                                ✕
-                            </button>
-                        </div>
+            <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6">
+              <h2 className="text-xl font-bold text-white mb-4">Add Bed</h2>
+              <form onSubmit={handleAddBed} className="space-y-3">
+                <label className="flex flex-col gap-1 text-sm text-zinc-400">
+                  Bed ID
+                  <input
+                    value={newBed.bedId}
+                    onChange={(e) => setNewBed((prev) => ({ ...prev, bedId: e.target.value }))}
+                    placeholder="e.g. iA13"
+                    disabled={busy}
+                    className={INPUT_CLASS}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-zinc-400">
+                  Ward
+                  <select
+                    value={newBed.ward}
+                    onChange={(e) => setNewBed((prev) => ({ ...prev, ward: e.target.value }))}
+                    disabled={busy}
+                    className={INPUT_CLASS}
+                  >
+                    {WARD_ORDER.map((ward) => <option key={ward} value={ward}>{ward}</option>)}
+                  </select>
+                </label>
+                <button type="submit" disabled={busy} className={PRIMARY_BUTTON}>Add bed</button>
+              </form>
+            </div>
 
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-sm text-zinc-400">Name</label>
-                                <p className="text-white font-medium">{currentUser?.name || 'N/A'}</p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm text-zinc-400">Email</label>
-                                <p className="text-white font-medium">{currentUser?.email || 'N/A'}</p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm text-zinc-400">Role</label>
-                                <p className="text-white font-medium capitalize">
-                                    {currentUser?.role?.replace(/_/g, ' ') || 'N/A'}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm text-zinc-400">User ID</label>
-                                <p className="text-white font-mono text-xs">{currentUser?.id || 'N/A'}</p>
-                            </div>
-                        </div>
-
-                        <div className="mt-6 flex gap-2">
-                            <Button
-                                onClick={() => setShowSettings(false)}
-                                className="flex-1"
-                            >
-                                Close
-                            </Button>
-                        </div>
+            <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6">
+              <h2 className="text-xl font-bold text-white mb-4">Retired Beds ({retiredBeds.length})</h2>
+              {retiredBeds.length === 0 ? (
+                <p className="text-sm text-zinc-400">No retired beds.</p>
+              ) : (
+                <div className="space-y-2">
+                  {retiredBeds.map((bed) => (
+                    <div key={bed._id} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-neutral-950 border border-neutral-800">
+                      <div>
+                        <p className="font-semibold text-white">{bed.bedId}</p>
+                        <p className="text-xs text-zinc-500">{bed.ward} · retired {new Date(bed.retiredAt).toLocaleDateString()}</p>
+                      </div>
+                      <button onClick={() => handleReactivate(bed)} disabled={busy} className={SECONDARY_BUTTON}>
+                        Reactivate
+                      </button>
                     </div>
+                  ))}
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Technical team dashboard: bed inventory, sign-up approvals and the nearby hospital directory
+ */
+const Dashboard = () => {
+  const currentUser = useSelector(selectCurrentUser);
+  const isTechnicalTeam = currentUser?.role === 'technical_team';
+  const [activeTab, setActiveTab] = useState('beds');
+  const [backendConnected, setBackendConnected] = useState(true);
+
+  // Check backend connectivity
+  const checkBackendConnection = useCallback(async () => {
+    try {
+      await api.get('/health');
+      setBackendConnected(true);
+    } catch {
+      setBackendConnected(false);
+    }
+  }, []);
+
+  // Periodic backend health check
+  useEffect(() => {
+    checkBackendConnection();
+    const interval = setInterval(checkBackendConnection, 5000);
+    return () => clearInterval(interval);
+  }, [checkBackendConnection]);
+
+  return (
+    <DashboardLayout>
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <Wrench className="w-8 h-8 text-blue-500" />
+            <h1 className="text-4xl font-bold">{isTechnicalTeam ? 'Technical Team Dashboard' : 'Bed Layout'}</h1>
+          </div>
+          <p className="text-zinc-400">
+            {isTechnicalTeam
+              ? 'Bed inventory, account approvals and the nearby hospital directory'
+              : 'Managing beds, accounts and hospitals is limited to the technical team'}
+            {backendConnected ? (
+              <span className="ml-2 text-green-400">● Live</span>
+            ) : (
+              <span className="ml-2 text-red-400">● Disconnected</span>
             )}
-        </Sidebar>
-    );
-}
+          </p>
+        </div>
+
+        {isTechnicalTeam && (
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-1 flex gap-1">
+            {TABS.map((tab) => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={tabClass(activeTab === tab.id)}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {(!isTechnicalTeam || activeTab === 'beds') && <BedInventoryPanel canManage={isTechnicalTeam} />}
+        {isTechnicalTeam && activeTab === 'approvals' && <UserApprovalsPanel />}
+        {isTechnicalTeam && activeTab === 'hospitals' && <HospitalDirectoryPanel />}
+      </div>
+    </DashboardLayout>
+  );
+};
 
 export default Dashboard;

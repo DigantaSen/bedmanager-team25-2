@@ -1,15 +1,19 @@
 // backend/createAdmin.js
-// Create an approved hospital_admin account, or promote an existing user.
-// hospital_admin cannot be requested at sign-up, so use this to bootstrap the first admin.
+// Create an approved hospital_admin or technical_team account, or promote an existing user.
+// These roles cannot be requested at sign-up, so they are only created from the command line.
 //
 // Usage:
 //   npm run create:admin -- --email admin@hospital.com --password "<password>" --name "Jane Doe"
+//   npm run create:technical -- --email tech@hospital.com --password "<password>" --name "Sam Lee"
 //   npm run create:admin -- --email existing.user@hospital.com   (promote existing user)
 
 require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('./models/User');
 const { MIN_PASSWORD_LENGTH } = require('./config/passwordPolicy');
+
+const COMMAND_LINE_ROLES = ['hospital_admin', 'technical_team'];
+const DEFAULT_NAMES = { hospital_admin: 'Hospital Admin', technical_team: 'Technical Team' };
 
 function parseArgs(argv) {
   const args = {};
@@ -23,10 +27,17 @@ function parseArgs(argv) {
 }
 
 async function main() {
-  const { name, email, password } = parseArgs(process.argv.slice(2));
+  const { name, email, password, role = 'hospital_admin' } = parseArgs(process.argv.slice(2));
 
   if (!email) {
     console.error('Usage: npm run create:admin -- --email admin@hospital.com --password "<password>" --name "Jane Doe"');
+    console.error('       npm run create:technical -- --email tech@hospital.com --password "<password>" --name "Sam Lee"');
+    process.exitCode = 1;
+    return;
+  }
+
+  if (!COMMAND_LINE_ROLES.includes(role)) {
+    console.error(`❌ --role must be one of: ${COMMAND_LINE_ROLES.join(', ')}`);
     process.exitCode = 1;
     return;
   }
@@ -42,10 +53,10 @@ async function main() {
   const existingUser = await User.findOne({ email: email.toLowerCase() });
 
   if (existingUser) {
-    existingUser.role = 'hospital_admin';
+    existingUser.role = role;
     existingUser.status = 'approved';
     await existingUser.save();
-    console.log(`✅ Promoted ${existingUser.email} to hospital_admin (password unchanged)`);
+    console.log(`✅ Promoted ${existingUser.email} to ${role} (password unchanged)`);
     return;
   }
 
@@ -56,18 +67,18 @@ async function main() {
   }
 
   const user = await User.create({
-    name: name || 'Hospital Admin',
+    name: name || DEFAULT_NAMES[role],
     email,
     password,
-    role: 'hospital_admin',
+    role,
     status: 'approved'
   });
-  console.log(`✅ Created hospital_admin account ${user.email}`);
+  console.log(`✅ Created ${role} account ${user.email}`);
 }
 
 main()
   .catch((err) => {
-    console.error('❌ Failed to create admin:', err.message);
+    console.error('❌ Failed to create account:', err.message);
     process.exitCode = 1;
   })
   .finally(() => mongoose.disconnect());

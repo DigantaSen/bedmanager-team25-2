@@ -240,7 +240,7 @@ const HospitalForm = ({ initial, isNew = false, busy, onCancel, onSubmit }) => {
 
 /**
  * Admin panel for the nearby hospital directory used for referrals.
- * Bed counts are entered by admins and shown to managers with when they were last updated.
+ * Bed counts are entered by the technical team and shown to managers with when they were last updated.
  */
 const HospitalDirectoryPanel = () => {
   const [hospitals, setHospitals] = useState([]);
