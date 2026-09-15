@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 /**
  * @desc    Get all occupancy logs with optional filtering
  * @route   GET /api/logs
- * @access  Public (or can be made Private based on requirements)
+ * @access  Private (Manager, Hospital Admin)
  * @query   ward, bedId, userId, startDate, endDate, statusChange
  */
 exports.getAllLogs = async (req, res) => {
@@ -131,7 +131,7 @@ exports.getAllLogs = async (req, res) => {
 /**
  * @desc    Get logs for a specific bed
  * @route   GET /api/logs/bed/:bedId
- * @access  Public
+ * @access  Private (Manager, Hospital Admin)
  * @param   bedId - MongoDB ObjectId or bedId (e.g., "BED-101")
  */
 exports.getBedLogs = async (req, res) => {

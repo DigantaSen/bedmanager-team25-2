@@ -101,29 +101,6 @@ initializeSocket(io);
 // Initialize scheduled reports
 scheduledReportService.initialize();
 
-// Test endpoint to broadcast dummy event
-app.get('/api/test/broadcast', (req, res) => {
-  const testData = {
-    type: 'test',
-    message: 'This is a dummy broadcast event',
-    timestamp: new Date(),
-    data: {
-      bedId: 'BED-001',
-      status: 'occupied',
-      occupancy: 95
-    }
-  };
-  
-  io.emit('testBroadcast', testData);
-  console.log('Test broadcast sent:', testData);
-  
-  res.json({
-    success: true,
-    message: 'Dummy event broadcast to all connected clients',
-    broadcastData: testData
-  });
-});
-
 // Error handling middlewares (must be last)
 app.use(notFound);
 app.use(errorHandler);
