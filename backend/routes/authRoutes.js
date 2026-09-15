@@ -12,10 +12,12 @@ const {
   validateRegister,
   validateLogin
 } = require('../middleware/validators');
+const { loginLimiter, signupLimiter } = require('../middleware/rateLimit');
 
-// Public routes
-router.post('/register', validateRegister, register);
-router.post('/login', validateLogin, login);
+// Public routes. These are the only endpoints reachable without a token, so they are the
+// ones worth rate limiting: password guessing and flooding the approval queue.
+router.post('/register', signupLimiter, validateRegister, register);
+router.post('/login', loginLimiter, validateLogin, login);
 
 // Protected routes
 router.get('/me', protect, getMe);

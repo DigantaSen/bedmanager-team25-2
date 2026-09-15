@@ -14,13 +14,14 @@ const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   
   if (!errors.isEmpty()) {
+    // The submitted value is deliberately left out: it used to be echoed back to the caller
+    // and written to the log, which for a rejected password meant logging the password itself
     const errorMessages = errors.array().map(error => ({
       field: error.path || error.param,
-      message: error.msg,
-      value: error.value
+      message: error.msg
     }));
 
-    console.log('❌ Validation errors:', errorMessages);
+    console.log('❌ Validation failed for fields:', errorMessages.map((error) => error.field).join(', '));
 
     return res.status(400).json({
       success: false,

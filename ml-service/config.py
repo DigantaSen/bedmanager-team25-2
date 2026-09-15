@@ -20,7 +20,11 @@ class Settings:
     API_PREFIX: str = "/api/ml"
     
     # Server Configuration
-    HOST: str = os.getenv("ML_SERVICE_HOST", "0.0.0.0")
+    # Listens on the loopback address only: the backend calls this service from the same
+    # machine, and the endpoints have no authentication of their own, so exposing them on
+    # every network interface would put them within reach of anything that can route here.
+    # Set ML_SERVICE_HOST explicitly when the service really does need to be reachable.
+    HOST: str = os.getenv("ML_SERVICE_HOST", "127.0.0.1")
     PORT: int = int(os.getenv("ML_SERVICE_PORT", "8000"))
     
     # MongoDB Configuration (training scripts and historical averages used by predictions)
