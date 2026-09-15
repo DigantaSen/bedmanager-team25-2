@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectAuthToken, selectIsAuthenticated } from '../features/auth/authSlice';
-import { connectSocket, disconnectSocket, getSocket } from '../services/socketService';
+import { connectSocket, disconnectSocket } from '../services/socketService';
 
 // Create Socket Context
 const SocketContext = createContext(null);
@@ -33,14 +33,12 @@ export const SocketProvider = ({ children }) => {
     const localToken = localStorage.getItem('authToken');
     const actualToken = token || (localToken !== 'undefined' && localToken !== 'null' ? localToken : null);
     
+    // The token is a credential and is never logged
     console.log('🔍 SocketProvider state:', {
       isAuthenticated,
-      hasReduxToken: !!token,
-      hasLocalStorageToken: !!localStorage.getItem('authToken'),
-      localTokenValue: localToken,
-      actualToken: actualToken ? `${actualToken.substring(0, 20)}...` : 'none'
+      hasToken: Boolean(actualToken)
     });
-    
+
     // Connect socket when user is authenticated and has valid token
     if (isAuthenticated && actualToken) {
       console.log('🔌 Initializing socket connection...');

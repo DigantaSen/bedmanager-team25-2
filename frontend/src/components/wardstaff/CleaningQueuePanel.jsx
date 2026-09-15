@@ -51,11 +51,11 @@ const CleaningQueuePanel = ({ ward }) => {
       return;
     }
 
-    const handleCleaningStarted = (data) => {
+    const handleCleaningStarted = () => {
       fetchCleaningQueue();
     };
 
-    const handleCleaningCompleted = (data) => {
+    const handleCleaningCompleted = () => {
       fetchCleaningQueue();
     };
 
@@ -66,10 +66,8 @@ const CleaningQueuePanel = ({ ward }) => {
       }
     };
 
-    // Join ward-specific room if user has a ward
-    if (currentUser?.ward) {
-      socket.emit('joinWard', currentUser.ward);
-    }
+    // Rooms are joined by the server when the socket connects, from the account's own role
+    // and ward, so there is nothing to ask for here
 
     // Listen for cleaning events
     socket.on('bedCleaningStarted', handleCleaningStarted);

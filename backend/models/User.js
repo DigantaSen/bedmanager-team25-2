@@ -3,6 +3,8 @@
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { ROLES } = require('../config/roles');
+const { MIN_PASSWORD_LENGTH } = require('../config/passwordPolicy');
 
 const userSchema = new mongoose.Schema(
   {
@@ -27,14 +29,14 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
+      minlength: [MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`],
       select: false // Don't return password by default
     },
     role: {
       type: String,
       required: [true, 'Role is required'],
       enum: {
-        values: ['technical_team', 'hospital_admin', 'er_staff', 'ward_staff', 'manager'],
+        values: ROLES,
         message: '{VALUE} is not a valid role'
       },
       default: 'ward_staff'
@@ -98,6 +100,24 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: [1000, 'Bio cannot exceed 1000 characters']
+    },
+    // Account approval workflow: self-registered users start as pending
+    status: {
+      type: String,
+      enum: {
+        values: ['pending', 'approved', 'rejected'],
+        message: '{VALUE} is not a valid account status'
+      },
+      default: 'pending'
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    reviewedAt: {
+      type: Date,
+      default: null
     }
   },
   {
@@ -114,6 +134,9 @@ userSchema.index({ ward: 1 });
 
 // Index for department-based queries
 userSchema.index({ department: 1 });
+
+// Index for approval queue queries
+userSchema.index({ status: 1 });
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
@@ -134,6 +157,17 @@ userSchema.pre('save', async function (next) {
 // Method to compare password
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Accounts created before the approval workflow have no status - keep them active
+userSchema.statics.approveLegacyAccounts = async function () {
+  const result = await this.updateMany(
+    { status: { $exists: false } },
+    { $set: { status: 'approved' } }
+  );
+  if (result.modifiedCount > 0) {
+    console.log(`✅ Marked ${result.modifiedCount} existing user(s) as approved`);
+  }
 };
 
 module.exports = mongoose.model('User', userSchema);

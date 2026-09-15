@@ -4,6 +4,8 @@
 **Status**: ✅ **ALL 3 MODELS SUCCESSFULLY TRAINED AND DEPLOYED**  
 **Database**: MongoDB (localhost:27017/bedmanager) - 192 beds across 3 wards
 
+> **Update (September 14, 2026)**: The discharge model was retrained (v1.1.0) after fixing a bug in `train_discharge.py` that labelled every stay as the General ward, so the original model ignored ward type. On the current synthetic dataset it scores test MAE 35.75 hours and R² 0.31 (5-fold cross-validation: MAE 34.2 hours, R² 0.34), versus MAE 51.8 hours and R² -0.39 for the original model. The discharge figures below describe the original December 2025 training run.
+
 ---
 
 ## 🎯 What Was Done

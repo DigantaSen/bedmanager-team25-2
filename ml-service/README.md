@@ -69,8 +69,8 @@ python train/train_cleaning_duration.py
 # Development mode (auto-reload)
 python main.py
 
-# Production mode
-uvicorn main:app --host 0.0.0.0 --port 8000
+# Production mode (loopback only; the backend calls this service from the same machine)
+uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
 ## 📡 API Endpoints
@@ -81,7 +81,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 - `GET /health` - Health check
 - `GET /models/status` - Check which models are loaded
 
-### Predictions (Coming in Phase 5)
+### Predictions
 
 - `POST /api/ml/predict/discharge` - Predict discharge time
 - `POST /api/ml/predict/bed-availability` - Predict bed availability
@@ -98,7 +98,7 @@ Once the service is running, visit:
 The Node.js backend calls this service via HTTP using axios:
 
 ```javascript
-// backend/services/mlService.js (to be created)
+// backend/services/mlService.js (simplified)
 const axios = require('axios');
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
@@ -121,7 +121,10 @@ curl http://localhost:8000/models/status
 
 ## 📝 Notes
 
-- **MongoDB is only used during training**, not during inference
+- MongoDB is used for training and, at runtime, to compute the historical features used by all three predictions (ward/time-of-day averages and occupancy rates, with the same definitions as the training scripts). They are cached in memory and refreshed in the background, so predictions never wait on the database. Until that history has loaded (or if there is none), prediction endpoints return 503 instead of guessing; `metadata.history_samples` shows how many records a prediction was based on
+- `hours_until_discharge` is the predicted length of stay counted from `admission_time`; the backend turns it into a discharge time and time remaining
+- Bed availability predictions need the bed's current status (`bed_status`) and always use the model's 6-hour horizon
+- Ward encoding (`utils.ward_to_numeric`) must match the training scripts: ICU=0, General=1, Emergency=2
 - Models are loaded once at startup for fast predictions
 - The service is stateless and can be horizontally scaled
 - Models should be retrained periodically with new data
@@ -166,10 +169,10 @@ python train/train_discharge.py
 
 ## 📊 Current Status
 
-✅ **Phase 1 Complete**: Core structure and FastAPI setup  
-⏳ **Phase 2-7**: Training scripts and prediction endpoints (coming next)
+✅ Training scripts and prediction endpoints (discharge, cleaning duration, bed availability) are in place  
+✅ The Node.js backend calls the endpoints through `backend/services/mlService.js`
 
 ---
 
 **Version**: 1.0.0  
-**Last Updated**: December 1, 2025
+**Last Updated**: September 14, 2026

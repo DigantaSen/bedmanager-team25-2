@@ -1,8 +1,12 @@
 import axios from 'axios';
 
+// Backend API base URL; API_ORIGIN is the server root (used for uploaded files such as profile pictures)
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+export const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },

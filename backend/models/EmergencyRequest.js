@@ -20,6 +20,14 @@ const emergencyRequestSchema = new mongoose.Schema(
       ref: 'User',
       default: null // Generated later if needed
     },
+    // The staff member who raised the request. ER staff may only see their own requests,
+    // so this is set from the logged-in user and never from the request body.
+    // Not required, so requests created before this field existed can still be approved.
+    requestedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
     location: {
       type: String,
       required: [true, 'Location is required'],
@@ -74,6 +82,9 @@ emergencyRequestSchema.index({ patientId: 1 });
 
 // Index for searching by patient name
 emergencyRequestSchema.index({ patientName: 1 });
+
+// Index for the list ER staff see: their own requests, newest first
+emergencyRequestSchema.index({ requestedBy: 1, createdAt: -1 });
 
 // Compound index for status + createdAt queries
 emergencyRequestSchema.index({ status: 1, createdAt: -1 });

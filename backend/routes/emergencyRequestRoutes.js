@@ -10,27 +10,33 @@ const {
   approveEmergencyRequest,
   rejectEmergencyRequest
 } = require('../controllers/emergencyRequestController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
-// POST /api/emergency-requests - Create new emergency request (ER Staff)
-router.post('/', protect, createEmergencyRequest);
+// Emergency requests hold patient names and contact numbers, so every route needs a login
+router.use(protect);
 
-// GET /api/emergency-requests - Get all emergency requests (filtered by ward for managers)
-router.get('/', protect, getAllEmergencyRequests);
+// Managers and hospital admins decide on requests; ER staff only raise and track their own
+const canDecide = authorize('manager', 'hospital_admin');
 
-// GET /api/emergency-requests/:id - Get single emergency request by ID
-router.get('/:id', protect, getEmergencyRequestById);
+// POST /api/emergency-requests - Raise a request (ER staff, and managers/admins on their behalf)
+router.post('/', authorize('er_staff', 'manager', 'hospital_admin'), createEmergencyRequest);
 
-// PATCH /api/emergency-requests/:id/approve - Approve request (Manager only)
-router.patch('/:id/approve', protect, approveEmergencyRequest);
+// GET /api/emergency-requests - Admins see all, managers their ward, ER staff their own
+router.get('/', authorize('er_staff', 'manager', 'hospital_admin'), getAllEmergencyRequests);
 
-// PATCH /api/emergency-requests/:id/reject - Reject request (Manager only)
-router.patch('/:id/reject', protect, rejectEmergencyRequest);
+// GET /api/emergency-requests/:id - Same scope as the list, checked against the loaded request
+router.get('/:id', authorize('er_staff', 'manager', 'hospital_admin'), getEmergencyRequestById);
 
-// PUT /api/emergency-requests/:id - Update emergency request
-router.put('/:id', protect, updateEmergencyRequest);
+// PATCH /api/emergency-requests/:id/approve - Approve a request (ward-checked for managers)
+router.patch('/:id/approve', canDecide, approveEmergencyRequest);
 
-// DELETE /api/emergency-requests/:id - Delete emergency request
-router.delete('/:id', protect, deleteEmergencyRequest);
+// PATCH /api/emergency-requests/:id/reject - Reject a request (ward-checked for managers)
+router.patch('/:id/reject', canDecide, rejectEmergencyRequest);
+
+// PUT /api/emergency-requests/:id - Edit a request (ward-checked for managers)
+router.put('/:id', canDecide, updateEmergencyRequest);
+
+// DELETE /api/emergency-requests/:id - Remove a request entirely (hospital admin only)
+router.delete('/:id', authorize('hospital_admin'), deleteEmergencyRequest);
 
 module.exports = router;

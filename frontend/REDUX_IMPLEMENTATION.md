@@ -29,7 +29,7 @@ frontend/src/
 ## 🚀 Features Implemented
 
 ### 1. **Axios API Service** (`src/services/api.js`)
-- ✅ Pre-configured base URL: `http://localhost:5000/api`
+- ✅ Pre-configured base URL: `http://localhost:5001/api`
 - ✅ Automatic JWT token injection in request headers
 - ✅ Token retrieved from localStorage
 - ✅ Response interceptor for 401 error handling
@@ -72,7 +72,7 @@ frontend/src/
 ### 5. **Socket.IO Service** (`src/services/socketService.js`)
 - ✅ Connection with JWT authentication
 - ✅ Automatic reconnection on disconnect
-- ✅ Listens to `bedUpdate` events
+- ✅ Listens to `bedStatusChanged` events (and legacy `bedUpdate`)
 - ✅ Dispatches Redux actions on bed updates
 - ✅ Connection status management
 - ✅ Utility functions:
@@ -104,7 +104,7 @@ function LoginComponent() {
 
   const handleLogin = async () => {
     try {
-      await dispatch(login({ username: 'admin', password: 'password' })).unwrap();
+      await dispatch(login({ email: 'admin@hospital.com', password: 'your-password' })).unwrap();
       // Login successful - socket connects automatically
     } catch (err) {
       console.error('Login failed:', err);
@@ -145,7 +145,7 @@ function BedsList() {
       <p>Socket: {socket?.connected ? '🟢 Connected' : '🔴 Disconnected'}</p>
       {beds.map(bed => (
         <div key={bed._id}>
-          <p>{bed.bedNumber} - {bed.status}</p>
+          <p>{bed.bedId} - {bed.status}</p>
           <button onClick={() => handleUpdateBed(bed._id, 'occupied')}>
             Mark Occupied
           </button>
@@ -181,29 +181,30 @@ function LogoutButton() {
 Create a `.env` file in the frontend directory:
 
 ```env
-VITE_API_BASE_URL=http://localhost:5000/api
-VITE_SOCKET_URL=http://localhost:5000
+VITE_API_BASE_URL=http://localhost:5001/api
+VITE_SOCKET_URL=http://localhost:5001
 ```
 
 ## 🔌 API Endpoints Used
 
 ### Authentication
-- `POST /auth/login` - User login
-  - Body: `{ username, password }`
-  - Response: `{ token, user: { id, username } }`
+- `POST /auth/login` - User login (approved accounts only)
+  - Body: `{ email, password }`
+  - Response: `{ success, message, data: { token, user: { id, name, email, role, ward, ... } } }`
 
 ### Beds
 - `GET /beds` - Fetch all beds (requires auth)
-  - Response: `[{ _id, bedNumber, status, ... }]`
+  - Response: `{ success, count, data: { beds: [{ _id, bedId, ward, status, ... }] } }`
 - `PATCH /beds/:id/status` - Update bed status (requires auth)
   - Body: `{ status }`
-  - Response: `{ _id, bedNumber, status, ... }`
+  - Response: `{ success, message, data: { bed } }`
 
 ## 🔄 Socket.IO Events
 
 ### Client Listens To:
-- `bedUpdate` - Receives updated bed object
-  - Payload: `{ _id, bedNumber, status, ... }`
+- `bedStatusChanged` - Receives the updated bed
+  - Payload: `{ bed, previousStatus, newStatus, timestamp }`
+- `bedUpdate` - Legacy event with `{ bed }`
 
 ### Connection:
 - Authentication via `auth: { token }` in socket config
@@ -233,7 +234,7 @@ VITE_SOCKET_URL=http://localhost:5000
 ### 1. Test Authentication
 ```javascript
 // Login
-dispatch(login({ username: 'testuser', password: 'testpass' }));
+dispatch(login({ email: 'user@hospital.com', password: 'your-password' }));
 
 // Check auth state
 const user = useSelector(selectCurrentUser);

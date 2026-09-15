@@ -38,10 +38,9 @@ export default function LoginCardSection() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { status, error } = useSelector((state) => state.auth);
+  const { status } = useSelector((state) => state.auth);
   const [toast, setToast] = useState(null);
 
-  const [showPassword, setShowPassword] = useState(false);
   const [showLoginPw, setShowLoginPw] = useState(false);
   const [showSignupPw, setShowSignupPw] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
@@ -58,6 +57,7 @@ export default function LoginCardSection() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const [errors, setErrors] = useState({});
+  const [signupSuccess, setSignupSuccess] = useState(null);
   const isSubmitting = status === 'loading';
 
   // Show notification from navigation state (e.g., after account deletion)
@@ -73,14 +73,15 @@ export default function LoginCardSection() {
 
   const loginSchema = z.object({
     email: z.string().min(1, 'Required').email('Invalid email'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    password: z.string().min(1, 'Password is required'),
   });
 
   const signupSchema = z.object({
     role: z.string().min(1, 'Role is required'),
     name: z.string().min(2, 'Full name is required'),
     email: z.string().min(1, 'Required').email('Invalid email'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    // Keep in sync with backend/config/passwordPolicy.js
+    password: z.string().min(8, 'Password must be at least 8 characters'),
     ward: z.string().optional(),
     department: z.string().optional(),
     terms: z.literal(true, { errorMap: () => ({ message: 'You must accept Terms & Privacy' }) }),
@@ -135,6 +136,12 @@ export default function LoginCardSection() {
               <div className="tab-shell mt-6">
                 {activeTab === "login" && (
                   <div className="tab-panel space-y-5">
+                    {signupSuccess && (
+                      <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <p className="text-sm text-green-400">{signupSuccess}</p>
+                      </div>
+                    )}
+
                     <div className="grid gap-2 text-left">
                       <Label htmlFor="login-email" className="text-zinc-300">Email</Label>
                       <div className="relative">
@@ -165,6 +172,7 @@ export default function LoginCardSection() {
                     <Button disabled={isSubmitting} onClick={async (e) => {
                       e.preventDefault(); // Prevent form submission/page refresh
                       setErrors({});
+                      setSignupSuccess(null);
                       try {
                         const payload = {
                           email: loginEmailRef.current?.value || '',
@@ -200,7 +208,7 @@ export default function LoginCardSection() {
                           // Error - show message
                           setErrors({ loginPassword: resultAction.payload || 'Login failed' });
                         }
-                      } catch (err) {
+                      } catch {
                         setErrors({ loginPassword: 'An unexpected error occurred' });
                       }
                     }} className="w-full h-10 rounded-lg bg-zinc-50 text-zinc-900 hover:bg-zinc-200">
@@ -233,7 +241,6 @@ export default function LoginCardSection() {
                               <SelectValue placeholder="Select role" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="hospital_admin">Hospital Admin</SelectItem>
                               <SelectItem value="er_staff">ER Staff</SelectItem>
                               <SelectItem value="ward_staff">Ward Staff</SelectItem>
                               <SelectItem value="manager">Manager</SelectItem>
@@ -374,24 +381,14 @@ export default function LoginCardSection() {
                         const resultAction = await dispatch(registerAction(registrationData));
 
                         if (registerAction.fulfilled.match(resultAction)) {
-                          // Success - navigate to role-specific dashboard
-                          const userRole = resultAction.payload.user.role;
-                          if (userRole === 'hospital_admin') {
-                            navigate('/admin/dashboard');
-                          } else if (userRole === 'manager') {
-                            navigate('/manager/dashboard');
-                          } else if (userRole === 'ward_staff') {
-                            navigate('/staff/dashboard');
-                          } else if (userRole === 'er_staff') {
-                            navigate('/er/dashboard');
-                          } else {
-                            navigate('/dashboard');
-                          }
+                          // Account awaits admin approval - send the user back to the login tab
+                          setSignupSuccess(resultAction.payload.message || 'Account created. An administrator must approve it before you can log in.');
+                          setActiveTab('login');
                         } else {
                           // Error - show message
                           setErrors({ signupError: resultAction.payload || 'Registration failed' });
                         }
-                      } catch (err) {
+                      } catch {
                         setErrors({ signupError: 'An unexpected error occurred' });
                       }
                     }} className="w-full h-10 rounded-lg bg-zinc-50 text-zinc-900 hover:bg-zinc-200">

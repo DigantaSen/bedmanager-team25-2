@@ -10,13 +10,16 @@ const {
   getCleaningPerformance,
   getOccupancyHistory,
   getWardUtilization,
-  getPeakDemandAnalysis
+  getPeakDemandAnalysis,
+  getOccupancyTimeline
 } = require('../controllers/analyticsController');
-const { validateObjectId } = require('../middleware/validators');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
-// Public analytics routes (no authentication required for MVP)
-// TODO: Add protect middleware when role-based analytics is needed
+// Analytics cover the whole hospital and include patient details (e.g. forecasting lists
+// patients per bed), so every route needs a manager or hospital admin.
+// Managers are limited to their own ward inside the handlers.
+router.use(protect);
+router.use(authorize('manager', 'hospital_admin'));
 
 /**
  * GET /api/analytics/occupancy-summary
@@ -47,16 +50,16 @@ router.get('/occupancy-trends', getOccupancyTrends);
 /**
  * GET /api/analytics/forecasting
  * Get forecasting data - predicted discharges and capacity insights
- * Protected route - managers see only their ward, admins see all
+ * Managers see only their ward, admins see all
  */
-router.get('/forecasting', protect, getForecasting);
+router.get('/forecasting', getForecasting);
 
 /**
  * GET /api/analytics/cleaning-performance
  * Get cleaning performance analytics
  * Task 2.5b: Cleaning duration tracking and analytics
  */
-router.get('/cleaning-performance', protect, authorize('manager', 'hospital_admin'), getCleaningPerformance);
+router.get('/cleaning-performance', getCleaningPerformance);
 
 /**
  * GET /api/analytics/occupancy-history
@@ -64,6 +67,13 @@ router.get('/cleaning-performance', protect, authorize('manager', 'hospital_admi
  * Query params: startDate (ISO), endDate (ISO), wardFilter (string), granularity (hourly|daily|weekly)
  */
 router.get('/occupancy-history', getOccupancyHistory);
+
+/**
+ * GET /api/analytics/occupancy-timeline
+ * Occupancy over time reconstructed from recorded assignments and releases
+ * Query params: range (7days|30days|90days), ward (optional; managers are limited to their ward)
+ */
+router.get('/occupancy-timeline', getOccupancyTimeline);
 
 /**
  * GET /api/analytics/ward-utilization
@@ -78,4 +88,3 @@ router.get('/ward-utilization', getWardUtilization);
 router.get('/peak-demand-analysis', getPeakDemandAnalysis);
 
 module.exports = router;
-

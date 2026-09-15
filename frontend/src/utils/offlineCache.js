@@ -75,7 +75,7 @@ export const getCacheAge = () => {
     const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
     if (!timestamp) return null;
     return Math.floor((Date.now() - parseInt(timestamp, 10)) / 1000);
-  } catch (error) {
+  } catch {
     return null;
   }
 };

@@ -55,9 +55,9 @@ example:
 | **ML Models**   | Scikit-learn (Random Forest) | Discharge, cleaning, and availability prediction |
 
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
-[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite)](https://vitejs.dev)
-[![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js)](https://nodejs.org)
-[![Express](https://img.shields.io/badge/Express-4-000000?logo=express)](https://expressjs.com)
+[![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite)](https://vitejs.dev)
+[![Node.js](https://img.shields.io/badge/Node.js-20.19+-339933?logo=node.js)](https://nodejs.org)
+[![Express](https://img.shields.io/badge/Express-5-000000?logo=express)](https://expressjs.com)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?logo=mongodb)](https://www.mongodb.com)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-real--time-010101?logo=socket.io)](https://socket.io)
@@ -67,14 +67,14 @@ example:
 ## Project Structure
 
 ```
-bedmanager-team25/
+bedmanager-team25-2/
 ├── backend/          # Node.js/Express API (port 5001)
 │   ├── server.js     # Application entry point
 │   ├── routes/       # API route definitions
 │   ├── models/       # Mongoose schemas
 │   └── controllers/  # Request handlers
 ├── demo/             # Assets for docs
-├── docs/             # Project Documentation
+├── docs/             # Project documentation (incl. HOW_TO_RUN.md)
 ├── frontend/         # React 19 + Vite SPA (port 5173)
 │   ├── src/
 │   ├── index.html
@@ -82,7 +82,6 @@ bedmanager-team25/
 ├── ml-service/       # Python/FastAPI ML microservice (port 8000)
 │   ├── main.py       # Service entry point
 │   └── models/       # Trained Random Forest models
-├── HOW_TO_RUN.md     # Detailed setup & run instructions
 └── README.md         # This file
 ```
 
@@ -90,9 +89,9 @@ bedmanager-team25/
 
 ## Prerequisites
 
-- **Node.js** >= 20.x
+- **Node.js** >= 20.19 (required by Vite 7)
 - **npm** >= 10.x
-- **Python** >= 3.10
+- **Python** >= 3.11 (required by the pinned NumPy/SciPy versions)
 - **MongoDB** >= 6.0 (local or Atlas)
 - _(Optional)_ **pip** / **venv** for Python environment management
 
@@ -100,21 +99,22 @@ bedmanager-team25/
 
 ## Setup & Installation
 
-For **step-by-step installation**, environment setup, and troubleshooting, see [`HOW_TO_RUN.md`](./docs/HOW_TO_RUN.md) at the repository root.
+For **step-by-step installation**, environment setup, and troubleshooting, see [`docs/HOW_TO_RUN.md`](./docs/HOW_TO_RUN.md).
 
 ### Quick Start
 
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/abhinavborah/bedmanager-team25
-   cd bedmanager-team25
+   git clone https://github.com/DigantaSen/bedmanager-team25-2
+   cd bedmanager-team25-2
    ```
 
 2. **Backend**
 
    ```bash
    cd backend
+   cp .env.example .env   # then set MONGO_URI and JWT_SECRET
    npm install
    npm start        # runs on http://localhost:5001
    ```
@@ -152,25 +152,32 @@ For **step-by-step installation**, environment setup, and troubleshooting, see [
 2. Start **Backend** (`backend/server.js`).
 3. Start **ML Service** (`ml-service/main.py`).
 4. Start **Frontend** (`frontend/vite dev server`).
-5. Open `http://localhost:5173` and log in with your role credentials.
+5. Open `http://localhost:5173` and log in. New sign-ups must be approved by a hospital admin first (see `docs/HOW_TO_RUN.md`).
 
 ---
 
 ## Environment Variables
 
-Each service uses its own environment configuration. Create `.env` files in `backend/` and `ml-service/` as needed.
+Each service has its own `.env.example`. Copy it to `.env` in `backend/`, `frontend/` and `ml-service/`.
 
-| Variable       | Service    | Description                                     |
-| -------------- | ---------- | ----------------------------------------------- |
-| `MONGO_URI`    | Backend    | MongoDB connection string                       |
-| `PORT`         | Backend    | API server port (default: `5001`)               |
-| `JWT_SECRET`   | Backend    | Secret for signing JSON Web Tokens              |
-| `ML_API_URL`   | Backend    | Base URL of the ML FastAPI service              |
-| `FRONTEND_URL` | Backend    | CORS origin for the React dev server            |
-| `PYTHON_ENV`   | ML Service | `development` or `production`                   |
-| `MODEL_PATH`   | ML Service | Directory containing trained `.pkl` model files |
+| Variable                                                        | Service    | Required          | Description                                             |
+| --------------------------------------------------------------- | ---------- | ----------------- | ------------------------------------------------------- |
+| `MONGO_URI`                                                     | Backend    | Yes               | MongoDB connection string, e.g. `.../bedmanager`        |
+| `JWT_SECRET`                                                    | Backend    | Yes               | Token signing secret (at least 32 characters)           |
+| `PORT`                                                          | Backend    | No                | API server port (default: `5001`)                       |
+| `NODE_ENV`                                                      | Backend    | No                | `development` includes error details in responses       |
+| `JWT_EXPIRES_IN`                                                | Backend    | No                | Login token lifetime (default: `7d`)                    |
+| `ML_SERVICE_URL`                                                | Backend    | No                | ML service URL (default: `http://localhost:8000`)       |
+| `FRONTEND_URL`                                                  | Backend    | No                | Extra allowed CORS origin                               |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Backend    | For email reports | Mail server settings                                    |
+| `VITE_API_BASE_URL`                                             | Frontend   | No                | Backend API URL (default: `http://localhost:5001/api`)  |
+| `VITE_SOCKET_URL`                                               | Frontend   | No                | Socket.IO server URL (default: `http://localhost:5001`) |
+| `ML_SERVICE_HOST`, `ML_SERVICE_PORT`                            | ML Service | No                | Bind address and port (default: `127.0.0.1:8000`)         |
+| `MONGO_URI`                                                     | ML Service | Recommended       | Same database as the backend; used for training and for prediction history (defaults are used if unreachable) |
+| `MONGO_TIMEOUT_MS`, `HISTORY_CACHE_TTL_SECONDS`, `HISTORY_RETRY_SECONDS` | ML Service | No       | MongoDB timeout and history cache timings (defaults: `20000` ms, `600` s, `60` s) |
+| `LOG_LEVEL`                                                     | ML Service | No                | Logging level (default: `INFO`)                         |
 
-> See `HOW_TO_RUN.md` for a complete `.env` template.
+> See `docs/HOW_TO_RUN.md` for a complete `.env` template.
 
 ---
 

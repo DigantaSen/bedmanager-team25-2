@@ -1,118 +1,70 @@
 // Socket.IO connection and event handler
-const jwt = require('jsonwebtoken');
+const { verifyToken } = require('./config/jwt');
 const Alert = require('./models/Alert');
+const User = require('./models/User');
+const { joinRooms, emitAlert } = require('./services/socketEvents');
 
 const initializeSocket = (io) => {
   // Track authenticated users
   const authenticatedUsers = {};
 
   // Middleware to verify JWT token on connection
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
+    // Tokens are credentials: they are never written to the log, not even partially
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
-    
-    console.log('🔍 Socket connection attempt:', {
-      socketId: socket.id,
-      hasAuthToken: !!socket.handshake.auth.token,
-      hasAuthHeader: !!socket.handshake.headers.authorization,
-      tokenPreview: token ? `${token.substring(0, 20)}...` : 'none'
-    });
-    
+
     if (!token) {
-      console.log(`❌ Connection rejected: No token provided (${socket.id})`);
+      console.log(`❌ Connection rejected: no token provided (${socket.id})`);
       return next(new Error('Authentication error: No token provided'));
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      const decoded = verifyToken(token);
+
+      // Only approved accounts may connect (covers accounts rejected after login)
+      const user = await User.findById(decoded.id).select('status');
+      if (!user || user.status !== 'approved') {
+        console.log(`❌ Connection rejected: account not approved (${socket.id})`);
+        return next(new Error('Authentication error: Account not approved'));
+      }
+
       socket.user = decoded; // Attach user data to socket
-      console.log(`✅ User authenticated: ${decoded.email} (${socket.id})`);
       next();
     } catch (error) {
-      console.log(`❌ Connection rejected: Invalid token (${socket.id})`, error.message);
-      console.log('Token causing error:', token);
+      console.log(`❌ Connection rejected: invalid token (${socket.id}): ${error.message}`);
       return next(new Error('Authentication error: Invalid token'));
     }
   });
 
   io.on('connection', (socket) => {
-    console.log(`✅ Authenticated user connected: ${socket.user.email} (${socket.id})`);
-    
+    console.log(`✅ Authenticated user connected: ${socket.user.role} (${socket.id})`);
+
     // Store authenticated user
     authenticatedUsers[socket.id] = {
       userId: socket.user.id,
-      email: socket.user.email,
       role: socket.user.role,
-      ward: socket.user.ward, // Store ward info
+      ward: socket.user.ward,
       socketId: socket.id
     };
 
-    // Join room based on ward (for ward-specific alerts)
-    if (socket.user.ward) {
-      socket.join(`ward-${socket.user.ward}`);
-      console.log(`User ${socket.user.email} joined ward room: ward-${socket.user.ward}`);
-    }
+    // Rooms decide who receives which event; see services/socketEvents
+    joinRooms(socket, socket.user);
 
-    // Join room based on role (for role-specific broadcasts)
-    if (socket.user.role) {
-      socket.join(`role-${socket.user.role}`);
-      console.log(`User ${socket.user.email} joined role room: role-${socket.user.role}`);
-    }
-
-    // Handle user join with user ID
-    socket.on('userJoin', (userId) => {
-      authenticatedUsers[socket.id].customUserId = userId;
-      console.log(`User ${socket.user.email} joined with custom ID: ${userId}`);
-      
-      // Broadcast updated user count to all authenticated users
-      io.emit('userCount', Object.keys(authenticatedUsers).length);
-    });
-
-    // Handle custom messages
-    socket.on('message', (data) => {
-      console.log(`Message from ${socket.user.email}:`, data);
-      // Broadcast message to all authenticated clients
-      io.emit('newMessage', {
-        userId: socket.user.id,
-        email: socket.user.email,
-        role: socket.user.role,
-        message: data,
-        timestamp: new Date()
-      });
-    });
-
-    // Handle bed status updates (only authenticated users can trigger)
-    socket.on('bedStatusUpdate', (bedData) => {
-      console.log(`Bed status update from ${socket.user.email}:`, bedData);
-      // Broadcast bed status to all authenticated clients
-      io.emit('bedStatusChanged', {
-        ...bedData,
-        updatedBy: socket.user.email
-      });
-    });
-
-    // Handle occupancy log updates (only authenticated users can trigger)
-    socket.on('occupancyLogUpdate', (logData) => {
-      console.log(`Occupancy log update from ${socket.user.email}:`, logData);
-      // Broadcast occupancy update to all authenticated clients
-      io.emit('occupancyLogChanged', {
-        ...logData,
-        updatedBy: socket.user.email
-      });
-    });
+    // Clients only listen. The server used to accept "message", "bedStatusUpdate" and
+    // "occupancyLogUpdate" from any authenticated client and rebroadcast them to everyone,
+    // which let any account - including roles that never see patient data - push invented
+    // beds and patient names into every other user's screen. Bed and request events now
+    // come only from the controllers, after the change has been checked and saved.
 
     // Handle user disconnect
     socket.on('disconnect', () => {
-      const user = authenticatedUsers[socket.id];
       delete authenticatedUsers[socket.id];
-      console.log(`User ${user?.email} disconnected. Remaining users: ${Object.keys(authenticatedUsers).length}`);
-      
-      // Broadcast updated user count to remaining authenticated users
-      io.emit('userCount', Object.keys(authenticatedUsers).length);
+      console.log(`User disconnected (${socket.id}). Remaining users: ${Object.keys(authenticatedUsers).length}`);
     });
 
     // Handle errors
     socket.on('error', (error) => {
-      console.error(`Socket error from ${socket.id}:`, error);
+      console.error(`Socket error from ${socket.id}:`, error.message);
     });
   });
 };
@@ -128,8 +80,8 @@ const emitNewAlert = async (alertData, io) => {
     // Create new alert in database
     const newAlert = await Alert.create(alertData);
 
-    // Emit real-time event to all connected clients
-    io.emit('alertCreated', newAlert);
+    // Alerts carry patient names and ward figures, so they follow the alert's own audience
+    emitAlert(io, newAlert);
 
     console.log('✅ Alert created and emitted:', {
       type: newAlert.type,

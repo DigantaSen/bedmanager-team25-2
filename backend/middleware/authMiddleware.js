@@ -1,5 +1,5 @@
 // backend/middleware/authMiddleware.js
-const jwt = require('jsonwebtoken');
+const { verifyToken } = require('../config/jwt');
 const User = require('../models/User');
 
 /**
@@ -29,7 +29,7 @@ exports.protect = async (req, res, next) => {
 
     try {
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      const decoded = verifyToken(token);
 
       // Fetch user from database
       const user = await User.findById(decoded.id).select('-password');
@@ -38,6 +38,14 @@ exports.protect = async (req, res, next) => {
         return res.status(404).json({
           success: false,
           message: 'User not found'
+        });
+      }
+
+      // Only approved accounts may use the API (covers accounts rejected after login)
+      if (user.status !== 'approved') {
+        return res.status(401).json({
+          success: false,
+          message: 'Your account is not approved'
         });
       }
 

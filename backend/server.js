@@ -1,35 +1,24 @@
-// // backend/server.js
-// require('dotenv').config();
-// const express = require('express');
-
-// const connectDB = require('./config/db');   // safe helper (skips connect if MONGO_URI empty)
-// const healthRouter = require('./routes/health');
-
-// const app = express();
-
-// app.use(express.json());
-// app.use('/api/health', healthRouter);
-
-// const PORT = process.env.PORT || 5000;
-
-// connectDB()
-//   .then(() => {
-//     app.listen(PORT, () => {
-//       console.log(`Backend: listening on port ${PORT}`);
-//     });
-//   })
-//   .catch((err) => {
-//     console.error('Backend failed to start (db connect error):', err);
-//     process.exit(1);
-//   });
-
-// module.exports = app;
+// backend/server.js
 require('dotenv').config();
+const { getJwtSecret } = require('./config/jwt');
+
+// Fail fast: never run with a missing or weak JWT secret
+try {
+  getJwtSecret();
+} catch (err) {
+  console.error(`❌ ${err.message}`);
+  console.error('💡 Generate one with: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const http = require('http');
 const socketIO = require('socket.io');
+const mongoose = require('mongoose');
 const connectDB = require('./config/db');
+const User = require('./models/User');
 const healthRouter = require('./routes/health');
 const authRoutes = require('./routes/authRoutes');
 const bedRoutes = require('./routes/bedRoutes');
@@ -44,12 +33,13 @@ const scheduledReportService = require('./services/scheduledReportService');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIO(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
-});
+
+// Security headers. The API serves JSON and the uploaded profile pictures under /uploads,
+// which the frontend loads from its own origin, so resource sharing stays cross-origin -
+// helmet's same-origin default would stop those images loading.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 
 // Enable CORS for all routes - Allow both localhost and 127.0.0.1
 const allowedOrigins = [
@@ -63,6 +53,15 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   process.env.FRONTEND_URL
 ].filter(Boolean);
+
+// Sockets carry the same data as the API, so they answer to the same origins rather than any
+const io = socketIO(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -84,7 +83,9 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
-app.use(express.json());
+// Request bodies here are small: form fields, report options and bed updates. Anything
+// larger is an upload, which multer handles with its own limit.
+app.use(express.json({ limit: '100kb' }));
 
 // Make io available to routes via req
 app.use((req, res, next) => {
@@ -105,6 +106,7 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/profile', require('./routes/profileRoutes'));
 app.use('/api/referrals', require('./routes/referralRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
 
 // Initialize socket connections
 initializeSocket(io);
@@ -112,36 +114,17 @@ initializeSocket(io);
 // Initialize scheduled reports
 scheduledReportService.initialize();
 
-// Test endpoint to broadcast dummy event
-app.get('/api/test/broadcast', (req, res) => {
-  const testData = {
-    type: 'test',
-    message: 'This is a dummy broadcast event',
-    timestamp: new Date(),
-    data: {
-      bedId: 'BED-001',
-      status: 'occupied',
-      occupancy: 95
-    }
-  };
-  
-  io.emit('testBroadcast', testData);
-  console.log('Test broadcast sent:', testData);
-  
-  res.json({
-    success: true,
-    message: 'Dummy event broadcast to all connected clients',
-    broadcastData: testData
-  });
-});
-
 // Error handling middlewares (must be last)
 app.use(notFound);
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Accounts created before the approval workflow have no status yet - keep them active
+  if (mongoose.connection.readyState === 1) {
+    await User.approveLegacyAccounts();
+  }
   server.listen(PORT, () => console.log(`Backend: listening on port ${PORT}`));
 });
 

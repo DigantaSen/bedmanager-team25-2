@@ -1,6 +1,7 @@
 // backend/controllers/alertController.js
 const Alert = require('../models/Alert');
 const mongoose = require('mongoose');
+const { ROOMS } = require('../services/socketEvents');
 
 /**
  * @desc    Get all alerts for the authenticated user's role
@@ -78,9 +79,10 @@ exports.dismissAlert = async (req, res) => {
       });
     }
 
-    // Task 2.6: Emit socket event for alert dismissal only to the user who dismissed it
-    if (req.io && req.user.socketId) {
-      req.io.to(req.user.socketId).emit('alertDismissed', {
+    // Dismissal is per user, so it only goes to that user's own room. This used to target
+    // req.user.socketId, which is not a field on a user document, so it never arrived.
+    if (req.io) {
+      req.io.to(ROOMS.user(req.user._id)).emit('alertDismissed', {
         alertId: alert._id,
         timestamp: new Date()
       });

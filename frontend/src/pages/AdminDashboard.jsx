@@ -97,8 +97,7 @@ const AdminDashboard = () => {
             }`}
           >
             Reports
-          </button>
-        </div>
+          </button>        </div>
 
         {/* Tab Content */}
         {activeTab === 'overview' && (
@@ -130,8 +129,7 @@ const AdminDashboard = () => {
           <div className="space-y-6">
             <ReportGenerator />
           </div>
-        )}
-        </div>
+        )}        </div>
 
         {/* Right Sidebar - Nearby Hospitals */}
         <div className="w-96 flex-shrink-0 hidden xl:block">

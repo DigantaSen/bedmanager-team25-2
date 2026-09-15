@@ -8,7 +8,7 @@ import { motion } from "framer-motion"
 import { Home, User, MessageSquare } from "lucide-react"
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { restoreSession, selectIsAuthenticated, selectAuthStatus, selectCurrentUser } from '@/features/auth/authSlice'
+import { restoreSession, selectIsAuthenticated, selectCurrentUser } from '@/features/auth/authSlice'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -17,7 +17,6 @@ import ManagerDashboard from './pages/ManagerDashboard'
 import StaffDashboard from './pages/StaffDashboard'
 import OccupantStatusDashboard from './pages/OccupantStatusDashboard'
 import ErStaffDashboard from './pages/ErStaffDashboard'
-import ErStaffDashboardTest from './pages/ErStaffDashboardTest'
 import Unauthorized from './pages/Unauthorized'
 import Profile from './pages/Profile'
 import TermsAndConditions from './pages/TermsAndConditions'
@@ -29,7 +28,6 @@ function App() {
   const dispatch = useDispatch();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
-  const authStatus = useSelector((state) => state.auth.status);
   const [hasCheckedSession, setHasCheckedSession] = React.useState(false);
 
   // Restore session on app load (only once)

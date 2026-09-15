@@ -5,17 +5,30 @@ const CleaningLog = require('../models/CleaningLog');
 const Alert = require('../models/Alert');
 const mongoose = require('mongoose');
 const { AppError } = require('../middleware/errorHandler');
-const mlService = require('../services/mlService');
+const { estimateDischarge, estimateCleaning } = require('../services/predictionService');
+const { getAverageCleaningMinutes } = require('../services/historicalAverages');
+const { ACTIVE_BEDS, INVENTORY_ROLES, canSeePatients, toBedResponse, findBedForUser } = require('../services/bedAccess');
+const { emitBedEvent, ROOMS } = require('../services/socketEvents');
+
+// Load the bed in req.params.id for the current user, or send the error response and return null
+const loadBed = async (req, res, options) => {
+  const { bed, error } = await findBedForUser(req.user, req.params.id, options);
+  if (error) {
+    res.status(error.status).json({ success: false, message: error.message });
+    return null;
+  }
+  return bed;
+};
 
 /**
  * @desc    Get all beds with optional filtering
  * @route   GET /api/beds
- * @access  Public
- * @query   status, ward
+ * @access  Private (ward staff: own ward; ER staff and technical team: without patient details)
+ * @query   status, ward, includeRetired (technical team and admins)
  */
 exports.getAllBeds = async (req, res) => {
   try {
-    const { status, ward } = req.query;
+    const { status, ward, includeRetired } = req.query;
     
     // Build filter object
     const filter = {};
@@ -34,9 +47,16 @@ exports.getAllBeds = async (req, res) => {
       filter.ward = ward;
     }
 
-    // Fetch beds
-    const beds = await Bed.find(filter)
-      .sort({ ward: 1, bedId: 1 });
+    // Retired beds are only listed for the technical team and admins, when asked for
+    const showRetired = includeRetired === 'true' && INVENTORY_ROLES.includes(req.user.role);
+    if (!showRetired) Object.assign(filter, ACTIVE_BEDS);
+
+    // Role scope set by canReadBeds (Express 5 does not keep changes to req.query)
+    Object.assign(filter, req.bedScope);
+
+    // Fetch beds, without patient details the user may not see
+    const beds = (await Bed.find(filter).sort({ ward: 1, bedId: 1 }).lean())
+      .map((bed) => toBedResponse(bed, req.user));
 
     res.status(200).json({
       success: true,
@@ -61,27 +81,12 @@ exports.getAllBeds = async (req, res) => {
  */
 exports.getBedById = async (req, res) => {
   try {
-    const { id } = req.params;
-    let bed;
-
-    // Check if id is a valid MongoDB ObjectId
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      bed = await Bed.findById(id);
-    } else {
-      // Try to find by bedId (e.g., "iA5", "BED-101")
-      bed = await Bed.findOne({ bedId: id });
-    }
-
-    if (!bed) {
-      return res.status(404).json({
-        success: false,
-        message: 'Bed not found'
-      });
-    }
+    const bed = await loadBed(req, res, { action: false });
+    if (!bed) return;
 
     res.status(200).json({
       success: true,
-      data: { bed }
+      data: { bed: toBedResponse(bed, req.user) }
     });
   } catch (error) {
     console.error('Get bed by ID error:', error);
@@ -131,20 +136,9 @@ exports.updateBedStatus = async (req, res) => {
       }
     }
 
-    // Find bed
-    let bed;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      bed = await Bed.findById(id);
-    } else {
-      bed = await Bed.findOne({ bedId: id });
-    }
-
-    if (!bed) {
-      return res.status(404).json({
-        success: false,
-        message: 'Bed not found'
-      });
-    }
+    // Find bed (within the user's ward)
+    const bed = await loadBed(req, res);
+    if (!bed) return;
 
     // Validate patient info for occupied status
     if (status === 'occupied' && !patientName && !patientId) {
@@ -181,39 +175,65 @@ exports.updateBedStatus = async (req, res) => {
     
     // Handle cleaning start time - set for any transition TO cleaning status
     if (finalStatus === 'cleaning' && previousStatus !== 'cleaning') {
+      // Without a duration from staff, use the ward's average recorded cleaning time
+      const averageCleaning = cleaningDuration ? null : await getAverageCleaningMinutes(bed.ward);
+      const estimatedDuration = cleaningDuration || (averageCleaning && Math.round(averageCleaning.minutes));
+      if (!estimatedDuration) {
+        return res.status(400).json({
+          success: false,
+          message: 'cleaningDuration is required: no completed cleanings are recorded for this ward to estimate from'
+        });
+      }
       bed.cleaningStartTime = new Date();
-      bed.estimatedCleaningDuration = cleaningDuration || 30; // Default 30 minutes
-      bed.estimatedCleaningEndTime = new Date(Date.now() + (bed.estimatedCleaningDuration) * 60 * 1000);
+      bed.estimatedCleaningDuration = estimatedDuration;
+      bed.estimatedCleaningEndTime = new Date(Date.now() + estimatedDuration * 60 * 1000);
     }
     
     await bed.save();
 
-    // Determine status change type for logging
-    let statusChangeType;
-    if (finalStatus === 'occupied') {
+    // Determine status change type for logging. Occupancy history is rebuilt from these
+    // events, so only real transitions are logged (no log when the status is unchanged)
+    let statusChangeType = null;
+    if (finalStatus === 'occupied' && previousStatus !== 'occupied') {
       statusChangeType = 'assigned';
-    } else if (previousStatus === 'occupied' && finalStatus === 'cleaning') {
+    } else if (previousStatus === 'occupied' && finalStatus !== 'occupied') {
       statusChangeType = 'released'; // Patient left, now needs cleaning
+    } else if (finalStatus === 'cleaning' && previousStatus !== 'cleaning') {
+      statusChangeType = 'maintenance_start'; // Available bed sent for cleaning
     } else if (previousStatus === 'cleaning' && finalStatus === 'available') {
       statusChangeType = 'maintenance_end'; // Cleaning completed
-    } else {
-      // Default to assigned for any other transitions
-      statusChangeType = 'assigned';
     }
 
     // Create occupancy log entry
-    try {
-      console.log('Creating log - User ID:', req.user._id, 'Bed ID:', bed._id);
-      await OccupancyLog.create({
-        bedId: bed._id,
-        userId: req.user._id, // User who made the change (from JWT)
-        statusChange: statusChangeType,
-        timestamp: new Date()
-      });
-      console.log('✅ Occupancy log created successfully');
-    } catch (logError) {
-      console.error('Error creating occupancy log:', logError);
-      // Continue even if logging fails - don't block the main operation
+    if (statusChangeType) {
+      try {
+        console.log('Creating log - User ID:', req.user._id, 'Bed ID:', bed._id);
+        await OccupancyLog.create({
+          bedId: bed._id,
+          userId: req.user._id, // User who made the change (from JWT)
+          statusChange: statusChangeType,
+          timestamp: new Date()
+        });
+        console.log('✅ Occupancy log created successfully');
+      } catch (logError) {
+        console.error('Error creating occupancy log:', logError);
+        // Continue even if logging fails - don't block the main operation
+      }
+    }
+
+    // Leaving cleaning through a status update also completes the active cleaning log
+    if (previousStatus === 'cleaning' && finalStatus !== 'cleaning') {
+      try {
+        const activeCleaning = await CleaningLog.findOne({ bedId: bed._id, status: 'in_progress' });
+        if (activeCleaning) {
+          activeCleaning.endTime = new Date();
+          activeCleaning.status = 'completed';
+          activeCleaning.completedBy = req.user._id;
+          await activeCleaning.save();
+        }
+      } catch (cleaningLogError) {
+        console.error('Error completing cleaning log:', cleaningLogError);
+      }
     }
 
     // Create cleaning log entry when starting cleaning (any transition TO cleaning status)
@@ -229,42 +249,24 @@ exports.updateBedStatus = async (req, res) => {
         });
         console.log('✅ CleaningLog entry created successfully');
         
-        // Emit bedCleaningStarted event via socket.io (ward-specific)
-        if (req.io) {
-          req.io.to(`ward-${bed.ward}`).emit('bedCleaningStarted', {
-            bed: bed.toObject(),
-            estimatedDuration: bed.estimatedCleaningDuration,
-            estimatedEndTime: bed.estimatedCleaningEndTime,
-            timestamp: new Date()
-          });
-          console.log(`✅ bedCleaningStarted event emitted via socket.io (Ward: ${bed.ward})`);
-        }
+        // Patient details reach only the ward's own staff and admins (services/socketEvents)
+        emitBedEvent(req.io, 'bedCleaningStarted', bed, {
+          estimatedDuration: bed.estimatedCleaningDuration,
+          estimatedEndTime: bed.estimatedCleaningEndTime,
+          timestamp: new Date()
+        });
       } catch (cleaningLogError) {
         console.error('Error creating cleaning log:', cleaningLogError);
         // Continue even if logging fails
       }
     }
 
-    // Task 2.6: Emit bedStatusChanged event via socket.io (ward-specific for managers)
-    if (req.io) {
-      // Emit to specific ward for managers
-      req.io.to(`ward-${bed.ward}`).emit('bedStatusChanged', {
-        bed: bed.toObject(),
-        previousStatus,
-        newStatus: status,
-        timestamp: new Date()
-      });
-      
-      // Also emit globally for hospital admins
-      req.io.emit('bedStatusChanged', {
-        bed: bed.toObject(),
-        previousStatus,
-        newStatus: status,
-        timestamp: new Date()
-      });
-      
-      console.log(`✅ bedStatusChanged event emitted via socket.io (Ward: ${bed.ward})`);
-    }
+    // Was broadcast to every connected client with the patient's name and notes attached
+    emitBedEvent(req.io, 'bedStatusChanged', bed, {
+      previousStatus,
+      newStatus: status,
+      timestamp: new Date()
+    });
 
     // Check occupancy and trigger alerts if > 90%
     await checkOccupancyAndCreateAlerts(bed.ward, req.io);
@@ -301,8 +303,8 @@ exports.updateBedStatus = async (req, res) => {
 const checkOccupancyAndCreateAlerts = async (ward, io) => {
   try {
     // Get total and occupied beds for this ward
-    const totalBeds = await Bed.countDocuments({ ward });
-    const occupiedBeds = await Bed.countDocuments({ ward, status: 'occupied' });
+    const totalBeds = await Bed.countDocuments({ ward, ...ACTIVE_BEDS });
+    const occupiedBeds = await Bed.countDocuments({ ward, status: 'occupied', ...ACTIVE_BEDS });
 
     if (totalBeds === 0) return; // No beds in this ward
 
@@ -331,9 +333,9 @@ const checkOccupancyAndCreateAlerts = async (ward, io) => {
 
         console.log(`🚨 Alert created: ${ward} occupancy high (${occupancyRate.toFixed(1)}%)`);
 
-        // Emit real-time alert via Socket.io
+        // The alert targets managers and hospital admins, so the event follows the same audience
         if (io) {
-          io.emit('occupancyAlert', {
+          io.to(ROOMS.oversight(ward)).to(ROOMS.oversightAll).emit('occupancyAlert', {
             alert: alert.toObject(),
             ward,
             occupancyRate: occupancyRate.toFixed(1),
@@ -372,7 +374,7 @@ exports.getOccupiedBeds = async (req, res) => {
     const userWard = req.user?.ward;
 
     // Build filter for occupied beds
-    const filter = { status: 'occupied' };
+    const filter = { status: 'occupied', ...ACTIVE_BEDS };
 
     // Apply ward filtering based on role
     if (userRole === 'manager' && userWard) {
@@ -460,27 +462,11 @@ exports.getOccupiedBeds = async (req, res) => {
  */
 exports.getOccupantHistory = async (req, res) => {
   try {
-    const { id } = req.params;
-    let bed;
+    const bed = await loadBed(req, res, { action: false });
+    if (!bed) return;
 
-    // Find bed by MongoDB ObjectId or bedId string
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      bed = await Bed.findById(id);
-    } else {
-      bed = await Bed.findOne({ bedId: id });
-    }
-
-    if (!bed) {
-      return res.status(404).json({
-        success: false,
-        message: 'Bed not found'
-      });
-    }
-
-    // Check authorization - managers can only view their ward's beds
-    const userRole = req.user?.role;
-    const userWard = req.user?.ward;
-    if (userRole === 'manager' && userWard && bed.ward !== userWard) {
+    // Occupant history is patient data - managers can only view their ward's beds
+    if (!canSeePatients(req.user, bed)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied: You can only view beds in your assigned ward'
@@ -605,6 +591,12 @@ exports.getCleaningQueue = async (req, res) => {
     const filter = { status: 'cleaning' };
     
     // Apply ward filter for managers and ward staff
+    if (req.user.role === 'ward_staff' && !req.user.ward) {
+      return res.status(403).json({
+        success: false,
+        message: 'No ward is assigned to your account. Ask an administrator to assign one.'
+      });
+    }
     if ((req.user.role === 'manager' || req.user.role === 'ward_staff') && req.user.ward) {
       filter.ward = req.user.ward;
     } else if (ward) {
@@ -730,20 +722,9 @@ exports.markCleaningComplete = async (req, res) => {
     const { id } = req.params;
     const { notes } = req.body;
     
-    // Find bed
-    let bed;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      bed = await Bed.findById(id);
-    } else {
-      bed = await Bed.findOne({ bedId: id });
-    }
-    
-    if (!bed) {
-      return res.status(404).json({
-        success: false,
-        message: 'Bed not found'
-      });
-    }
+    // Find bed (within the user's ward)
+    const bed = await loadBed(req, res);
+    if (!bed) return;
     
     // Verify bed is in cleaning status
     if (bed.status !== 'cleaning') {
@@ -792,38 +773,21 @@ exports.markCleaningComplete = async (req, res) => {
       console.error('Error creating occupancy log:', logError);
     }
     
-    // Emit bedCleaningCompleted event via socket.io (ward-specific)
-    if (req.io) {
-      req.io.to(`ward-${bed.ward}`).emit('bedCleaningCompleted', {
-        bed: bed.toObject(),
-        cleaningLog: {
-          duration: cleaningLog.actualDuration,
-          wasOverdue: cleaningLog.status === 'overdue' || 
-                     cleaningLog.actualDuration > cleaningLog.estimatedDuration,
-          completedBy: req.user.name || req.user.email
-        },
-        timestamp: new Date()
-      });
-      console.log('✅ bedCleaningCompleted event emitted via socket.io');
-    }
-    
-    // Task 2.6: Also emit bedStatusChanged event
-    if (req.io) {
-      req.io.to(`ward-${bed.ward}`).emit('bedStatusChanged', {
-        bed: bed.toObject(),
-        previousStatus: 'cleaning',
-        newStatus: 'available',
-        timestamp: new Date()
-      });
-      
-      // Global emit for hospital admins
-      req.io.emit('bedStatusChanged', {
-        bed: bed.toObject(),
-        previousStatus: 'cleaning',
-        newStatus: 'available',
-        timestamp: new Date()
-      });
-    }
+    emitBedEvent(req.io, 'bedCleaningCompleted', bed, {
+      cleaningLog: {
+        duration: cleaningLog.actualDuration,
+        wasOverdue: cleaningLog.status === 'overdue' ||
+                   cleaningLog.actualDuration > cleaningLog.estimatedDuration,
+        completedBy: req.user.name || req.user.email
+      },
+      timestamp: new Date()
+    });
+
+    emitBedEvent(req.io, 'bedStatusChanged', bed, {
+      previousStatus: 'cleaning',
+      newStatus: 'available',
+      timestamp: new Date()
+    });
 
     res.status(200).json({
       success: true,
@@ -869,20 +833,9 @@ exports.updateDischargeTime = async (req, res) => {
       });
     }
 
-    // Find bed
-    let bed;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      bed = await Bed.findById(id);
-    } else {
-      bed = await Bed.findOne({ bedId: id });
-    }
-
-    if (!bed) {
-      return res.status(404).json({
-        success: false,
-        message: 'Bed not found'
-      });
-    }
+    // Find bed (within the user's ward)
+    const bed = await loadBed(req, res);
+    if (!bed) return;
 
     // Only allow updating discharge time for occupied beds
     if (bed.status !== 'occupied') {
@@ -900,25 +853,12 @@ exports.updateDischargeTime = async (req, res) => {
 
     await bed.save();
 
-    // Emit socket event for real-time updates
-    if (req.io) {
-      req.io.to(`ward-${bed.ward}`).emit('bedDischargeTimeUpdated', {
-        bed: bed.toObject(),
-        estimatedDischargeTime: bed.estimatedDischargeTime,
-        dischargeNotes: bed.dischargeNotes,
-        timestamp: new Date()
-      });
-
-      // Global emit for hospital admins
-      req.io.emit('bedDischargeTimeUpdated', {
-        bed: bed.toObject(),
-        estimatedDischargeTime: bed.estimatedDischargeTime,
-        dischargeNotes: bed.dischargeNotes,
-        timestamp: new Date()
-      });
-
-      console.log(`✅ bedDischargeTimeUpdated event emitted for bed ${bed.bedId}`);
-    }
+    // dischargeNotes describe the patient, so they travel inside the bed payload where they
+    // are stripped for roles that may not see them - never as a separate top-level field
+    emitBedEvent(req.io, 'bedDischargeTimeUpdated', bed, {
+      estimatedDischargeTime: bed.estimatedDischargeTime,
+      timestamp: new Date()
+    });
 
     res.status(200).json({
       success: true,
@@ -944,20 +884,9 @@ exports.predictDischarge = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Find bed
-    let bed;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      bed = await Bed.findById(id);
-    } else {
-      bed = await Bed.findOne({ bedId: id });
-    }
-
-    if (!bed) {
-      return res.status(404).json({
-        success: false,
-        message: 'Bed not found'
-      });
-    }
+    // Find bed (within the user's ward)
+    const bed = await loadBed(req, res);
+    if (!bed) return;
 
     // Only predict for occupied beds
     if (bed.status !== 'occupied') {
@@ -967,31 +896,37 @@ exports.predictDischarge = async (req, res) => {
       });
     }
 
-    // Call ML service for prediction
-    const prediction = await mlService.predictDischarge(bed.ward, bed.createdAt);
-
-    if (prediction.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Discharge prediction generated successfully',
-        data: {
-          bed: bed.toObject(),
-          prediction: prediction.data.prediction,
-          metadata: prediction.data.metadata
-        }
-      });
-    } else {
-      // Use fallback if ML service failed
-      res.status(200).json({
-        success: true,
-        message: 'Discharge prediction generated (using fallback)',
-        data: {
-          bed: bed.toObject(),
-          prediction: prediction.fallback,
-          note: 'ML service unavailable, using fallback estimate'
-        }
+    // Admission time is the bed's most recent recorded assignment
+    const lastAssignment = await OccupancyLog.findOne({ bedId: bed._id, statusChange: 'assigned' })
+      .sort({ timestamp: -1 })
+      .select('timestamp')
+      .lean();
+    if (!lastAssignment) {
+      return res.status(422).json({
+        success: false,
+        message: 'No admission is recorded for this bed, so its discharge time cannot be estimated'
       });
     }
+
+    // ML prediction, or the ward's recorded average stay when the ML service is unavailable
+    const prediction = await estimateDischarge(bed.ward, lastAssignment.timestamp);
+    if (!prediction) {
+      return res.status(503).json({
+        success: false,
+        message: 'Discharge estimate unavailable: the ML service is unreachable and no completed stays are recorded for this ward'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: prediction.source === 'ml'
+        ? 'Discharge prediction generated successfully'
+        : 'ML service unavailable - estimated from the ward\'s recorded average stay',
+      data: {
+        bed: bed.toObject(),
+        prediction
+      }
+    });
   } catch (error) {
     console.error('Predict discharge error:', error);
     res.status(500).json({
@@ -1012,50 +947,46 @@ exports.predictCleaningDuration = async (req, res) => {
     const { id } = req.params;
     const { estimatedDuration } = req.body || {};
 
-    // Find bed
-    let bed;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      bed = await Bed.findById(id);
-    } else {
-      bed = await Bed.findOne({ bedId: id });
-    }
+    // Find bed (within the user's ward)
+    const bed = await loadBed(req, res);
+    if (!bed) return;
 
-    if (!bed) {
-      return res.status(404).json({
+    if (estimatedDuration !== undefined && !(typeof estimatedDuration === 'number' && estimatedDuration > 0)) {
+      return res.status(400).json({
         success: false,
-        message: 'Bed not found'
+        message: 'estimatedDuration must be a positive number (in minutes)'
       });
     }
 
-    // Call ML service for prediction
-    const prediction = await mlService.predictCleaningDuration(
-      bed.ward,
-      estimatedDuration || 30,
-      new Date()
-    );
-
-    if (prediction.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Cleaning duration prediction generated successfully',
-        data: {
-          bed: bed.toObject(),
-          prediction: prediction.data.prediction,
-          metadata: prediction.data.metadata
-        }
-      });
-    } else {
-      // Use fallback if ML service failed
-      res.status(200).json({
-        success: true,
-        message: 'Cleaning duration prediction generated (using fallback)',
-        data: {
-          bed: bed.toObject(),
-          prediction: prediction.fallback,
-          note: 'ML service unavailable, using fallback estimate'
-        }
+    // A bed being cleaned uses its recorded start time and staff estimate
+    const isBeingCleaned = bed.status === 'cleaning' && bed.cleaningStartTime;
+    const duration = estimatedDuration || (isBeingCleaned ? bed.estimatedCleaningDuration : null);
+    if (!duration) {
+      return res.status(400).json({
+        success: false,
+        message: 'estimatedDuration is required for beds that are not being cleaned'
       });
     }
+
+    // ML prediction, or the ward's recorded average cleaning time when the ML service is unavailable
+    const prediction = await estimateCleaning(bed.ward, duration, isBeingCleaned ? bed.cleaningStartTime : new Date());
+    if (!prediction) {
+      return res.status(503).json({
+        success: false,
+        message: 'Cleaning estimate unavailable: the ML service is unreachable and no completed cleanings are recorded for this ward'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: prediction.source === 'ml'
+        ? 'Cleaning duration prediction generated successfully'
+        : 'ML service unavailable - estimated from the ward\'s recorded average cleaning time',
+      data: {
+        bed: bed.toObject(),
+        prediction
+      }
+    });
   } catch (error) {
     console.error('Predict cleaning duration error:', error);
     res.status(500).json({
@@ -1063,6 +994,154 @@ exports.predictCleaningDuration = async (req, res) => {
       message: 'Server error predicting cleaning duration',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+};
+
+// ----- Bed inventory (technical team and hospital admins) -----
+
+// Inventory changes need an empty bed: no patient and no cleaning in progress
+const getBusyMessage = (bed, action) => (
+  bed.status === 'available' ? null : `Bed ${bed.bedId} is ${bed.status}; it can only be ${action} when available`
+);
+
+const sendInventoryError = (res, error, message) => {
+  console.error(`${message}:`, error);
+  if (error.code === 11000) {
+    return res.status(409).json({ success: false, message: 'A bed with this ID already exists' });
+  }
+  if (error.name === 'ValidationError') {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+  return res.status(500).json({
+    success: false,
+    message,
+    error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  });
+};
+
+/**
+ * @desc    Add a bed to the inventory
+ * @route   POST /api/beds
+ * @access  Private (Technical Team, Hospital Admin)
+ * @body    bedId, ward
+ */
+exports.createBed = async (req, res) => {
+  try {
+    const { bedId, ward } = req.body;
+
+    const existing = await Bed.findOne({ bedId }).select('retiredAt').lean();
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: existing.retiredAt
+          ? `Bed ${bedId} already exists but is retired - reactivate it instead`
+          : `Bed ${bedId} already exists`
+      });
+    }
+
+    const bed = await Bed.create({ bedId, ward, status: 'available' });
+    res.status(201).json({
+      success: true,
+      message: `Bed ${bed.bedId} added to ${bed.ward}`,
+      data: { bed: toBedResponse(bed, req.user) }
+    });
+  } catch (error) {
+    sendInventoryError(res, error, 'Server error adding bed');
+  }
+};
+
+/**
+ * @desc    Change a bed's ID or ward (its history moves with it)
+ * @route   PATCH /api/beds/:id
+ * @access  Private (Technical Team, Hospital Admin)
+ * @body    bedId and/or ward
+ */
+exports.updateBedDetails = async (req, res) => {
+  try {
+    const bed = await loadBed(req, res);
+    if (!bed) return;
+
+    const busyMessage = getBusyMessage(bed, 'changed');
+    if (busyMessage) {
+      return res.status(409).json({ success: false, message: busyMessage });
+    }
+
+    const { bedId, ward } = req.body;
+    if (bedId !== undefined && bedId !== bed.bedId) {
+      if (await Bed.exists({ bedId })) {
+        return res.status(409).json({ success: false, message: `Bed ${bedId} already exists` });
+      }
+      bed.bedId = bedId;
+    }
+    if (ward !== undefined) {
+      bed.ward = ward;
+    }
+
+    await bed.save();
+    res.status(200).json({
+      success: true,
+      message: `Bed ${bed.bedId} updated`,
+      data: { bed: toBedResponse(bed, req.user) }
+    });
+  } catch (error) {
+    sendInventoryError(res, error, 'Server error updating bed');
+  }
+};
+
+/**
+ * @desc    Retire a bed: hidden from bed maps, counts and assignments; its history stays in reports
+ * @route   PATCH /api/beds/:id/retire
+ * @access  Private (Technical Team, Hospital Admin)
+ */
+exports.retireBed = async (req, res) => {
+  try {
+    const bed = await loadBed(req, res);
+    if (!bed) return;
+
+    const busyMessage = getBusyMessage(bed, 'retired');
+    if (busyMessage) {
+      return res.status(409).json({ success: false, message: busyMessage });
+    }
+
+    bed.retiredAt = new Date();
+    bed.retiredBy = req.user._id;
+    await bed.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Bed ${bed.bedId} retired`,
+      data: { bed: toBedResponse(bed, req.user) }
+    });
+  } catch (error) {
+    sendInventoryError(res, error, 'Server error retiring bed');
+  }
+};
+
+/**
+ * @desc    Put a retired bed back into service
+ * @route   PATCH /api/beds/:id/reactivate
+ * @access  Private (Technical Team, Hospital Admin)
+ */
+exports.reactivateBed = async (req, res) => {
+  try {
+    const bed = await loadBed(req, res, { allowRetired: true });
+    if (!bed) return;
+
+    if (!bed.retiredAt) {
+      return res.status(409).json({ success: false, message: `Bed ${bed.bedId} is not retired` });
+    }
+
+    bed.retiredAt = null;
+    bed.retiredBy = null;
+    await bed.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Bed ${bed.bedId} is back in service`,
+      data: { bed: toBedResponse(bed, req.user) }
+    });
+  } catch (error) {
+    sendInventoryError(res, error, 'Server error reactivating bed');
   }
 };
 

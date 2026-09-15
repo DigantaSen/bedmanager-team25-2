@@ -32,8 +32,8 @@ The Bed Manager application consists of three main components:
 
 Before running the application, ensure you have:
 
-- **Node.js** (v14+ recommended, check `.nvmrc` in backend/)
-- **Python** (v3.8+)
+- **Node.js** (v20.19+, see `.nvmrc` in backend/)
+- **Python** (v3.11+)
 - **MongoDB** (local or Atlas cloud instance)
 - **npm** or **yarn**
 - **Git**
@@ -47,7 +47,7 @@ Open **three separate terminals** and run the following commands:
 ### Terminal 1: Backend
 ```bash
 cd backend
-cp .env.example .env
+cp .env.example .env   # then set MONGO_URI and JWT_SECRET
 npm install
 npm run dev
 ```
@@ -62,10 +62,11 @@ npm run dev
 ### Terminal 3: ML Service
 ```bash
 cd ml-service
+cp .env.example .env   # then set MONGO_URI (same database as the backend)
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
 **Access the application:**
@@ -102,6 +103,12 @@ uvicorn main:app --host 0.0.0.0 --port 8000
    NODE_ENV=development
    ML_SERVICE_URL=http://localhost:8000
    FRONTEND_URL=http://localhost:5173
+   JWT_SECRET=<paste output of the command below>
+   ```
+
+   `JWT_SECRET` is required (at least 32 characters) — the server refuses to start without it:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
    ```
 
 4. **Install dependencies:**
@@ -261,12 +268,12 @@ Check `frontend/.env` or `frontend/.env.example` for any required configuration.
    
    **Production mode (recommended):**
    ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8000
+   uvicorn main:app --host 127.0.0.1 --port 8000
    ```
    
    **With auto-reload (development):**
    ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   uvicorn main:app --host 127.0.0.1 --port 8000 --reload
    ```
 
 8. **Verify ML service is running:**
@@ -287,24 +294,34 @@ Check `frontend/.env` or `frontend/.env.example` for any required configuration.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | 5001 | Backend server port |
-| `MONGO_URI` | mongodb://localhost:27017/bedmanager | MongoDB connection string |
+| `MONGO_URI` | mongodb://localhost:27017/bedmanager | MongoDB connection string (required) |
+| `JWT_SECRET` | (none) | Token signing secret, at least 32 characters (required) |
+| `JWT_EXPIRES_IN` | 7d | Login token lifetime |
 | `NODE_ENV` | development | Environment (development/production) |
 | `ML_SERVICE_URL` | http://localhost:8000 | ML service endpoint |
-| `FRONTEND_URL` | http://localhost:5173 | Frontend URL (for CORS) |
+| `FRONTEND_URL` | (none) | Extra allowed CORS origin (localhost:5173 is always allowed) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | smtp.gmail.com, 587 | Mail server settings for emailed reports |
 
 ### Frontend (`.env`)
 
-Check `frontend/.env.example` for required variables. Typically includes:
-- Backend API base URL
-- Socket.IO connection URL
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_BASE_URL` | http://localhost:5001/api | Backend API base URL |
+| `VITE_SOCKET_URL` | http://localhost:5001 | Socket.IO server URL |
 
 ### ML Service (`.env`)
 
+Copy `ml-service/.env.example` to `ml-service/.env`; it is loaded automatically at startup.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ML_SERVICE_PORT` | 8000 | ML service port |
-| `MONGO_URI` | (same as backend) | MongoDB URI for training |
-| Model paths and configuration settings |
+| `ML_SERVICE_HOST` | 127.0.0.1 | Bind address (used by `python main.py`) |
+| `ML_SERVICE_PORT` | 8000 | ML service port (used by `python main.py`) |
+| `MONGO_URI` | mongodb://localhost:27017/bedmanager | Same database as the backend; used for training and for prediction history (defaults are used if unreachable) |
+| `MONGO_TIMEOUT_MS` | 20000 | MongoDB connection timeout for background history loading |
+| `HISTORY_CACHE_TTL_SECONDS` | 600 | How often historical averages are recomputed |
+| `HISTORY_RETRY_SECONDS` | 60 | Retry delay after MongoDB could not be reached |
+| `LOG_LEVEL` | INFO | Logging level |
 
 ---
 
@@ -327,7 +344,7 @@ curl http://localhost:8000/models/status
 ```
 
 ### 4. End-to-End Test
-- Register/login through the frontend
+- Sign up through the frontend, approve the account as the technical team (Technical Team Dashboard → Approvals), then log in
 - Check that real-time updates work (WebSocket)
 - Test ML predictions (if implemented)
 
@@ -347,7 +364,7 @@ PORT=5002
 # Frontend: Vite will auto-increment (5174, 5175, etc.)
 
 # ML Service: Use different port
-uvicorn main:app --host 0.0.0.0 --port 8001
+uvicorn main:app --host 127.0.0.1 --port 8001
 
 # Find and kill process using a port (Linux/Mac)
 lsof -ti:5001 | xargs kill -9
@@ -465,7 +482,9 @@ npm run fix:cleaning
 ### Data Generation
 
 ```bash
-# Generate synthetic data for testing
+# Generate synthetic data for testing (run seedBeds.js first).
+# Replaces the seed accounts, occupancy/cleaning logs, emergency requests and alerts with a
+# consistent simulated 100-day history (beds and accounts created through sign-up are kept).
 cd backend
 node generateSyntheticData.js
 ```
@@ -477,6 +496,35 @@ node generateSyntheticData.js
 cd backend
 node seedBeds.js
 ```
+
+### User Accounts & Approval
+
+New sign-ups (ward staff, ER staff and managers) start as **pending** and cannot log in until the
+technical team approves them (Technical Team Dashboard → **Approvals** tab). The reviewer can change the
+requested role or ward while approving, but only to one of those sign-up roles.
+
+Roles and responsibilities:
+- **Technical team:** bed inventory (add, edit, retire beds), account approvals, nearby hospital directory
+- **Hospital admin:** overview, trends, forecasting and reports
+
+`technical_team` and `hospital_admin` accounts cannot be requested at sign-up or given through approvals,
+so they are created from the command line:
+
+```bash
+cd backend
+# Create an approved technical team account (reviews sign-ups)
+npm run create:technical -- --email tech@hospital.com --password "<at least 8 characters>" --name "Sam Lee"
+
+# Create an approved hospital admin account
+npm run create:admin -- --email admin@hospital.com --password "<at least 8 characters>" --name "Jane Doe"
+
+# Or promote an existing user (password unchanged)
+npm run create:admin -- --email existing.user@hospital.com
+npm run create:technical -- --email existing.user@hospital.com
+```
+
+Users seeded by `generateSyntheticData.js` are already approved. Accounts that existed before the
+approval workflow are marked approved automatically when the server starts.
 
 ---
 

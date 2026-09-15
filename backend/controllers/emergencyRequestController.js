@@ -2,11 +2,51 @@
 const EmergencyRequest = require('../models/EmergencyRequest');
 const Alert = require('../models/Alert');
 const mongoose = require('mongoose');
+const { emitRequestEvent, emitAlert } = require('../services/socketEvents');
+
+/** Compare two ids that may be raw ObjectIds or populated documents */
+const sameId = (a, b) => {
+  const idOf = (value) => (value && value._id ? value._id : value);
+  return Boolean(a && b) && String(idOf(a)) === String(idOf(b));
+};
+
+/**
+ * @desc    Who may see a single request: admins all of them, managers their own ward,
+ *          ER staff only the ones they raised. Requests carry patient names and contact
+ *          numbers, so every other role is refused.
+ */
+const canSeeRequest = (user, request) => {
+  switch (user.role) {
+    case 'hospital_admin':
+      return true;
+    case 'manager':
+      return !user.ward || request.ward === user.ward;
+    case 'er_staff':
+      return sameId(request.requestedBy, user._id);
+    default:
+      return false;
+  }
+};
+
+/**
+ * @desc    Restrict the request list to what the logged-in user may see
+ */
+const scopeFilter = (user) => {
+  if (user.role === 'er_staff') return { requestedBy: user._id };
+  if (user.role === 'manager' && user.ward) return { ward: user.ward };
+  return {};
+};
+
+/**
+ * @desc    Managers may only act on requests for their own ward
+ */
+const wardMismatch = (user, request) =>
+  user.role === 'manager' && Boolean(user.ward) && request.ward !== user.ward;
 
 /**
  * @desc    Create a new emergency request
  * @route   POST /api/emergency-requests
- * @access  Private
+ * @access  Private (ER Staff, Manager, Hospital Admin)
  */
 exports.createEmergencyRequest = async (req, res) => {
   try {
@@ -37,7 +77,9 @@ exports.createEmergencyRequest = async (req, res) => {
       ward,
       priority: priority || 'medium',
       reason: reason || null,
-      description: description || null
+      description: description || null,
+      // Taken from the token, never from the body, so a request cannot be raised on someone else's behalf
+      requestedBy: req.user._id
     });
 
     // Create an alert for this emergency request
@@ -60,42 +102,23 @@ exports.createEmergencyRequest = async (req, res) => {
 
     console.log('✅ Alert created for emergency request:', alert._id);
 
-    // Emit Socket.io event for real-time notification to ward-specific room
-    if (req.io) {
-      // Emit to ward-specific room and all managers
-      req.io.to(`ward-${ward}`).emit('emergencyRequestCreated', {
-        requestId: emergencyRequest._id,
-        patientName: emergencyRequest.patientName,
-        patientContact: emergencyRequest.patientContact,
-        patientId: emergencyRequest.patientId,
-        location: emergencyRequest.location,
-        ward: emergencyRequest.ward,
-        priority: emergencyRequest.priority,
-        status: emergencyRequest.status,
-        createdAt: emergencyRequest.createdAt
-      });
-      
-      // Also emit to all hospital admins
-      req.io.to('role-hospital_admin').emit('emergencyRequestCreated', {
-        requestId: emergencyRequest._id,
-        patientName: emergencyRequest.patientName,
-        patientContact: emergencyRequest.patientContact,
-        patientId: emergencyRequest.patientId,
-        location: emergencyRequest.location,
-        ward: emergencyRequest.ward,
-        priority: emergencyRequest.priority,
-        status: emergencyRequest.status,
-        createdAt: emergencyRequest.createdAt
-      });
-      
-      // Emit alert created event
-      req.io.to(`ward-${ward}`).emit('alertCreated', alert);
-      req.io.to('role-hospital_admin').emit('alertCreated', alert);
-      req.io.to('role-manager').emit('alertCreated', alert);
-      
-      console.log(`✅ Socket event emitted: emergencyRequestCreated to ward-${ward}`);
-      console.log(`✅ Socket event emitted: alertCreated for emergency request`);
-    }
+    // The request carries a patient name and contact number, so it goes to the ward's manager,
+    // hospital admins and the member of staff who raised it - not to the whole ward room,
+    // which also holds ward staff and other ER staff
+    emitRequestEvent(req.io, 'emergencyRequestCreated', {
+      requestId: emergencyRequest._id,
+      patientName: emergencyRequest.patientName,
+      patientContact: emergencyRequest.patientContact,
+      patientId: emergencyRequest.patientId,
+      location: emergencyRequest.location,
+      ward: emergencyRequest.ward,
+      priority: emergencyRequest.priority,
+      status: emergencyRequest.status,
+      createdAt: emergencyRequest.createdAt
+    }, { ward, requestedBy: req.user._id });
+
+    // The alert repeats the patient's name, so it follows its own targetRole audience
+    emitAlert(req.io, alert);
 
     res.status(201).json({
       success: true,
@@ -115,23 +138,16 @@ exports.createEmergencyRequest = async (req, res) => {
 /**
  * @desc    Get all emergency requests with optional filtering
  * @route   GET /api/emergency-requests
- * @access  Private
- * @query   status, ward
+ * @access  Private (Hospital Admin: all, Manager: own ward, ER Staff: own requests)
+ * @query   status
  */
 exports.getAllEmergencyRequests = async (req, res) => {
   try {
     const { status } = req.query;
-    const userRole = req.user?.role;
-    const userWard = req.user?.ward;
 
-    // Build filter object
-    const filter = {};
-    
-    // If user is a manager, filter by their assigned ward
-    if (userRole === 'manager' && userWard) {
-      filter.ward = userWard;
-    }
-    
+    // Admins see every request, managers their own ward, ER staff only their own requests
+    const filter = scopeFilter(req.user);
+
     if (status) {
       // Validate status
       const validStatuses = ['pending', 'approved', 'rejected'];
@@ -167,7 +183,7 @@ exports.getAllEmergencyRequests = async (req, res) => {
 /**
  * @desc    Get single emergency request by ID
  * @route   GET /api/emergency-requests/:id
- * @access  Private
+ * @access  Private (Hospital Admin: all, Manager: own ward, ER Staff: own requests)
  */
 exports.getEmergencyRequestById = async (req, res) => {
   try {
@@ -192,6 +208,13 @@ exports.getEmergencyRequestById = async (req, res) => {
       });
     }
 
+    if (!canSeeRequest(req.user, emergencyRequest)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to view this emergency request'
+      });
+    }
+
     res.status(200).json({
       success: true,
       data: { emergencyRequest }
@@ -209,7 +232,7 @@ exports.getEmergencyRequestById = async (req, res) => {
 /**
  * @desc    Update emergency request
  * @route   PUT /api/emergency-requests/:id
- * @access  Private
+ * @access  Private (Manager: own ward, Hospital Admin)
  */
 exports.updateEmergencyRequest = async (req, res) => {
   try {
@@ -241,6 +264,14 @@ exports.updateEmergencyRequest = async (req, res) => {
       });
     }
 
+    // Managers may only edit requests for their own ward
+    if (wardMismatch(req.user, existingRequest)) {
+      return res.status(403).json({
+        success: false,
+        message: `Not authorized: You can only update requests for ${req.user.ward} ward`
+      });
+    }
+
     // Store old status for comparison
     const oldStatus = existingRequest.status;
 
@@ -258,26 +289,15 @@ exports.updateEmergencyRequest = async (req, res) => {
     ).populate('patientId', 'name email');
 
     // Emit Socket.io events based on status change
-    if (req.io && status && oldStatus !== status) {
-      if (status === 'approved') {
-        req.io.emit('emergencyRequestApproved', {
-          requestId: updatedRequest._id,
-          patientId: updatedRequest.patientId,
-          location: updatedRequest.location,
-          status: updatedRequest.status,
-          updatedAt: updatedRequest.updatedAt
-        });
-        console.log('✅ Socket event emitted: emergencyRequestApproved');
-      } else if (status === 'rejected') {
-        req.io.emit('emergencyRequestRejected', {
-          requestId: updatedRequest._id,
-          patientId: updatedRequest.patientId,
-          location: updatedRequest.location,
-          status: updatedRequest.status,
-          updatedAt: updatedRequest.updatedAt
-        });
-        console.log('✅ Socket event emitted: emergencyRequestRejected');
-      }
+    if (status && oldStatus !== status && ['approved', 'rejected'].includes(status)) {
+      const event = status === 'approved' ? 'emergencyRequestApproved' : 'emergencyRequestRejected';
+      emitRequestEvent(req.io, event, {
+        requestId: updatedRequest._id,
+        patientId: updatedRequest.patientId,
+        location: updatedRequest.location,
+        status: updatedRequest.status,
+        updatedAt: updatedRequest.updatedAt
+      }, { ward: updatedRequest.ward, requestedBy: updatedRequest.requestedBy });
     }
 
     res.status(200).json({
@@ -298,7 +318,7 @@ exports.updateEmergencyRequest = async (req, res) => {
 /**
  * @desc    Delete emergency request
  * @route   DELETE /api/emergency-requests/:id
- * @access  Private
+ * @access  Private (Hospital Admin)
  */
 exports.deleteEmergencyRequest = async (req, res) => {
   try {
@@ -340,7 +360,7 @@ exports.deleteEmergencyRequest = async (req, res) => {
 /**
  * @desc    Approve emergency request (Manager only - ward-specific)
  * @route   PATCH /api/emergency-requests/:id/approve
- * @access  Private (Manager)
+ * @access  Private (Manager: own ward, Hospital Admin)
  */
 exports.approveEmergencyRequest = async (req, res) => {
   try {
@@ -396,27 +416,17 @@ exports.approveEmergencyRequest = async (req, res) => {
     // Populate patient details
     await emergencyRequest.populate('patientId', 'name email');
 
-    // Emit Socket.io event for real-time notification
-    if (req.io) {
-      const eventData = {
-        requestId: emergencyRequest._id,
-        patientId: emergencyRequest.patientId,
-        location: emergencyRequest.location,
-        ward: emergencyRequest.ward,
-        status: emergencyRequest.status,
-        bedId: bedId || null,
-        approvedBy: req.user?.name || req.user?.email,
-        updatedAt: emergencyRequest.updatedAt
-      };
-      
-      // Emit to ward-specific room
-      req.io.to(`ward-${emergencyRequest.ward}`).emit('emergencyRequestApproved', eventData);
-      
-      // Also broadcast to all
-      req.io.emit('emergencyRequestApproved', eventData);
-      
-      console.log(`✅ Socket event emitted: emergencyRequestApproved for ward-${emergencyRequest.ward}`);
-    }
+    // Goes to the ward's manager, hospital admins and whoever raised the request
+    emitRequestEvent(req.io, 'emergencyRequestApproved', {
+      requestId: emergencyRequest._id,
+      patientId: emergencyRequest.patientId,
+      location: emergencyRequest.location,
+      ward: emergencyRequest.ward,
+      status: emergencyRequest.status,
+      bedId: bedId || null,
+      approvedBy: req.user?.name || req.user?.email,
+      updatedAt: emergencyRequest.updatedAt
+    }, { ward: emergencyRequest.ward, requestedBy: emergencyRequest.requestedBy });
 
     res.status(200).json({
       success: true,
@@ -439,7 +449,7 @@ exports.approveEmergencyRequest = async (req, res) => {
 /**
  * @desc    Reject emergency request (Manager only - ward-specific)
  * @route   PATCH /api/emergency-requests/:id/reject
- * @access  Private (Manager)
+ * @access  Private (Manager: own ward, Hospital Admin)
  */
 exports.rejectEmergencyRequest = async (req, res) => {
   try {
@@ -498,27 +508,17 @@ exports.rejectEmergencyRequest = async (req, res) => {
     // Populate patient details
     await emergencyRequest.populate('patientId', 'name email');
 
-    // Emit Socket.io event for real-time notification
-    if (req.io) {
-      const eventData = {
-        requestId: emergencyRequest._id,
-        patientId: emergencyRequest.patientId,
-        location: emergencyRequest.location,
-        ward: emergencyRequest.ward,
-        status: emergencyRequest.status,
-        rejectionReason: rejectionReason || null,
-        rejectedBy: req.user?.name || req.user?.email,
-        updatedAt: emergencyRequest.updatedAt
-      };
-      
-      // Emit to ward-specific room
-      req.io.to(`ward-${emergencyRequest.ward}`).emit('emergencyRequestRejected', eventData);
-      
-      // Also broadcast to all
-      req.io.emit('emergencyRequestRejected', eventData);
-      
-      console.log(`✅ Socket event emitted: emergencyRequestRejected for ward-${emergencyRequest.ward}`);
-    }
+    // Goes to the ward's manager, hospital admins and whoever raised the request
+    emitRequestEvent(req.io, 'emergencyRequestRejected', {
+      requestId: emergencyRequest._id,
+      patientId: emergencyRequest.patientId,
+      location: emergencyRequest.location,
+      ward: emergencyRequest.ward,
+      status: emergencyRequest.status,
+      rejectionReason: rejectionReason || null,
+      rejectedBy: req.user?.name || req.user?.email,
+      updatedAt: emergencyRequest.updatedAt
+    }, { ward: emergencyRequest.ward, requestedBy: emergencyRequest.requestedBy });
 
     res.status(200).json({
       success: true,

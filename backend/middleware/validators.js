@@ -3,6 +3,9 @@
 
 const { body, param, query, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
+const { ROLES, SELF_SIGNUP_ROLES, WARDS } = require('../config/roles');
+const { MIN_PASSWORD_LENGTH } = require('../config/passwordPolicy');
+const { WARD_TYPES: HOSPITAL_WARD_TYPES } = require('../models/Hospital');
 
 /**
  * @desc    Middleware to handle validation errors
@@ -11,13 +14,14 @@ const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   
   if (!errors.isEmpty()) {
+    // The submitted value is deliberately left out: it used to be echoed back to the caller
+    // and written to the log, which for a rejected password meant logging the password itself
     const errorMessages = errors.array().map(error => ({
       field: error.path || error.param,
-      message: error.msg,
-      value: error.value
+      message: error.msg
     }));
 
-    console.log('❌ Validation errors:', errorMessages);
+    console.log('❌ Validation failed for fields:', errorMessages.map((error) => error.field).join(', '));
 
     return res.status(400).json({
       success: false,
@@ -53,14 +57,52 @@ const validateRegister = [
   body('password')
     .notEmpty()
     .withMessage('Password is required')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
+    .isLength({ min: MIN_PASSWORD_LENGTH })
+    .withMessage(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`),
   
   body('role')
     .optional()
-    .isIn(['technical_team', 'hospital_admin', 'er_staff', 'ward_staff', 'manager'])
-    .withMessage('Role must be one of: technical_team, hospital_admin, er_staff, ward_staff, manager'),
-  
+    .isIn(SELF_SIGNUP_ROLES)
+    .withMessage(`Role must be one of: ${SELF_SIGNUP_ROLES.join(', ')}`),
+
+  body('ward')
+    .optional()
+    .isIn(WARDS)
+    .withMessage(`Ward must be one of: ${WARDS.join(', ')}`),
+
+  handleValidationErrors
+];
+
+/**
+ * @desc    Validation rules for approving a user account (the reviewer may adjust role/ward;
+ *          technical team and admin roles are only given from the command line)
+ */
+const validateApproveUser = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid user ID format'),
+
+  body('role')
+    .optional()
+    .isIn(SELF_SIGNUP_ROLES)
+    .withMessage(`Role must be one of: ${SELF_SIGNUP_ROLES.join(', ')}`),
+
+  body('ward')
+    .optional()
+    .isIn(WARDS)
+    .withMessage(`Ward must be one of: ${WARDS.join(', ')}`),
+
+  handleValidationErrors
+];
+
+/**
+ * @desc    Validation rules for routes that take a user ID param
+ */
+const validateUserIdParam = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid user ID format'),
+
   handleValidationErrors
 ];
 
@@ -87,39 +129,39 @@ const validateLogin = [
 /**
  * @desc    Validation rules for creating a bed
  */
+// Bed ID and ward rules shared by adding and editing beds
+const bedIdRule = (chain) => chain
+  .trim()
+  .notEmpty()
+  .withMessage('Bed ID is required')
+  .isLength({ max: 20 })
+  .withMessage('Bed ID cannot exceed 20 characters')
+  .matches(/^[A-Za-z0-9-]+$/)
+  .withMessage('Bed ID must contain only letters, numbers, and hyphens');
+
+const bedWardRule = (chain) => chain
+  .isIn(WARDS)
+  .withMessage(`Ward must be one of: ${WARDS.join(', ')}`);
+
 const validateCreateBed = [
-  body('bedId')
-    .trim()
-    .notEmpty()
-    .withMessage('Bed ID is required')
-    .matches(/^[A-Za-z0-9-]+$/)
-    .withMessage('Bed ID must contain only letters, numbers, and hyphens'),
-  
-  body('ward')
-    .trim()
-    .notEmpty()
-    .withMessage('Ward is required')
-    .isLength({ max: 100 })
-    .withMessage('Ward name cannot exceed 100 characters')
-    .escape(),
-  
-  body('status')
-    .optional()
-    .isIn(['available', 'cleaning', 'occupied'])
-    .withMessage('Status must be one of: available, cleaning, occupied'),
-  
-  body('patientName')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Patient name cannot exceed 100 characters'),
-  
-  body('patientId')
-    .optional()
-    .trim()
-    .isLength({ max: 50 })
-    .withMessage('Patient ID cannot exceed 50 characters'),
-  
+  bedIdRule(body('bedId')),
+  bedWardRule(body('ward')),
+  handleValidationErrors
+];
+
+/**
+ * @desc    Validation rules for changing a bed's ID or ward
+ */
+const validateUpdateBedDetails = [
+  bedIdRule(body('bedId').optional()),
+  bedWardRule(body('ward').optional()),
+  body()
+    .custom((value) => {
+      if (value?.bedId === undefined && value?.ward === undefined) {
+        throw new Error('Provide a new bedId or ward');
+      }
+      return true;
+    }),
   handleValidationErrors
 ];
 
@@ -247,13 +289,146 @@ const validateCreateOccupancyLog = [
   handleValidationErrors
 ];
 
+const PHONE_PATTERN = /^[\d\s\-+()]+$/;
+
+/**
+ * @desc    Validation rules for nearby hospital directory details
+ * @param   optionalFields - updates may send any subset of the fields
+ */
+const hospitalDetailRules = (optionalFields) => {
+  const field = (name) => (optionalFields ? body(name).optional() : body(name));
+
+  return [
+    field('name')
+      .trim()
+      .notEmpty()
+      .withMessage('Hospital name is required')
+      .isLength({ max: 200 })
+      .withMessage('Hospital name cannot exceed 200 characters'),
+
+    field('address')
+      .trim()
+      .notEmpty()
+      .withMessage('Address is required')
+      .isLength({ max: 500 })
+      .withMessage('Address cannot exceed 500 characters'),
+
+    field('distance')
+      .isFloat({ min: 0 })
+      .withMessage('Distance must be a number of kilometres (0 or more)')
+      .toFloat(),
+
+    field('contactNumber')
+      .trim()
+      .notEmpty()
+      .withMessage('Contact number is required')
+      .matches(PHONE_PATTERN)
+      .withMessage('Please provide a valid contact number'),
+
+    body('emergencyContact')
+      .optional({ values: 'falsy' })
+      .trim()
+      .matches(PHONE_PATTERN)
+      .withMessage('Please provide a valid emergency contact'),
+
+    body('location.latitude')
+      .optional({ values: 'falsy' })
+      .isFloat({ min: -90, max: 90 })
+      .withMessage('Latitude must be between -90 and 90')
+      .toFloat(),
+
+    body('location.longitude')
+      .optional({ values: 'falsy' })
+      .isFloat({ min: -180, max: 180 })
+      .withMessage('Longitude must be between -180 and 180')
+      .toFloat(),
+
+    body('isActive')
+      .optional()
+      .isBoolean()
+      .withMessage('isActive must be true or false')
+      .toBoolean()
+  ];
+};
+
+/**
+ * @desc    Validation rules for a hospital's ward bed counts
+ */
+const hospitalWardRules = [
+  body('wards')
+    .isArray({ min: 1 })
+    .withMessage('Add at least one ward'),
+
+  body('wards.*.wardType')
+    .isIn(HOSPITAL_WARD_TYPES)
+    .withMessage(`Ward type must be one of: ${HOSPITAL_WARD_TYPES.join(', ')}`),
+
+  body('wards.*.totalBeds')
+    .isInt({ min: 0 })
+    .withMessage('Total beds must be a whole number (0 or more)')
+    .toInt(),
+
+  body('wards.*.availableBeds')
+    .isInt({ min: 0 })
+    .withMessage('Available beds must be a whole number (0 or more)')
+    .toInt(),
+
+  body('wards')
+    .custom((wards) => {
+      if (!Array.isArray(wards)) return true; // reported by the isArray rule
+      const wardTypes = wards.map((ward) => ward.wardType);
+      if (new Set(wardTypes).size !== wardTypes.length) {
+        throw new Error('Each ward type can only be listed once');
+      }
+      if (wards.some((ward) => Number(ward.availableBeds) > Number(ward.totalBeds))) {
+        throw new Error('Available beds cannot exceed total beds');
+      }
+      return true;
+    })
+];
+
+/**
+ * @desc    Validation rules for adding a hospital to the directory
+ */
+const validateCreateHospital = [
+  ...hospitalDetailRules(false),
+  ...hospitalWardRules,
+  handleValidationErrors
+];
+
+/**
+ * @desc    Validation rules for updating hospital details (bed counts have their own route)
+ */
+const validateUpdateHospital = [
+  ...hospitalDetailRules(true),
+  body('wards')
+    .not()
+    .exists()
+    .withMessage('Update bed counts with PUT /api/referrals/hospitals/:id/beds'),
+  handleValidationErrors
+];
+
+/**
+ * @desc    Validation rules for updating a hospital's bed counts
+ */
+const validateHospitalBeds = [
+  ...hospitalWardRules,
+  handleValidationErrors
+];
+
 module.exports = {
   handleValidationErrors,
   validateRegister,
   validateLogin,
+  validateApproveUser,
+  validateUserIdParam,
   validateCreateBed,
+  validateUpdateBedDetails,
   validateUpdateBedStatus,
   validateBedQuery,
   validateObjectId,
-  validateCreateOccupancyLog
+  validateCreateOccupancyLog,
+  validateCreateHospital,
+  validateUpdateHospital,
+  validateHospitalBeds
 };

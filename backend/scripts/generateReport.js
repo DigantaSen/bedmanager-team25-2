@@ -1,5 +1,6 @@
 // backend/generateReport.js
 
+require("dotenv").config();
 const mongoose = require("mongoose");
 const Bed = require("./models/Bed");
 const User = require("./models/User");
@@ -9,10 +10,7 @@ const EmergencyRequest = require("./models/EmergencyRequest");
 const Alert = require("./models/Alert");
 
 // Connect to your database
-mongoose.connect("mongodb://localhost:27017/bedmanager", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/bedmanager";
 
 // Utility
 const line = () => console.log("---------------------------------------------------------");
@@ -137,4 +135,10 @@ async function generateReport() {
   process.exit(0);
 }
 
-generateReport();
+mongoose
+  .connect(MONGO_URI)
+  .then(generateReport)
+  .catch((err) => {
+    console.error("❌ Report generation failed:", err.message);
+    process.exit(1);
+  });
