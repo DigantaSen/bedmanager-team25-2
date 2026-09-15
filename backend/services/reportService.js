@@ -15,6 +15,9 @@ const {
 const REPORT_TYPES = ['comprehensive', 'occupancy', 'performance'];
 const DATE_RANGES = ['today', 'yesterday', 'last7days', 'last30days', 'last90days', 'thisMonth', 'lastMonth'];
 
+// Exactly the file names the generator produces: report_<timestamp>.pdf|csv (see generatePDF/generateCSV)
+const REPORT_FILE_NAME = /^report_\d+\.(pdf|csv)$/;
+
 class ReportService {
   constructor() {
     this.reportsDir = path.join(__dirname, '../reports');
@@ -27,6 +30,24 @@ class ReportService {
     } catch (error) {
       console.error('Error creating reports directory:', error);
     }
+  }
+
+  /**
+   * @desc    Resolve a report file name to an absolute path inside the reports directory.
+   *          Guards against path traversal (e.g. "..%2F..%2F.env"): the name must match the
+   *          generator's format and the resolved path must stay within reportsDir.
+   * @returns {string|null} the absolute path, or null for an invalid/unsafe name
+   */
+  resolveReportPath(fileName) {
+    if (typeof fileName !== 'string' || !REPORT_FILE_NAME.test(fileName)) {
+      return null;
+    }
+    const filePath = path.resolve(this.reportsDir, fileName);
+    const root = path.resolve(this.reportsDir);
+    if (filePath !== path.join(root, fileName)) {
+      return null;
+    }
+    return filePath;
   }
 
   async generateReportData(options = {}) {
@@ -640,8 +661,11 @@ class ReportService {
   }
 
   async deleteReport(fileName) {
+    const filePath = this.resolveReportPath(fileName);
+    if (!filePath) {
+      return false;
+    }
     try {
-      const filePath = path.join(this.reportsDir, fileName);
       await fs.unlink(filePath);
       return true;
     } catch (error) {
@@ -651,8 +675,11 @@ class ReportService {
   }
 
   async getReport(fileName) {
+    const filePath = this.resolveReportPath(fileName);
+    if (!filePath) {
+      return null;
+    }
     try {
-      const filePath = path.join(this.reportsDir, fileName);
       const buffer = await fs.readFile(filePath);
       return buffer;
     } catch (error) {

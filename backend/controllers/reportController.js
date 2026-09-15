@@ -198,6 +198,14 @@ exports.downloadReport = async (req, res) => {
   try {
     const { fileName } = req.params;
 
+    // Reject invalid/unsafe names (path traversal) before touching the filesystem
+    if (!reportService.resolveReportPath(fileName)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid report file name'
+      });
+    }
+
     const buffer = await reportService.getReport(fileName);
 
     if (!buffer) {
@@ -231,6 +239,14 @@ exports.downloadReport = async (req, res) => {
 exports.deleteReport = async (req, res) => {
   try {
     const { fileName } = req.params;
+
+    // Reject invalid/unsafe names (path traversal) before touching the filesystem
+    if (!reportService.resolveReportPath(fileName)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid report file name'
+      });
+    }
 
     const deleted = await reportService.deleteReport(fileName);
 
