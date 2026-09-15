@@ -582,9 +582,7 @@ docker-compose up
 
 - **Backend README:** `backend/README.md`
 - **ML Service README:** `ml-service/README.md`
-- **Frontend README:** `frontend/README.md`
 - **API Documentation:** http://localhost:8000/docs (ML Service Swagger)
-- **Redux Implementation:** `frontend/REDUX_IMPLEMENTATION.md`
 
 ---
 
