@@ -24,12 +24,8 @@ export const connectSocket = (token, dispatch) => {
     socket.disconnect();
   }
 
-  console.log('🔍 Connecting socket with token:', {
-    hasToken: !!token,
-    tokenType: typeof token,
-    tokenPreview: token ? `${token.substring(0, 20)}...` : 'none',
-    tokenLength: token?.length
-  });
+  // The token is a credential and is never logged, not even partially
+  console.log('🔌 Connecting socket...');
 
   // Create new socket connection
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';

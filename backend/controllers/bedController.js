@@ -8,6 +8,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { estimateDischarge, estimateCleaning } = require('../services/predictionService');
 const { getAverageCleaningMinutes } = require('../services/historicalAverages');
 const { ACTIVE_BEDS, INVENTORY_ROLES, canSeePatients, toBedResponse, findBedForUser } = require('../services/bedAccess');
+const { emitBedEvent, ROOMS } = require('../services/socketEvents');
 
 // Load the bed in req.params.id for the current user, or send the error response and return null
 const loadBed = async (req, res, options) => {
@@ -248,42 +249,24 @@ exports.updateBedStatus = async (req, res) => {
         });
         console.log('✅ CleaningLog entry created successfully');
         
-        // Emit bedCleaningStarted event via socket.io (ward-specific)
-        if (req.io) {
-          req.io.to(`ward-${bed.ward}`).emit('bedCleaningStarted', {
-            bed: bed.toObject(),
-            estimatedDuration: bed.estimatedCleaningDuration,
-            estimatedEndTime: bed.estimatedCleaningEndTime,
-            timestamp: new Date()
-          });
-          console.log(`✅ bedCleaningStarted event emitted via socket.io (Ward: ${bed.ward})`);
-        }
+        // Patient details reach only the ward's own staff and admins (services/socketEvents)
+        emitBedEvent(req.io, 'bedCleaningStarted', bed, {
+          estimatedDuration: bed.estimatedCleaningDuration,
+          estimatedEndTime: bed.estimatedCleaningEndTime,
+          timestamp: new Date()
+        });
       } catch (cleaningLogError) {
         console.error('Error creating cleaning log:', cleaningLogError);
         // Continue even if logging fails
       }
     }
 
-    // Task 2.6: Emit bedStatusChanged event via socket.io (ward-specific for managers)
-    if (req.io) {
-      // Emit to specific ward for managers
-      req.io.to(`ward-${bed.ward}`).emit('bedStatusChanged', {
-        bed: bed.toObject(),
-        previousStatus,
-        newStatus: status,
-        timestamp: new Date()
-      });
-      
-      // Also emit globally for hospital admins
-      req.io.emit('bedStatusChanged', {
-        bed: bed.toObject(),
-        previousStatus,
-        newStatus: status,
-        timestamp: new Date()
-      });
-      
-      console.log(`✅ bedStatusChanged event emitted via socket.io (Ward: ${bed.ward})`);
-    }
+    // Was broadcast to every connected client with the patient's name and notes attached
+    emitBedEvent(req.io, 'bedStatusChanged', bed, {
+      previousStatus,
+      newStatus: status,
+      timestamp: new Date()
+    });
 
     // Check occupancy and trigger alerts if > 90%
     await checkOccupancyAndCreateAlerts(bed.ward, req.io);
@@ -350,9 +333,9 @@ const checkOccupancyAndCreateAlerts = async (ward, io) => {
 
         console.log(`🚨 Alert created: ${ward} occupancy high (${occupancyRate.toFixed(1)}%)`);
 
-        // Emit real-time alert via Socket.io
+        // The alert targets managers and hospital admins, so the event follows the same audience
         if (io) {
-          io.emit('occupancyAlert', {
+          io.to(ROOMS.oversight(ward)).to(ROOMS.oversightAll).emit('occupancyAlert', {
             alert: alert.toObject(),
             ward,
             occupancyRate: occupancyRate.toFixed(1),
@@ -790,38 +773,21 @@ exports.markCleaningComplete = async (req, res) => {
       console.error('Error creating occupancy log:', logError);
     }
     
-    // Emit bedCleaningCompleted event via socket.io (ward-specific)
-    if (req.io) {
-      req.io.to(`ward-${bed.ward}`).emit('bedCleaningCompleted', {
-        bed: bed.toObject(),
-        cleaningLog: {
-          duration: cleaningLog.actualDuration,
-          wasOverdue: cleaningLog.status === 'overdue' || 
-                     cleaningLog.actualDuration > cleaningLog.estimatedDuration,
-          completedBy: req.user.name || req.user.email
-        },
-        timestamp: new Date()
-      });
-      console.log('✅ bedCleaningCompleted event emitted via socket.io');
-    }
-    
-    // Task 2.6: Also emit bedStatusChanged event
-    if (req.io) {
-      req.io.to(`ward-${bed.ward}`).emit('bedStatusChanged', {
-        bed: bed.toObject(),
-        previousStatus: 'cleaning',
-        newStatus: 'available',
-        timestamp: new Date()
-      });
-      
-      // Global emit for hospital admins
-      req.io.emit('bedStatusChanged', {
-        bed: bed.toObject(),
-        previousStatus: 'cleaning',
-        newStatus: 'available',
-        timestamp: new Date()
-      });
-    }
+    emitBedEvent(req.io, 'bedCleaningCompleted', bed, {
+      cleaningLog: {
+        duration: cleaningLog.actualDuration,
+        wasOverdue: cleaningLog.status === 'overdue' ||
+                   cleaningLog.actualDuration > cleaningLog.estimatedDuration,
+        completedBy: req.user.name || req.user.email
+      },
+      timestamp: new Date()
+    });
+
+    emitBedEvent(req.io, 'bedStatusChanged', bed, {
+      previousStatus: 'cleaning',
+      newStatus: 'available',
+      timestamp: new Date()
+    });
 
     res.status(200).json({
       success: true,
@@ -887,25 +853,12 @@ exports.updateDischargeTime = async (req, res) => {
 
     await bed.save();
 
-    // Emit socket event for real-time updates
-    if (req.io) {
-      req.io.to(`ward-${bed.ward}`).emit('bedDischargeTimeUpdated', {
-        bed: bed.toObject(),
-        estimatedDischargeTime: bed.estimatedDischargeTime,
-        dischargeNotes: bed.dischargeNotes,
-        timestamp: new Date()
-      });
-
-      // Global emit for hospital admins
-      req.io.emit('bedDischargeTimeUpdated', {
-        bed: bed.toObject(),
-        estimatedDischargeTime: bed.estimatedDischargeTime,
-        dischargeNotes: bed.dischargeNotes,
-        timestamp: new Date()
-      });
-
-      console.log(`✅ bedDischargeTimeUpdated event emitted for bed ${bed.bedId}`);
-    }
+    // dischargeNotes describe the patient, so they travel inside the bed payload where they
+    // are stripped for roles that may not see them - never as a separate top-level field
+    emitBedEvent(req.io, 'bedDischargeTimeUpdated', bed, {
+      estimatedDischargeTime: bed.estimatedDischargeTime,
+      timestamp: new Date()
+    });
 
     res.status(200).json({
       success: true,

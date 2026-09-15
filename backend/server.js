@@ -32,12 +32,6 @@ const scheduledReportService = require('./services/scheduledReportService');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIO(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
-});
 
 // Enable CORS for all routes - Allow both localhost and 127.0.0.1
 const allowedOrigins = [
@@ -51,6 +45,15 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   process.env.FRONTEND_URL
 ].filter(Boolean);
+
+// Sockets carry the same data as the API, so they answer to the same origins rather than any
+const io = socketIO(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
 
 app.use(cors({
   origin: function (origin, callback) {
