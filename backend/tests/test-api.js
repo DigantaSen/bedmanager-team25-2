@@ -1,7 +1,8 @@
 // End-to-end checks for real-data forecasting, estimates and status logging.
 // Uses an in-memory MongoDB seeded by seedBeds.js + generateSyntheticData.js (never the real database).
 const path = require('path');
-const { execFile, spawn } = require('child_process');
+const fs = require('fs');
+const { execFile, execFileSync, spawn } = require('child_process');
 
 const BACKEND = process.env.BACKEND_DIR || path.join(__dirname, '..');
 const ML_DIR = process.env.ML_DIR || path.join(__dirname, '../../ml-service');
@@ -40,10 +41,44 @@ const request = async (base, method, route, { body, token } = {}) => {
 const api = (method, route, options) => request(BASE, method, route, options);
 const mlApi = (port) => (method, route, options) => request(`http://127.0.0.1:${port}`, method, route, options);
 
+// The ML service runs under Python, which lives in a different place on each machine and is
+// absent altogether on a fresh checkout (ml-service/venv is not in the repository). Look for
+// an interpreter rather than assuming one, and report null when there is none.
+const findPython = () => {
+  const candidates = [
+    process.env.ML_PYTHON,
+    path.join(ML_DIR, 'venv/bin/python'),          // Linux and macOS
+    path.join(ML_DIR, 'venv/Scripts/python.exe'),  // Windows
+    'python3',
+    'python'
+  ].filter(Boolean);
+
+  // Each candidate has to actually run: a path left over from another machine, or a name
+  // that is not on PATH, would otherwise only fail later, after minutes of waiting
+  for (const candidate of candidates) {
+    if (candidate.includes(path.sep) && !fs.existsSync(candidate)) continue;
+    try {
+      execFileSync(candidate, ['--version'], { stdio: 'ignore' });
+      return candidate;
+    } catch {}
+  }
+  return null;
+};
+// An interpreter is only useful if the service is there to run: a machine can have Python
+// on PATH while ml-service is missing or its requirements were never installed, and that
+// should skip the ML checks rather than fail them
+const PYTHON = fs.existsSync(path.join(ML_DIR, 'main.py')) ? findPython() : null;
+
 const children = [];
 process.on('exit', () => children.forEach((child) => child.kill()));
 const startMl = (port, mongoUri) => {
-  const child = spawn(path.join(ML_DIR, 'venv/Scripts/python.exe'), ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', String(port)], {
+  // spawn(null) throws where a failed spawn only emits an error, so refuse up front
+  if (!PYTHON) {
+    const stub = { output: 'no Python interpreter available', kill() {} };
+    children.push(stub);
+    return stub;
+  }
+  const child = spawn(PYTHON, ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', String(port)], {
     cwd: ML_DIR,
     env: { ...process.env, MONGO_URI: mongoUri },
     stdio: ['ignore', 'pipe', 'pipe']
@@ -51,6 +86,9 @@ const startMl = (port, mongoUri) => {
   child.output = '';
   child.stdout.on('data', (chunk) => { child.output += chunk; });
   child.stderr.on('data', (chunk) => { child.output += chunk; });
+  // Without this, a missing or unusable interpreter raises an unhandled 'error' event and
+  // takes the whole run down before a single result is printed
+  child.on('error', (error) => { child.output += `\nfailed to start: ${error.message}`; });
   children.push(child);
   return child;
 };
@@ -179,7 +217,15 @@ const startMl = (port, mongoUri) => {
     bucketTotal === dueIn72h && data.expectedDischarges.next72Hours === dueIn72h,
     { bucketTotal, next72Hours: data.expectedDischarges.next72Hours, dueIn72h });
   check('details list the soonest estimates (up to 100)', estimates.length === Math.min(100, occupiedBeds.length), estimates.length);
-  check('24h count matches details', data.expectedDischarges.next24Hours === estimates.filter((estimate) => estimate.hoursUntilDischarge <= 24).length);
+  // Counted the same way as the 72-hour check above: over every occupied bed, from the
+  // expected time. The details list is capped at 100 beds, and its hoursUntilDischarge is
+  // rounded to one decimal, so a bed just past the boundary would round back inside it.
+  const dueIn24h = occupiedBeds
+    .map((bed) => latestAssigned.get(bed._id.toString()).getTime() + avgStayHours[bed.ward] * HOUR)
+    .filter((time) => time < nowMs + 24 * HOUR).length;
+  check('24h count matches every bed due within 24 hours',
+    data.expectedDischarges.next24Hours === dueIn24h,
+    { api: data.expectedDischarges.next24Hours, expected: dueIn24h });
 
   r = await api('GET', '/analytics/forecasting', { token: managerToken });
   check('ICU manager forecast is limited to ICU',
@@ -331,10 +377,16 @@ const startMl = (port, mongoUri) => {
 
   // =====================================================================
   out('\n--- ML service without database history ---');
+  if (!PYTHON) {
+    out('  SKIPPED: the ML service could not be run from this checkout.');
+    out(`  Looked for main.py in ${ML_DIR} and for an interpreter (ML_PYTHON,`);
+    out('  ml-service/venv, then python3/python). Install requirements.txt to');
+    out('  run the ML checks as well; the checks above do not need them.');
+  }
   startMl(ML_NO_DB_PORT, 'mongodb://127.0.0.1:1/unreachable');
   const mlNoDb = mlApi(ML_NO_DB_PORT);
   let noDbHealthy = false;
-  for (let i = 0; i < 60 && !noDbHealthy; i++) {
+  for (let i = 0; i < 60 && !noDbHealthy && PYTHON; i++) {
     await sleep(1000);
     try { noDbHealthy = (await mlNoDb('GET', '/health')).status === 200; } catch {}
   }
@@ -345,7 +397,7 @@ const startMl = (port, mongoUri) => {
       mlNoDb('POST', '/api/ml/predict/bed-availability', { body: { ward: 'ICU', bed_status: 'occupied' } })
     ]);
     check('without history the ML service returns 503 for all predictions instead of hardcoded defaults', results.every((result) => result.status === 503), results.map((result) => [result.status, result.json?.detail]));
-  } else {
+  } else if (PYTHON) {
     check('ML service (no database) started', false, children[0].output.slice(-1500));
   }
 
@@ -354,11 +406,15 @@ const startMl = (port, mongoUri) => {
   const mlProcess = startMl(ML_PORT, uri);
   const ml = mlApi(ML_PORT);
   let mlReady = false;
-  for (let i = 0; i < 120 && !mlReady; i++) {
+  for (let i = 0; i < 120 && !mlReady && PYTHON; i++) {
     await sleep(1000);
     try { mlReady = (await ml('POST', '/api/ml/predict/discharge', { body: { ward: 'ICU', admission_time: new Date().toISOString() } })).status === 200; } catch {}
   }
-  check('ML service started and loaded history from the database', mlReady, mlProcess.output.slice(-1500));
+  if (PYTHON) {
+    check('ML service started and loaded history from the database', mlReady, mlProcess.output.slice(-1500));
+  } else {
+    out('  SKIPPED: the model-backed checks need the ML service running.');
+  }
 
   if (mlReady) {
     r = await api('GET', '/analytics/forecasting', { token: adminToken });
