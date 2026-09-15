@@ -33,14 +33,12 @@ export const SocketProvider = ({ children }) => {
     const localToken = localStorage.getItem('authToken');
     const actualToken = token || (localToken !== 'undefined' && localToken !== 'null' ? localToken : null);
     
+    // The token is a credential and is never logged
     console.log('🔍 SocketProvider state:', {
       isAuthenticated,
-      hasReduxToken: !!token,
-      hasLocalStorageToken: !!localStorage.getItem('authToken'),
-      localTokenValue: localToken,
-      actualToken: actualToken ? `${actualToken.substring(0, 20)}...` : 'none'
+      hasToken: Boolean(actualToken)
     });
-    
+
     // Connect socket when user is authenticated and has valid token
     if (isAuthenticated && actualToken) {
       console.log('🔌 Initializing socket connection...');
