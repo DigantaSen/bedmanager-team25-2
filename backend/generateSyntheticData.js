@@ -1,7 +1,8 @@
 // ======================================================================
-//  FIXED SYNTHETIC DATA GENERATOR — VERSION 3
-//  Fixes: ICU 30–35d overdue stays, invalid timestamps, bad logs,
-//         duplicate alerts, noisy occupancy logs, wrong discharge times.
+//  SYNTHETIC DATA GENERATOR
+//  Simulates each bed's history (admission -> discharge -> cleaning -> idle)
+//  so current bed statuses, occupancy logs, cleaning logs and alerts all
+//  describe the same events.
 // ======================================================================
 
 require("dotenv").config();
@@ -24,8 +25,8 @@ const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/bedmanager
 // ----------------------------------------------------------------------
 const CONFIG = {
   wards: ["ICU", "General", "Emergency"], // Match seedBeds.js wards only
-  daysHistory: 15,   // realistic historical window
-  today: new Date(), // anchor point for generating future discharges
+  daysHistory: 100,  // simulated history window (covers the 90-day analytics views)
+  today: new Date(), // simulation ends now
 };
 
 // ----------------------------------------------------------------------
@@ -38,25 +39,19 @@ function random(min, max) {
 // Generate realistic stay duration with ward-based mean and ±20% variance
 function getRealisticStayDuration(ward) {
   const losRange = LOS[ward];
-  const mean = (losRange[0] + losRange[1]) / 2;
-  
-  // Generate duration with normal-ish distribution centered on mean
-  // Using Box-Muller transform approximation for better normal distribution
-  const u1 = Math.random();
-  const u2 = Math.random();
-  const u3 = Math.random();
-  const u4 = Math.random();
-  const u5 = Math.random();
-  const u6 = Math.random();
-  
+
   // Central limit theorem: average of 6 uniform random variables approximates normal
-  const normalRand = (u1 + u2 + u3 + u4 + u5 + u6) / 6; // Mean = 0.5, more concentrated around center
-  
-  const minDuration = losRange[0];
-  const maxDuration = losRange[1];
-  const duration = minDuration + normalRand * (maxDuration - minDuration);
-  
-  return Math.round(duration);
+  let sum = 0;
+  for (let i = 0; i < 6; i++) sum += Math.random();
+  const normalRand = sum / 6;
+
+  return Math.round(losRange[0] + normalRand * (losRange[1] - losRange[0]));
+}
+
+// Hours a bed stays empty between cleaning and the next admission (keeps average occupancy around 75%)
+function getIdleHours(ward) {
+  const meanStay = (LOS[ward][0] + LOS[ward][1]) / 2;
+  return random(2, Math.round(meanStay * 0.6));
 }
 
 const randomChoice = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -69,7 +64,7 @@ const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "
 const conditions = ["Chest Pain", "Respiratory Distress", "Abdominal Pain", "Head Injury", "Cardiac Event", "Stroke Symptoms", "Severe Bleeding", "Motor Vehicle Accident"];
 
 // ----------------------------------------------------------------------
-// REALISTIC LENGTH OF STAY DISTRIBUTIONS (WARD-BASED WITH ±20% VARIANCE)
+// REALISTIC LENGTH OF STAY DISTRIBUTIONS (hours)
 // Updated to match seedBeds.js ward structure: ICU, General, Emergency only
 // ----------------------------------------------------------------------
 const LOS = {
@@ -79,28 +74,10 @@ const LOS = {
 };
 
 // ----------------------------------------------------------------------
-// CLEAR DATABASE (EXCEPT BEDS — SEEDBEDS.JS HANDLES THOSE)
+// SEED ACCOUNTS
 // ----------------------------------------------------------------------
-async function clearDatabase() {
-  console.log("🗑 Clearing database (keeping beds)...");
-  await Promise.all([
-    // Bed.deleteMany({}), // ← REMOVED: seedBeds.js creates beds
-    User.deleteMany({}),
-    OccupancyLog.deleteMany({}),
-    CleaningLog.deleteMany({}),
-    EmergencyRequest.deleteMany({}),
-    Alert.deleteMany({}),
-  ]);
-  console.log("✔ Database clean (beds preserved)");
-}
-
-// ----------------------------------------------------------------------
-// USER GENERATION
-// ----------------------------------------------------------------------
-async function generateUsers() {
-  console.log("👤 Generating users...");
-
-  const defaultUsers = [
+function buildSeedAccounts() {
+  const accounts = [
     {
       name: "Admin User",
       email: "admin@hospital.com",
@@ -121,14 +98,14 @@ async function generateUsers() {
       password: "manager123",
       role: "manager",
       ward: "ICU",
-      assignedWards: ["ICU", "Cardiology"],
+      assignedWards: ["ICU"],
     },
   ];
 
   // Ward staff (3 per ward)
   CONFIG.wards.forEach((w) => {
     for (let i = 1; i <= 3; i++) {
-      defaultUsers.push({
+      accounts.push({
         name: `${w} Staff ${i}`,
         email: `staff.${w.toLowerCase()}${i}@hospital.com`,
         password: "staff123",
@@ -140,7 +117,7 @@ async function generateUsers() {
 
   // ER staff
   for (let i = 1; i <= 5; i++) {
-    defaultUsers.push({
+    accounts.push({
       name: `ER Staff ${i}`,
       email: `er.staff${i}@hospital.com`,
       password: "erstaff123",
@@ -149,9 +126,35 @@ async function generateUsers() {
     });
   }
 
+  return accounts;
+}
+
+// ----------------------------------------------------------------------
+// CLEAR DATABASE (EXCEPT BEDS — SEEDBEDS.JS HANDLES THOSE)
+// Only the seed accounts are replaced; accounts created through sign-up are kept
+// ----------------------------------------------------------------------
+async function clearDatabase(seedEmails) {
+  console.log("🗑 Clearing seed accounts, logs, requests and alerts (keeping beds and other accounts)...");
+  await Promise.all([
+    User.deleteMany({ email: { $in: seedEmails } }),
+    OccupancyLog.deleteMany({}),
+    CleaningLog.deleteMany({}),
+    EmergencyRequest.deleteMany({}),
+    Alert.deleteMany({}),
+  ]);
+  const keptAccounts = await User.countDocuments({});
+  console.log(`✔ Database clean (beds and ${keptAccounts} other account${keptAccounts === 1 ? "" : "s"} preserved)`);
+}
+
+// ----------------------------------------------------------------------
+// USER GENERATION
+// ----------------------------------------------------------------------
+async function generateUsers(seedAccounts) {
+  console.log("👤 Generating users...");
+
   // Hash passwords
   const hashed = await Promise.all(
-    defaultUsers.map(async (u) => {
+    seedAccounts.map(async (u) => {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(u.password, salt);
       return { ...u, password: hashedPassword, status: "approved" };
@@ -161,13 +164,14 @@ async function generateUsers() {
   await User.insertMany(hashed);
   console.log(`✔ Created ${hashed.length} users`);
 
-  return User.find({});
+  // Generated activity is attributed to seed accounts only
+  return User.find({ email: { $in: seedAccounts.map((u) => u.email) } });
 }
 
 // ----------------------------------------------------------------------
-// FETCH EXISTING BEDS & UPDATE STATUS (SEEDBEDS.JS CREATES THE BEDS)
+// FETCH EXISTING BEDS (SEEDBEDS.JS CREATES THE BEDS)
 // ----------------------------------------------------------------------
-async function fetchAndUpdateBeds() {
+async function loadBeds() {
   console.log("🛏 Fetching beds from database...");
 
   const beds = await Bed.find({}).lean();
@@ -177,240 +181,250 @@ async function fetchAndUpdateBeds() {
     throw new Error("No beds in database. Run seedBeds.js before generateSyntheticData.js");
   }
 
+  const unsupportedWards = [...new Set(beds.map((b) => b.ward))].filter((ward) => !LOS[ward]);
+  if (unsupportedWards.length > 0) {
+    throw new Error(`No length-of-stay settings for ward(s): ${unsupportedWards.join(", ")}. Add them to LOS first.`);
+  }
+
   console.log(`✔ Found ${beds.length} beds in database`);
-
-  // Verify bed structure matches seedBeds layout
-  const icuBeds = beds.filter((b) => b.ward === "ICU");
-  const generalBeds = beds.filter((b) => b.ward === "General");
-  const emergencyBeds = beds.filter((b) => b.ward === "Emergency");
-
-  console.log(`  - ICU: ${icuBeds.length} beds`);
-  console.log(`  - General: ${generalBeds.length} beds`);
-  console.log(`  - Emergency: ${emergencyBeds.length} beds`);
-
-  // Now update beds with realistic occupancy states
-  console.log("🔄 Updating bed statuses...");
-  
-  const updates = [];
-  
-  for (let bed of beds) {
-    // 70% occupied / 20% available / 10% cleaning
-    const r = Math.random();
-    let status = "available";
-    if (r < 0.7) status = "occupied";
-    else if (r < 0.9) status = "cleaning";
-
-    const update = {
-      status,
-      patientName: null,
-      patientId: null,
-      estimatedDischargeTime: null,
-      cleaningStartTime: null,
-      estimatedCleaningDuration: null,
-      estimatedCleaningEndTime: null,
-    };
-
-    // OCCUPIED LOGIC — realistic patient + discharge time with ward-based duration
-    if (status === "occupied") {
-      const stayHours = getRealisticStayDuration(bed.ward);
-
-      // Calculate discharge time from now + stay duration
-      const dischargeTime = addHours(CONFIG.today, stayHours);
-
-      // Ensure future discharge (never past)
-      const safeDischarge =
-        dischargeTime < CONFIG.today
-          ? addHours(CONFIG.today, random(6, 48))
-          : dischargeTime;
-
-      update.patientName = randomChoice(firstNames) + " " + randomChoice(lastNames);
-      update.patientId = "P" + random(10000, 99999);
-      update.estimatedDischargeTime = safeDischarge;
-    }
-
-    // CLEANING BEDS
-    if (status === "cleaning") {
-      const start = addMinutes(CONFIG.today, -random(5, 25));
-      const dur = random(20, 45);
-      update.cleaningStartTime = start;
-      update.estimatedCleaningDuration = dur;
-      update.estimatedCleaningEndTime = addMinutes(start, dur);
-    }
-
-    updates.push(
-      Bed.updateOne({ _id: bed._id }, { $set: update })
-    );
-  }
-
-  await Promise.all(updates);
-  console.log(`✔ Updated ${beds.length} beds with realistic states`);
-  
-  // Fetch updated beds
-  return Bed.find({});
-}
-
-// ----------------------------------------------------------------------
-// OCCUPANCY LOGS — FIXED ENTRY/EXIT MODEL + HISTORICAL DATA
-// ----------------------------------------------------------------------
-async function generateOccupancyLogs(beds, users) {
-  console.log("📘 Generating occupancy logs...");
-
-  const logs = [];
-  const wardStaff = users.filter((u) => u.role === "ward_staff");
-
-  // Current occupied beds - create admission logs (only past timestamps)
-  for (let bed of beds) {
-    const staff = randomChoice(wardStaff.filter((s) => s.ward === bed.ward));
-    if (!staff) continue;
-
-    if (bed.status === "occupied") {
-      // Calculate admission time based on stay duration (always in the past)
-      const stayHours = getRealisticStayDuration(bed.ward);
-      const admissionTime = addHours(CONFIG.today, -random(12, Math.floor(stayHours * 0.8)));
-      
-      // Only create assignment log (admission)
-      // Don't create future release logs - those would violate OccupancyLog validation
-      logs.push({
-        bedId: bed._id,
-        userId: staff._id,
-        statusChange: "assigned",
-        timestamp: admissionTime,
-      });
-    }
-  }
-
-  // Generate historical occupancy logs for past 15 days
-  for (let bed of beds) {
-    const staff = randomChoice(wardStaff.filter((s) => s.ward === bed.ward));
-    if (!staff) continue;
-
-    const numHistoricalStays = random(3, 8); // 3-8 past stays per bed
-    
-    for (let i = 0; i < numHistoricalStays; i++) {
-      // Use realistic ward-based duration with ±20% variance
-      const stayHours = getRealisticStayDuration(bed.ward);
-      
-      // Historical admission (up to 15 days ago)
-      const daysAgo = random(1, CONFIG.daysHistory);
-      const hoursAgo = daysAgo * 24 + random(0, 23);
-      const admissionTime = addHours(CONFIG.today, -hoursAgo);
-      const dischargeTime = addHours(admissionTime, stayHours);
-      
-      // Only include if discharge is in the past
-      if (dischargeTime < CONFIG.today) {
-        logs.push({
-          bedId: bed._id,
-          userId: staff._id,
-          statusChange: "assigned",
-          timestamp: admissionTime,
-        });
-
-        logs.push({
-          bedId: bed._id,
-          userId: staff._id,
-          statusChange: "released",
-          timestamp: dischargeTime,
-        });
-      }
-    }
-  }
-
-  logs.sort((a, b) => a.timestamp - b.timestamp);
-  await OccupancyLog.insertMany(logs);
-
-  console.log(`✔ Created ${logs.length} occupancy logs`);
-}
-
-// ----------------------------------------------------------------------
-// CLEANING LOGS — ENHANCED WITH MORE HISTORICAL DATA
-// ----------------------------------------------------------------------
-async function generateCleaningLogs(beds, users) {
-  console.log("🧽 Generating cleaning logs...");
-
-  const wardStaff = users.filter((u) => u.role === "ward_staff");
-  const logs = [];
-
-  beds.forEach((bed) => {
-    // Generate 10-20 historical cleaning logs per bed
-    const n = random(10, 20);
-    for (let i = 0; i < n; i++) {
-      const hoursAgo = random(1, CONFIG.daysHistory * 24);
-      const start = addHours(CONFIG.today, -hoursAgo);
-      const dur = random(15, 45);
-      logs.push({
-        bedId: bed._id,
-        ward: bed.ward,
-        startTime: start,
-        endTime: addMinutes(start, dur),
-        actualDuration: dur,
-        estimatedDuration: random(20, 35),
-        performedBy: randomChoice(wardStaff)._id,
-        status: 'completed'
-      });
-    }
+  CONFIG.wards.forEach((ward) => {
+    console.log(`  - ${ward}: ${beds.filter((b) => b.ward === ward).length} beds`);
   });
 
-  await CleaningLog.insertMany(logs);
-  console.log(`✔ Created ${logs.length} cleaning logs`);
+  return beds;
 }
 
 // ----------------------------------------------------------------------
-// EMERGENCY REQUESTS — unchanged (already good)
+// BED HISTORY SIMULATION
+// Each bed cycles through: admitted -> released -> cleaned -> idle -> admitted ...
+// Logs use the same events the app records (assigned, released, maintenance_end),
+// and the bed's current status is wherever its simulated timeline is right now.
 // ----------------------------------------------------------------------
-async function generateEmergencyRequests(users) {
+function simulateBed(bed, staff) {
+  const now = CONFIG.today;
+  const windowStart = addHours(now, -CONFIG.daysHistory * 24);
+  const meanStay = (LOS[bed.ward][0] + LOS[bed.ward][1]) / 2;
+  const occupancyLogs = [];
+  const cleaningLogs = [];
+
+  const occupancyLog = (statusChange, timestamp) => ({
+    bedId: bed._id,
+    userId: randomChoice(staff)._id,
+    statusChange,
+    timestamp,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  // Open the window part-way through a stay (most beds) or an empty spell, like a running ward
+  let admittedAt = Math.random() < 0.75
+    ? addHours(windowStart, -random(0, Math.round(meanStay)))
+    : addHours(windowStart, getIdleHours(bed.ward));
+
+  while (true) {
+    occupancyLogs.push(occupancyLog("assigned", admittedAt));
+
+    const releasedAt = addHours(admittedAt, getRealisticStayDuration(bed.ward));
+    if (releasedAt >= now) {
+      return {
+        occupancyLogs,
+        cleaningLogs,
+        state: {
+          status: "occupied",
+          patientName: `${randomChoice(firstNames)} ${randomChoice(lastNames)}`,
+          patientId: `P${random(10000, 99999)}`,
+        },
+      };
+    }
+    occupancyLogs.push(occupancyLog("released", releasedAt));
+
+    // Cleaning starts when the patient leaves
+    const cleaner = randomChoice(staff);
+    const estimatedDuration = random(20, 35);
+    const actualDuration = random(15, 45);
+    const cleanedAt = addMinutes(releasedAt, actualDuration);
+
+    if (cleanedAt >= now) {
+      cleaningLogs.push({
+        bedId: bed._id,
+        ward: bed.ward,
+        startTime: releasedAt,
+        endTime: null,
+        estimatedDuration,
+        actualDuration: null,
+        status: "in_progress",
+        assignedTo: cleaner._id,
+        completedBy: null,
+        notes: null,
+        createdAt: releasedAt,
+        updatedAt: releasedAt,
+      });
+      return {
+        occupancyLogs,
+        cleaningLogs,
+        state: {
+          status: "cleaning",
+          cleaningStartTime: releasedAt,
+          estimatedCleaningDuration: estimatedDuration,
+          estimatedCleaningEndTime: addMinutes(releasedAt, estimatedDuration),
+        },
+      };
+    }
+
+    cleaningLogs.push({
+      bedId: bed._id,
+      ward: bed.ward,
+      startTime: releasedAt,
+      endTime: cleanedAt,
+      estimatedDuration,
+      actualDuration,
+      status: "completed",
+      assignedTo: cleaner._id,
+      completedBy: cleaner._id,
+      notes: null,
+      createdAt: releasedAt,
+      updatedAt: cleanedAt,
+    });
+    occupancyLogs.push(occupancyLog("maintenance_end", cleanedAt));
+
+    const nextAdmission = addHours(cleanedAt, getIdleHours(bed.ward));
+    if (nextAdmission >= now) {
+      return { occupancyLogs, cleaningLogs, state: { status: "available" } };
+    }
+    admittedAt = nextAdmission;
+  }
+}
+
+async function insertInChunks(Model, docs, chunkSize = 2000) {
+  for (let i = 0; i < docs.length; i += chunkSize) {
+    // lean: documents are fully formed here, so skip Mongoose's per-document validation lookups
+    await Model.insertMany(docs.slice(i, i + chunkSize), { lean: true });
+  }
+}
+
+async function simulateBedHistory(beds, users) {
+  console.log(`📘 Simulating ${CONFIG.daysHistory} days of bed history...`);
+
+  const wardStaff = users.filter((u) => u.role === "ward_staff");
+  const occupancyLogs = [];
+  const cleaningLogs = [];
+  const bedUpdates = [];
+  const statusCounts = { occupied: 0, cleaning: 0, available: 0 };
+
+  for (const bed of beds) {
+    const staff = wardStaff.filter((s) => s.ward === bed.ward);
+    const { occupancyLogs: bedLogs, cleaningLogs: bedCleanings, state } = simulateBed(bed, staff.length > 0 ? staff : wardStaff);
+
+    occupancyLogs.push(...bedLogs);
+    cleaningLogs.push(...bedCleanings);
+    statusCounts[state.status]++;
+
+    bedUpdates.push({
+      updateOne: {
+        filter: { _id: bed._id },
+        update: {
+          $set: {
+            status: state.status,
+            patientName: state.patientName || null,
+            patientId: state.patientId || null,
+            cleaningStartTime: state.cleaningStartTime || null,
+            estimatedCleaningDuration: state.estimatedCleaningDuration || null,
+            estimatedCleaningEndTime: state.estimatedCleaningEndTime || null,
+            // Discharge estimates are set by managers in the app, not invented here
+            estimatedDischargeTime: null,
+            dischargeNotes: null,
+            notes: null,
+          },
+        },
+      },
+    });
+  }
+
+  occupancyLogs.sort((a, b) => a.timestamp - b.timestamp);
+  await insertInChunks(OccupancyLog, occupancyLogs);
+  await insertInChunks(CleaningLog, cleaningLogs);
+  await Bed.bulkWrite(bedUpdates);
+
+  console.log(`✔ Created ${occupancyLogs.length} occupancy logs and ${cleaningLogs.length} cleaning logs`);
+  console.log(`✔ Current bed states: ${statusCounts.occupied} occupied, ${statusCounts.cleaning} cleaning, ${statusCounts.available} available`);
+}
+
+// ----------------------------------------------------------------------
+// EMERGENCY REQUESTS
+// ----------------------------------------------------------------------
+async function generateEmergencyRequests() {
   console.log("🚑 Generating emergency requests...");
 
-  const erStaff = users.filter((u) => u.role === "er_staff");
   const requests = [];
+  const count = random(30, 50);
 
-  for (let i = 0; i < random(30, 50); i++) {
-    const ts = addHours(CONFIG.today, -random(1, 72));
+  for (let i = 0; i < count; i++) {
+    // Older requests have been decided; recent ones may still be pending
+    const hoursAgo = random(1, 72);
+    const status = hoursAgo <= 6 ? randomChoice(["pending", "approved"]) : randomChoice(["approved", "approved", "rejected"]);
+    const createdAt = addHours(CONFIG.today, -hoursAgo);
+
     requests.push({
-      patientName: randomChoice(firstNames),
+      patientName: `${randomChoice(firstNames)} ${randomChoice(lastNames)}`,
       patientContact: "+1" + random(2000000000, 9999999999),
-      ward: randomChoice(["ICU", "General", "Emergency"]),
+      patientId: null,
+      ward: randomChoice(CONFIG.wards),
       priority: randomChoice(["critical", "high", "medium", "low"]),
-      status: randomChoice(["approved", "pending", "rejected"]),
+      status,
       reason: randomChoice(conditions),
       location: randomChoice(["ER Bay 1", "ER Bay 2", "Trauma Room"]),
-      description: "Emergency case handled",
-      timestamp: ts,
+      description: null,
+      createdAt,
+      updatedAt: status === "pending" ? createdAt : addMinutes(createdAt, random(5, 90)),
     });
   }
 
-  await EmergencyRequest.insertMany(requests);
+  // Insert directly so the historical createdAt/updatedAt values are kept
+  const result = await EmergencyRequest.collection.insertMany(requests);
   console.log(`✔ Created ${requests.length} emergency requests`);
+
+  return requests.map((request, i) => ({ ...request, _id: result.insertedIds[i] }));
 }
 
 // ----------------------------------------------------------------------
-// ALERTS — FIXED VOLUME + NO DUPLICATES
+// ALERTS — only for conditions that exist in the generated data
+// (same messages the app creates for pending requests and high occupancy)
 // ----------------------------------------------------------------------
-async function generateAlerts() {
+async function generateAlerts(requests) {
   console.log("🔔 Generating alerts...");
 
-  const alertTemplates = [
-    { type: "occupancy_high", severity: "critical" },
-    { type: "bed_emergency", severity: "critical" },
-    { type: "maintenance_needed", severity: "medium" },
-    { type: "request_pending", severity: "high" },
-  ];
+  const alerts = requests
+    .filter((request) => request.status === "pending")
+    .map((request) => ({
+      type: "request_pending",
+      severity: request.priority,
+      message: `Emergency bed request for ${request.patientName} at ${request.location} (${request.ward} ward)`,
+      relatedRequest: request._id,
+      ward: request.ward,
+      targetRole: ["manager", "hospital_admin"],
+      timestamp: request.createdAt,
+    }));
 
-  const alerts = [];
+  for (const ward of CONFIG.wards) {
+    const totalBeds = await Bed.countDocuments({ ward });
+    const occupiedBeds = await Bed.countDocuments({ ward, status: "occupied" });
+    const occupancyRate = totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0;
 
-  for (let i = 0; i < random(20, 35); i++) {
-    const tpl = randomChoice(alertTemplates);
-    const ward = randomChoice(["ICU", "General", "Emergency"]);
-
-    alerts.push({
-      type: tpl.type,
-      severity: tpl.severity,
-      ward: ward,
-      message: `${ward} — ${tpl.type.replace("_", " ")}`,
-      timestamp: addMinutes(CONFIG.today, -random(5, 180)),
-    });
+    if (occupancyRate > 90) {
+      alerts.push({
+        type: "occupancy_high",
+        severity: occupancyRate >= 95 ? "critical" : "high",
+        message: `${ward} ward occupancy at ${occupancyRate.toFixed(1)}% (${occupiedBeds}/${totalBeds} beds occupied)`,
+        ward,
+        targetRole: ["manager", "hospital_admin"],
+        timestamp: CONFIG.today,
+      });
+    }
   }
 
-  await Alert.insertMany(alerts);
+  if (alerts.length > 0) {
+    await Alert.insertMany(alerts);
+  }
   console.log(`✔ Created ${alerts.length} alerts`);
 }
 
@@ -422,13 +436,13 @@ async function generateAlerts() {
     await mongoose.connect(MONGO_URI);
     console.log(`✔ Connected to MongoDB (${mongoose.connection.name})`);
 
-    await clearDatabase(); // Clears logs/users/requests/alerts (NOT beds)
-    const users = await generateUsers();
-    const beds = await fetchAndUpdateBeds(); // Fetches beds from seedBeds.js, updates status
-    await generateOccupancyLogs(beds, users);
-    await generateCleaningLogs(beds, users);
-    await generateEmergencyRequests(users);
-    await generateAlerts();
+    const beds = await loadBeds(); // Checked before anything is deleted
+    const seedAccounts = buildSeedAccounts();
+    await clearDatabase(seedAccounts.map((account) => account.email)); // Keeps beds and non-seed accounts
+    const users = await generateUsers(seedAccounts);
+    await simulateBedHistory(beds, users);
+    const requests = await generateEmergencyRequests();
+    await generateAlerts(requests);
 
     console.log("\n🎉 Synthetic dataset generated successfully!");
     console.log("ℹ️  Bed structure preserved from seedBeds.js\n");

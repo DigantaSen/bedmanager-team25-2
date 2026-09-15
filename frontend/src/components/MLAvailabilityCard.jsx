@@ -4,42 +4,29 @@ import { Badge } from '@/components/ui/badge';
 import { Target, TrendingUp, Calendar, BedDouble, Info, ArrowRight } from 'lucide-react';
 
 /**
- * MLAvailabilityCard - Displays AI-predicted bed availability forecast
- * 
- * @param {number} available24h - Predicted beds available in 24 hours
- * @param {number} available48h - Predicted beds available in 48 hours
+ * MLAvailabilityCard - Displays projected bed availability
+ *
+ * Projection = beds available now + occupied beds expected to be discharged within the window
+ * (manager-set discharge times, otherwise estimates from each patient's admission time)
+ *
+ * @param {number} available24h - Projected beds available in 24 hours
+ * @param {number} available48h - Projected beds available in 48 hours
  * @param {number} currentAvailable - Current available beds (optional)
  * @param {number} totalBeds - Total beds in system (optional)
- * @param {number} confidence24h - Confidence score 0-1 for 24h (optional, default 0.85)
- * @param {number} confidence48h - Confidence score 0-1 for 48h (optional, default 0.75)
+ * @param {number} discharges24h - Expected discharges within 24 hours (optional)
+ * @param {number} discharges48h - Expected discharges within 48 hours (optional)
  */
 const MLAvailabilityCard = ({
   available24h = 0,
   available48h = 0,
   currentAvailable = null,
   totalBeds = null,
-  confidence24h = 0.85,
-  confidence48h = 0.75
+  discharges24h = null,
+  discharges48h = null
 }) => {
   // Calculate net change
   const change24h = currentAvailable !== null ? available24h - currentAvailable : null;
   const change48h = currentAvailable !== null ? available48h - currentAvailable : null;
-
-  const formatConfidence = (score) => {
-    return `${Math.round(score * 100)}%`;
-  };
-
-  const getConfidenceColor = (score) => {
-    if (score >= 0.8) return 'text-green-400';
-    if (score >= 0.6) return 'text-yellow-400';
-    return 'text-orange-400';
-  };
-
-  const getConfidenceBgColor = (score) => {
-    if (score >= 0.8) return 'bg-green-500';
-    if (score >= 0.6) return 'bg-yellow-500';
-    return 'bg-orange-500';
-  };
 
   const getTrendIcon = (change) => {
     if (change === null) return null;
@@ -72,8 +59,10 @@ const MLAvailabilityCard = ({
     }
   };
 
-  const status24h = getAvailabilityStatus(available24h, totalBeds);
-  const status48h = getAvailabilityStatus(available48h, totalBeds);
+  const forecasts = [
+    { label: '24-Hour Forecast', available: available24h, change: change24h, discharges: discharges24h },
+    { label: '48-Hour Forecast', available: available48h, change: change48h, discharges: discharges48h }
+  ];
 
   return (
     <Card className="bg-neutral-900 border-neutral-700">
@@ -84,11 +73,11 @@ const MLAvailabilityCard = ({
             Bed Availability Forecast
           </CardTitle>
           <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40">
-            ML Model
+            Forecast
           </Badge>
         </div>
         <p className="text-xs text-slate-400 mt-1">
-          Predicted bed availability based on historical patterns and discharge forecasts
+          Beds available now plus expected discharges (manager-set times, otherwise estimated discharge times)
         </p>
       </CardHeader>
       <CardContent>
@@ -109,106 +98,51 @@ const MLAvailabilityCard = ({
             </div>
           )}
 
-          {/* 24-Hour Forecast */}
-          <div className={`border rounded-lg p-4 ${getStatusColor(status24h)}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                <span className="font-semibold text-white">24-Hour Forecast</span>
+          {forecasts.map((forecast) => (
+            <div
+              key={forecast.label}
+              className={`border rounded-lg p-4 ${getStatusColor(getAvailabilityStatus(forecast.available, totalBeds))}`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  <span className="font-semibold text-white">{forecast.label}</span>
+                </div>
+                {getTrendIcon(forecast.change)}
               </div>
-              {getTrendIcon(change24h)}
-            </div>
 
-            <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-4xl font-bold text-white">{available24h}</span>
-              <span className="text-lg text-slate-300">beds</span>
-              {change24h !== null && (
-                <Badge
-                  variant="outline"
-                  className={`ml-2 ${change24h > 0 ? 'border-green-500/50 text-green-400' :
-                      change24h < 0 ? 'border-red-500/50 text-red-400' :
-                        'border-slate-500/50 text-slate-400'
-                    }`}
-                >
-                  {getTrendText(change24h)}
-                </Badge>
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-4xl font-bold text-white">{forecast.available}</span>
+                <span className="text-lg text-slate-300">beds</span>
+                {forecast.change !== null && (
+                  <Badge
+                    variant="outline"
+                    className={`ml-2 ${forecast.change > 0 ? 'border-green-500/50 text-green-400' :
+                        forecast.change < 0 ? 'border-red-500/50 text-red-400' :
+                          'border-slate-500/50 text-slate-400'
+                      }`}
+                  >
+                    {getTrendText(forecast.change)}
+                  </Badge>
+                )}
+              </div>
+
+              {forecast.discharges !== null && (
+                <div className="text-xs text-slate-400">
+                  Includes {forecast.discharges} expected discharge{forecast.discharges !== 1 ? 's' : ''}
+                </div>
+              )}
+
+              {totalBeds !== null && totalBeds > 0 && (
+                <div className="mt-2 text-xs text-slate-400">
+                  Projected availability: {((forecast.available / totalBeds) * 100).toFixed(1)}%
+                </div>
               )}
             </div>
-
-            {/* Confidence Indicator */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">Prediction Confidence</span>
-                <span className={`font-semibold ${getConfidenceColor(confidence24h)}`}>
-                  {formatConfidence(confidence24h)}
-                </span>
-              </div>
-              <div className="w-full bg-neutral-700 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className={`h-full transition-all ${getConfidenceBgColor(confidence24h)}`}
-                  style={{ width: `${confidence24h * 100}%` }}
-                />
-              </div>
-            </div>
-
-            {totalBeds !== null && (
-              <div className="mt-2 text-xs text-slate-400">
-                Projected availability: {((available24h / totalBeds) * 100).toFixed(1)}%
-              </div>
-            )}
-          </div>
-
-          {/* 48-Hour Forecast */}
-          <div className={`border rounded-lg p-4 ${getStatusColor(status48h)}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                <span className="font-semibold text-white">48-Hour Forecast</span>
-              </div>
-              {getTrendIcon(change48h)}
-            </div>
-
-            <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-4xl font-bold text-white">{available48h}</span>
-              <span className="text-lg text-slate-300">beds</span>
-              {change48h !== null && (
-                <Badge
-                  variant="outline"
-                  className={`ml-2 ${change48h > 0 ? 'border-green-500/50 text-green-400' :
-                      change48h < 0 ? 'border-red-500/50 text-red-400' :
-                        'border-slate-500/50 text-slate-400'
-                    }`}
-                >
-                  {getTrendText(change48h)}
-                </Badge>
-              )}
-            </div>
-
-            {/* Confidence Indicator */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">Prediction Confidence</span>
-                <span className={`font-semibold ${getConfidenceColor(confidence48h)}`}>
-                  {formatConfidence(confidence48h)}
-                </span>
-              </div>
-              <div className="w-full bg-neutral-700 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className={`h-full transition-all ${getConfidenceBgColor(confidence48h)}`}
-                  style={{ width: `${confidence48h * 100}%` }}
-                />
-              </div>
-            </div>
-
-            {totalBeds !== null && (
-              <div className="mt-2 text-xs text-slate-400">
-                Projected availability: {((available48h / totalBeds) * 100).toFixed(1)}%
-              </div>
-            )}
-          </div>
+          ))}
 
           {/* Capacity Planning Insight */}
-          {totalBeds !== null && (
+          {totalBeds !== null && totalBeds > 0 && (
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
@@ -237,7 +171,7 @@ const MLAvailabilityCard = ({
           <div className="flex items-center justify-between text-xs text-slate-400">
             <div className="flex items-center gap-1">
               <Target className="w-3 h-3" />
-              <span>ML-based capacity forecast</span>
+              <span>Available now + expected discharges</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">

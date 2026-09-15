@@ -121,7 +121,9 @@ curl http://localhost:8000/models/status
 
 ## 📝 Notes
 
-- MongoDB is used for training and, at runtime, to compute the historical averages used by discharge and cleaning predictions. They are cached in memory and refreshed in the background, so predictions never wait on the database; if MongoDB is unreachable, ward defaults are used (`metadata.history_source` shows which)
+- MongoDB is used for training and, at runtime, to compute the historical features used by all three predictions (ward/time-of-day averages and occupancy rates, with the same definitions as the training scripts). They are cached in memory and refreshed in the background, so predictions never wait on the database. Until that history has loaded (or if there is none), prediction endpoints return 503 instead of guessing; `metadata.history_samples` shows how many records a prediction was based on
+- `hours_until_discharge` is the predicted length of stay counted from `admission_time`; the backend turns it into a discharge time and time remaining
+- Bed availability predictions need the bed's current status (`bed_status`) and always use the model's 6-hour horizon
 - Ward encoding (`utils.ward_to_numeric`) must match the training scripts: ICU=0, General=1, Emergency=2
 - Models are loaded once at startup for fast predictions
 - The service is stateless and can be horizontally scaled

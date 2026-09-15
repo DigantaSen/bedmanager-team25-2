@@ -5,15 +5,12 @@ import { selectCurrentUser, selectIsAuthenticated, logout } from '@/features/aut
 import api from '@/services/api';
 import {
     Sidebar,
-    DesktopSidebar,
-    MobileSidebar,
     SidebarBody,
     SidebarLink,
     Logo,
-    LogoIcon,
     ProfileLink,
 } from "@/components/ui/sidebar";
-import { Home, Settings, Users, BarChart2, Bell } from "lucide-react";
+import { Home, Settings, BarChart2, Bell } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { BedSelection } from '@/components/ui/bed-selection';
 import {
@@ -25,47 +22,39 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 
-// Helper to generate beds for a row
-const generateBeds = (start, end, rowId) => {
-    const beds = [];
-    for (let i = start; i <= end; i++) beds.push({ id: `${rowId}${i}`, number: i });
-    return beds;
+// Wards in the hospital's usual order; any other ward follows alphabetically
+const WARD_ORDER = ['ICU', 'General', 'Emergency'];
+const wardRank = (ward) => (WARD_ORDER.includes(ward) ? WARD_ORDER.indexOf(ward) : WARD_ORDER.length);
+const byNaturalOrder = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true });
+
+// Bed map built from the beds in the database: a section per ward and a row per bed ID prefix (e.g. "iA" in "iA5")
+const buildBedLayout = (beds) => {
+    const wards = new Map();
+    beds.forEach((bed) => {
+        const match = /^(.*?)-?(\d+)$/.exec(bed.bedId);
+        const rowId = match && match[1] ? match[1] : bed.ward;
+        if (!wards.has(bed.ward)) wards.set(bed.ward, new Map());
+        const rows = wards.get(bed.ward);
+        if (!rows.has(rowId)) rows.set(rowId, []);
+        rows.get(rowId).push({ id: bed.bedId, number: match ? Number(match[2]) : bed.bedId });
+    });
+
+    return [...wards.entries()]
+        .sort(([a], [b]) => wardRank(a) - wardRank(b) || a.localeCompare(b))
+        .map(([ward, rows]) => ({
+            categoryName: ward,
+            rows: [...rows.entries()]
+                .sort(([a], [b]) => byNaturalOrder(a, b))
+                .map(([rowId, rowBeds]) => ({ rowId, beds: rowBeds.sort((a, b) => byNaturalOrder(a.id, b.id)) })),
+        }));
 };
-
-const bedLayoutData = [
-    {
-        categoryName: 'ICU',
-        rows: [
-            { rowId: 'iA', beds: [...generateBeds(1, 6, 'iA'), { id: 'iA-spacer', isSpacer: true }, ...generateBeds(7, 12, 'iA')] },
-            { rowId: 'iB', beds: [...generateBeds(1, 6, 'iB'), { id: 'iB-spacer', isSpacer: true }, ...generateBeds(7, 12, 'iB')] },
-
-        ],
-    },
-    {
-        categoryName: 'FLOOR 1',
-        rows: [
-            { rowId: 'A', beds: [...generateBeds(1, 9, 'A'), { id: 'A-spacer', isSpacer: true }, ...generateBeds(10, 21, 'A')] },
-            { rowId: 'B', beds: [...generateBeds(1, 9, 'B'), { id: 'B-spacer', isSpacer: true }, ...generateBeds(10, 21, 'B')] },
-            { rowId: 'C', beds: [...generateBeds(1, 9, 'C'), { id: 'C-spacer', isSpacer: true }, ...generateBeds(10, 21, 'C')] },
-            { rowId: 'D', beds: [...generateBeds(1, 9, 'D'), { id: 'D-spacer', isSpacer: true }, ...generateBeds(10, 21, 'D')] },
-        ],
-    },
-    {
-        categoryName: 'FLOOR 2',
-        rows: [
-            { rowId: 'E', beds: [...generateBeds(1, 9, 'E'), { id: 'E-spacer', isSpacer: true }, ...generateBeds(10, 21, 'E')] },
-            { rowId: 'F', beds: [...generateBeds(1, 9, 'F'), { id: 'F-spacer', isSpacer: true }, ...generateBeds(10, 21, 'F')] },
-            { rowId: 'G', beds: [...generateBeds(1, 9, 'G'), { id: 'G-spacer', isSpacer: true }, ...generateBeds(10, 21, 'G')] },
-            { rowId: 'H', beds: [...generateBeds(1, 9, 'H'), { id: 'H-spacer', isSpacer: true }, ...generateBeds(10, 21, 'H')] },
-        ],
-    },
-];
 
 const Legend = () => (
     <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4 p-4 rounded-md border bg-card text-card-foreground">
         <div className="flex items-center gap-2"><div className="w-5 h-5 rounded border-emerald-600 bg-emerald-600" /><span className="text-sm">Available</span></div>
         <div className="flex items-center gap-2"><div className="w-5 h-5 rounded border-primary bg-primary" /><span className="text-sm">Selected</span></div>
         <div className="flex items-center gap-2"><div className="w-5 h-5 rounded border-red-600 bg-red-600" /><span className="text-sm">Occupied</span></div>
+        <div className="flex items-center gap-2"><div className="w-5 h-5 rounded border-yellow-500 bg-yellow-500" /><span className="text-sm">Cleaning</span></div>
     </div>
 );
 
@@ -77,9 +66,9 @@ function Dashboard() {
     const [selectedBeds, setSelectedBeds] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState('ALL');
     const [isBooking, setIsBooking] = useState(false);
-    const [occupiedBeds, setOccupiedBeds] = useState([]);
     const [allBeds, setAllBeds] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(null);
     const [showSettings, setShowSettings] = useState(false);
 
     const links = [
@@ -107,21 +96,6 @@ function Dashboard() {
         },
     ];
 
-    // Debug authentication state
-    useEffect(() => {
-        console.log('Dashboard Auth State:', {
-            isAuthenticated,
-            currentUser,
-            token: localStorage.getItem('authToken'),
-            storedUser: localStorage.getItem('user')
-        });
-    }, [isAuthenticated, currentUser]);
-
-    // Debug occupied beds changes
-    useEffect(() => {
-        console.log('🔄 Occupied beds updated:', occupiedBeds);
-    }, [occupiedBeds]);
-
     // Fetch beds from backend on mount
     useEffect(() => {
         fetchBeds();
@@ -131,39 +105,35 @@ function Dashboard() {
         try {
             setLoading(true);
             const response = await api.get('/beds');
-            const beds = response.data?.data?.beds || response.data?.beds || [];
-
-            setAllBeds(beds);
-
-            // Extract occupied bed IDs
-            const occupied = beds
-                .filter(bed => bed.status === 'occupied')
-                .map(bed => bed.bedId);
-            setOccupiedBeds(occupied);
-
-            console.log('Fetched beds:', beds.length);
-            console.log('Occupied bed IDs:', occupied);
-            console.log('Sample beds:', beds.slice(0, 5));
+            setAllBeds(response.data?.data?.beds || []);
+            setLoadError(null);
         } catch (error) {
             console.error('Error fetching beds:', error);
-            // Fallback to hardcoded if API fails
-            setOccupiedBeds(['F17', 'F18', 'F19', 'iA1', 'C2', 'C10', 'C11', 'E9']);
+            setLoadError(error.response?.data?.message || 'Could not load beds from the server');
         } finally {
             setLoading(false);
         }
     };
 
-    const filteredLayout = useMemo(() => {
-        if (selectedCategory === 'ALL') return bedLayoutData;
-        return bedLayoutData.filter((c) => c.categoryName === selectedCategory);
-    }, [selectedCategory]);
+    const occupiedBeds = useMemo(() => allBeds.filter(bed => bed.status === 'occupied').map(bed => bed.bedId), [allBeds]);
+    const cleaningBeds = useMemo(() => allBeds.filter(bed => bed.status === 'cleaning').map(bed => bed.bedId), [allBeds]);
+    const bedLayout = useMemo(() => buildBedLayout(allBeds), [allBeds]);
 
-    const categories = useMemo(() => ['ALL', ...bedLayoutData.map(c => c.categoryName)], []);
+    const filteredLayout = useMemo(() => {
+        if (selectedCategory === 'ALL') return bedLayout;
+        return bedLayout.filter((c) => c.categoryName === selectedCategory);
+    }, [bedLayout, selectedCategory]);
+
+    const categories = useMemo(() => ['ALL', ...bedLayout.map(c => c.categoryName)], [bedLayout]);
 
     const handleBedSelect = (bedId) => {
-        // Prevent selecting occupied beds
+        // Prevent selecting occupied beds or beds being cleaned
         if (occupiedBeds.includes(bedId)) {
             alert(`Bed ${bedId} is already occupied and cannot be selected.`);
+            return;
+        }
+        if (cleaningBeds.includes(bedId)) {
+            alert(`Bed ${bedId} is being cleaned and cannot be selected yet.`);
             return;
         }
         setSelectedBeds((prev) => prev.includes(bedId) ? prev.filter(id => id !== bedId) : [...prev, bedId]);
@@ -191,11 +161,11 @@ function Dashboard() {
 
         const patientId = prompt("Enter patient ID (optional):");
 
-        // Double-check no occupied beds are selected
-        const invalidBeds = selectedBeds.filter(bedId => occupiedBeds.includes(bedId));
+        // Double-check no unavailable beds are selected
+        const invalidBeds = selectedBeds.filter(bedId => occupiedBeds.includes(bedId) || cleaningBeds.includes(bedId));
         if (invalidBeds.length > 0) {
-            alert(`Cannot book occupied beds: ${invalidBeds.join(', ')}`);
-            setSelectedBeds(selectedBeds.filter(bedId => !occupiedBeds.includes(bedId)));
+            alert(`Cannot book beds that are occupied or being cleaned: ${invalidBeds.join(', ')}`);
+            setSelectedBeds(selectedBeds.filter(bedId => !invalidBeds.includes(bedId)));
             return;
         }
 
@@ -204,23 +174,18 @@ function Dashboard() {
         try {
             const results = [];
             const errors = [];
-            const successfulBedIds = [];
 
             // Book each bed via backend API
             for (const bedId of selectedBeds) {
                 try {
-                    console.log(`Booking bed ${bedId}...`);
                     const response = await api.patch(`/beds/${bedId}/status`, {
                         status: 'occupied',
                         patientName: patientName.trim(),
                         patientId: patientId?.trim() || null
                     });
-                    console.log(`✅ Bed ${bedId} booked successfully:`, response.data);
                     results.push({ bedId, success: true, data: response.data });
-                    successfulBedIds.push(bedId);
                 } catch (error) {
                     console.error(`Failed to book bed ${bedId}:`, error);
-                    console.error('Error response:', error.response?.data);
                     const errorMsg = error.response?.data?.message ||
                         error.response?.data?.errors?.[0]?.message ||
                         'Booking failed';
@@ -228,23 +193,10 @@ function Dashboard() {
                 }
             }
 
-            // Update occupied beds with successful bookings
-            if (successfulBedIds.length > 0) {
-                setOccupiedBeds(prev => {
-                    const updated = [...new Set([...prev, ...successfulBedIds])];
-                    console.log('Updated occupied beds:', updated);
-                    return updated;
-                });
-            }
-
             // Show results
             if (errors.length === 0) {
                 alert(`✅ Successfully booked ${results.length} bed(s):\n${selectedBeds.join(', ')}`);
                 setSelectedBeds([]);
-
-                // Refresh bed data from backend to ensure consistency
-                console.log('Refreshing bed data from backend...');
-                await fetchBeds();
             } else {
                 const successCount = results.length;
                 const errorCount = errors.length;
@@ -258,12 +210,11 @@ function Dashboard() {
                 );
 
                 // Remove successfully booked beds from selection
-                const failedBedIds = errors.map(e => e.bedId);
-                setSelectedBeds(failedBedIds);
-
-                // Refresh bed data from backend
-                await fetchBeds();
+                setSelectedBeds(errors.map(e => e.bedId));
             }
+
+            // Refresh bed data from backend so the map shows the saved statuses
+            await fetchBeds();
         } catch (error) {
             console.error('Booking error:', error);
             alert('Failed to process booking. Please try again.');
@@ -329,6 +280,15 @@ function Dashboard() {
                     </div>
 
                     <div className="w-full max-w-5xl mx-auto flex flex-col items-center py-4">
+                        {loadError && (
+                            <div className="w-full mb-4 p-4 rounded-md border border-red-500/40 bg-red-500/10 text-center">
+                                <p className="text-sm text-red-500">{loadError}</p>
+                                <Button variant="outline" size="sm" className="mt-2" onClick={fetchBeds} disabled={loading}>
+                                    Try again
+                                </Button>
+                            </div>
+                        )}
+
                         {loading ? (
                             <div className="flex items-center justify-center py-20">
                                 <div className="text-center">
@@ -336,13 +296,18 @@ function Dashboard() {
                                     <p className="text-neutral-600 dark:text-neutral-400">Loading beds...</p>
                                 </div>
                             </div>
+                        ) : allBeds.length === 0 ? (
+                            !loadError && (
+                                <p className="py-20 text-neutral-600 dark:text-neutral-400">No beds have been added yet.</p>
+                            )
                         ) : (
                             <>
                                 <BedSelection
-                                    key={`${selectedCategory}-${occupiedBeds.length}`}
+                                    key={`${selectedCategory}-${occupiedBeds.length}-${cleaningBeds.length}`}
                                     layout={filteredLayout}
                                     selectedBeds={selectedBeds}
                                     occupiedBeds={occupiedBeds}
+                                    cleaningBeds={cleaningBeds}
                                     onBedSelect={handleBedSelect}
                                 />
 

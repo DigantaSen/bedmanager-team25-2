@@ -10,7 +10,8 @@ const {
   getCleaningPerformance,
   getOccupancyHistory,
   getWardUtilization,
-  getPeakDemandAnalysis
+  getPeakDemandAnalysis,
+  getOccupancyTimeline
 } = require('../controllers/analyticsController');
 const { validateObjectId } = require('../middleware/validators');
 const { protect, authorize } = require('../middleware/authMiddleware');
@@ -64,6 +65,13 @@ router.get('/cleaning-performance', protect, authorize('manager', 'hospital_admi
  * Query params: startDate (ISO), endDate (ISO), wardFilter (string), granularity (hourly|daily|weekly)
  */
 router.get('/occupancy-history', getOccupancyHistory);
+
+/**
+ * GET /api/analytics/occupancy-timeline
+ * Occupancy over time reconstructed from recorded assignments and releases
+ * Query params: range (7days|30days|90days), ward (optional; managers are limited to their ward)
+ */
+router.get('/occupancy-timeline', protect, authorize('manager', 'hospital_admin'), getOccupancyTimeline);
 
 /**
  * GET /api/analytics/ward-utilization

@@ -482,7 +482,9 @@ npm run fix:cleaning
 ### Data Generation
 
 ```bash
-# Generate synthetic data for testing
+# Generate synthetic data for testing (run seedBeds.js first).
+# Replaces the seed accounts, occupancy/cleaning logs, emergency requests and alerts with a
+# consistent simulated 100-day history (beds and accounts created through sign-up are kept).
 cd backend
 node generateSyntheticData.js
 ```

@@ -826,7 +826,7 @@ const ForecastingPanel = ({ ward }) => {
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              <span>Avg. stay: {displayMetrics.avgLengthOfStay || 0} days</span>
+              <span>Avg. stay: {displayMetrics.avgLengthOfStay ? `${displayMetrics.avgLengthOfStay} days` : 'no completed stays'}</span>
             </div>
           </div>
           <div className="flex items-center gap-1">

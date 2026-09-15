@@ -54,14 +54,16 @@ node generateSyntheticData.js
 ```
 
 **What it does:**
-- Clears logs, users, requests, alerts (preserves beds)
-- Fetches existing 192 beds from database
-- Updates bed statuses (70% occupied, 20% available, 10% cleaning)
-- Creates 17 users (admins, managers, ward staff, ER staff)
-- Generates ~2,000 occupancy logs (historical patient stays)
-- Generates ~2,800 cleaning logs (historical cleaning records)
-- Generates ~35 emergency requests
-- Generates ~25 alerts
+- Fetches the existing 192 beds (stops before deleting anything if a bed's ward has no stay-length settings)
+- Clears logs, requests and alerts, and replaces the 17 seed accounts (admins, managers, ward staff, ER staff);
+  beds and accounts created through sign-up are kept
+- Simulates the last 100 days of every bed: admission → discharge → cleaning → empty → next admission,
+  with ward-based stay lengths (average occupancy around 75%)
+- Writes the occupancy logs (`assigned`, `released`, `maintenance_end`) and cleaning logs from that simulation,
+  so each bed's current status, patient and cleaning fields match its last logged event
+- Leaves `estimatedDischargeTime` empty (managers set discharge times in the app)
+- Generates 30-50 emergency requests from the last 72 hours (only the most recent can still be pending)
+- Creates alerts only for pending requests and for wards that are actually above 90% occupancy
 
 ## Quick Test Script
 
@@ -91,7 +93,7 @@ node verifyBeds.js
 - ICU: 24 beds (iA1-iA12, iB1-iB12)
 - General: 84 beds (A1-A21, B1-B21, C1-C21, D1-D21)
 - Emergency: 84 beds (E1-E21, F1-F21, G1-G21, H1-H21)
-- Status distribution: ~70% occupied, ~20% available, ~10% cleaning
+- Status distribution: wherever each bed's simulated history ends (typically ~75% occupied, a few beds being cleaned)
 
 ## Key Changes Made
 
@@ -99,12 +101,8 @@ node verifyBeds.js
 ```javascript
 const CONFIG = {
   wards: ["ICU", "General", "Emergency"], // Only 3 wards
-  // Removed: bedsPerWard (no longer creating beds)
-  bedPatterns: {
-    ICU: ["iA1-iA12", "iB1-iB12"],
-    General: ["A1-A21", "B1-B21", "C1-C21", "D1-D21"],
-    Emergency: ["E1-E21", "F1-F21", "G1-G21", "H1-H21"]
-  }
+  daysHistory: 100,  // simulated history window (covers the 90-day analytics views)
+  today: new Date(), // simulation ends now
 };
 ```
 
@@ -119,11 +117,11 @@ const LOS = {
 
 ### 3. Database Clearing
 ```javascript
-async function clearDatabase() {
-  // Clears everything EXCEPT beds
+async function clearDatabase(seedEmails) {
+  // Clears everything EXCEPT beds and accounts created through sign-up
   await Promise.all([
     // Bed.deleteMany({}), // ← REMOVED
-    User.deleteMany({}),
+    User.deleteMany({ email: { $in: seedEmails } }), // seed accounts only
     OccupancyLog.deleteMany({}),
     CleaningLog.deleteMany({}),
     EmergencyRequest.deleteMany({}),
@@ -134,7 +132,7 @@ async function clearDatabase() {
 
 ### 4. Bed Fetching Instead of Creation
 ```javascript
-async function fetchAndUpdateBeds() {
+async function loadBeds() {
   // Fetch existing beds from database
   const beds = await Bed.find({}).lean();
   
@@ -142,7 +140,7 @@ async function fetchAndUpdateBeds() {
     throw new Error("No beds found! Run seedBeds.js first.");
   }
   
-  // Update bed statuses without recreating them
+  // Statuses are then set from each bed's simulated history (simulateBed), not picked at random
   // ...
 }
 ```
@@ -160,7 +158,7 @@ async function fetchAndUpdateBeds() {
 🔧 **For ML Model Training:**
 The synthetic data provides realistic patterns for:
 - Patient discharge prediction (based on ward and stay duration)
-- Cleaning duration prediction (20-40 min per cleaning)
+- Cleaning duration prediction (15-45 min per cleaning)
 - Bed availability forecasting (24h/48h predictions)
 
 ## Files Modified
@@ -175,13 +173,13 @@ The synthetic data provides realistic patterns for:
 The synthetic data is designed to work with the ML service prediction models:
 
 - **Discharge Prediction**: Uses occupancy logs with realistic stay durations
-- **Cleaning Prediction**: Uses cleaning logs with 20-40 min durations
+- **Cleaning Prediction**: Uses cleaning logs with 15-45 min durations
 - **Availability Forecast**: Uses historical occupancy patterns
 
 After running this workflow, the ML models can be trained with:
 ```bash
 cd ml-service
-python train/train_discharge_model.py
-python train/train_cleaning_model.py
-python train/train_availability_model.py
+python train/train_discharge.py
+python train/train_cleaning_duration.py
+python train/train_bed_availability.py
 ```

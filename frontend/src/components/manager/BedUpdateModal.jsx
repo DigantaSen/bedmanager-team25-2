@@ -7,7 +7,6 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
   const [status, setStatus] = useState(bed?.status || 'available');
   const [patientName, setPatientName] = useState(bed?.patientName || '');
   const [patientId, setPatientId] = useState(bed?.patientId || '');
-  const [cleaningDuration, setCleaningDuration] = useState('45');
   const [notes, setNotes] = useState(bed?.notes || '');
   const [estimatedDischargeTime, setEstimatedDischargeTime] = useState('');
   const [dischargeNotes, setDischargeNotes] = useState(bed?.dischargeNotes || '');
@@ -88,12 +87,8 @@ const BedUpdateModal = ({ bed, isOpen, onClose, onSuccess, emergencyPatientData 
         isOverdue,
         estimatedDuration: bed.estimatedCleaningDuration
       });
-
-      // Set current cleaning duration for adjustment
-      setCleaningDuration(bed.estimatedCleaningDuration.toString());
     } else {
       setCleaningProgress(null);
-      setCleaningDuration('45'); // Reset to default
     }
   }, [bed, emergencyPatientData]);
 

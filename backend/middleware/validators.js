@@ -5,6 +5,7 @@ const { body, param, query, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 const { ROLES, SELF_SIGNUP_ROLES, WARDS } = require('../config/roles');
 const { MIN_PASSWORD_LENGTH } = require('../config/passwordPolicy');
+const { WARD_TYPES: HOSPITAL_WARD_TYPES } = require('../models/Hospital');
 
 /**
  * @desc    Middleware to handle validation errors
@@ -286,6 +287,133 @@ const validateCreateOccupancyLog = [
   handleValidationErrors
 ];
 
+const PHONE_PATTERN = /^[\d\s\-+()]+$/;
+
+/**
+ * @desc    Validation rules for nearby hospital directory details
+ * @param   optionalFields - updates may send any subset of the fields
+ */
+const hospitalDetailRules = (optionalFields) => {
+  const field = (name) => (optionalFields ? body(name).optional() : body(name));
+
+  return [
+    field('name')
+      .trim()
+      .notEmpty()
+      .withMessage('Hospital name is required')
+      .isLength({ max: 200 })
+      .withMessage('Hospital name cannot exceed 200 characters'),
+
+    field('address')
+      .trim()
+      .notEmpty()
+      .withMessage('Address is required')
+      .isLength({ max: 500 })
+      .withMessage('Address cannot exceed 500 characters'),
+
+    field('distance')
+      .isFloat({ min: 0 })
+      .withMessage('Distance must be a number of kilometres (0 or more)')
+      .toFloat(),
+
+    field('contactNumber')
+      .trim()
+      .notEmpty()
+      .withMessage('Contact number is required')
+      .matches(PHONE_PATTERN)
+      .withMessage('Please provide a valid contact number'),
+
+    body('emergencyContact')
+      .optional({ values: 'falsy' })
+      .trim()
+      .matches(PHONE_PATTERN)
+      .withMessage('Please provide a valid emergency contact'),
+
+    body('location.latitude')
+      .optional({ values: 'falsy' })
+      .isFloat({ min: -90, max: 90 })
+      .withMessage('Latitude must be between -90 and 90')
+      .toFloat(),
+
+    body('location.longitude')
+      .optional({ values: 'falsy' })
+      .isFloat({ min: -180, max: 180 })
+      .withMessage('Longitude must be between -180 and 180')
+      .toFloat(),
+
+    body('isActive')
+      .optional()
+      .isBoolean()
+      .withMessage('isActive must be true or false')
+      .toBoolean()
+  ];
+};
+
+/**
+ * @desc    Validation rules for a hospital's ward bed counts
+ */
+const hospitalWardRules = [
+  body('wards')
+    .isArray({ min: 1 })
+    .withMessage('Add at least one ward'),
+
+  body('wards.*.wardType')
+    .isIn(HOSPITAL_WARD_TYPES)
+    .withMessage(`Ward type must be one of: ${HOSPITAL_WARD_TYPES.join(', ')}`),
+
+  body('wards.*.totalBeds')
+    .isInt({ min: 0 })
+    .withMessage('Total beds must be a whole number (0 or more)')
+    .toInt(),
+
+  body('wards.*.availableBeds')
+    .isInt({ min: 0 })
+    .withMessage('Available beds must be a whole number (0 or more)')
+    .toInt(),
+
+  body('wards')
+    .custom((wards) => {
+      if (!Array.isArray(wards)) return true; // reported by the isArray rule
+      const wardTypes = wards.map((ward) => ward.wardType);
+      if (new Set(wardTypes).size !== wardTypes.length) {
+        throw new Error('Each ward type can only be listed once');
+      }
+      if (wards.some((ward) => Number(ward.availableBeds) > Number(ward.totalBeds))) {
+        throw new Error('Available beds cannot exceed total beds');
+      }
+      return true;
+    })
+];
+
+/**
+ * @desc    Validation rules for adding a hospital to the directory
+ */
+const validateCreateHospital = [
+  ...hospitalDetailRules(false),
+  ...hospitalWardRules,
+  handleValidationErrors
+];
+
+/**
+ * @desc    Validation rules for updating hospital details (bed counts have their own route)
+ */
+const validateUpdateHospital = [
+  ...hospitalDetailRules(true),
+  body('wards')
+    .not()
+    .exists()
+    .withMessage('Update bed counts with PUT /api/referrals/hospitals/:id/beds'),
+  handleValidationErrors
+];
+
+/**
+ * @desc    Validation rules for updating a hospital's bed counts
+ */
+const validateHospitalBeds = [
+  ...hospitalWardRules,
+  handleValidationErrors
+];
+
 module.exports = {
   handleValidationErrors,
   validateRegister,
@@ -296,5 +424,8 @@ module.exports = {
   validateUpdateBedStatus,
   validateBedQuery,
   validateObjectId,
-  validateCreateOccupancyLog
+  validateCreateOccupancyLog,
+  validateCreateHospital,
+  validateUpdateHospital,
+  validateHospitalBeds
 };

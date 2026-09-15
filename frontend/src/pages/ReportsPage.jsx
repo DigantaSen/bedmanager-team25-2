@@ -168,7 +168,6 @@ const ReportsPage = () => {
   const reportTypes = [
     { value: 'comprehensive', label: 'Comprehensive Report' },
     { value: 'occupancy', label: 'Occupancy Report' },
-    { value: 'financial', label: 'Financial Report' },
     { value: 'performance', label: 'Performance Report' }
   ];
 
