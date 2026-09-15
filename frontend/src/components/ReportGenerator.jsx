@@ -192,7 +192,8 @@ const ReportGenerator = () => {
       fetchReportHistory();
     } catch (error) {
       console.error('Error sending email:', error);
-      alert('Failed to send email. Please check your email configuration in the backend.');
+      // The server refuses addresses that are not registered, approved accounts - show why
+      alert(error.response?.data?.message || 'Failed to send email. Please check your email configuration in the backend.');
     } finally {
       setIsEmailing(false);
     }

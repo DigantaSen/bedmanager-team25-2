@@ -1,16 +1,27 @@
 const reportService = require('../services/reportService');
 const emailService = require('../services/emailService');
 const scheduledReportService = require('../services/scheduledReportService');
+const { normalizeAddress } = require('../services/reportRecipients');
+const { WARDS } = require('../config/roles');
 
 const { REPORT_TYPES, DATE_RANGES } = reportService;
+const FORMATS = ['pdf', 'csv'];
 
-// Reject unknown report types and date ranges instead of silently producing a different report
-const getReportOptionsError = ({ reportType = 'comprehensive', dateRange = 'last7days' }) => {
+// Reject unknown report types, date ranges and wards instead of silently producing a
+// different report or writing an arbitrary string from the body into the PDF
+const getReportOptionsError = ({ reportType = 'comprehensive', dateRange = 'last7days', wards = [] }) => {
   if (!REPORT_TYPES.includes(reportType)) {
     return `Invalid reportType. Must be one of: ${REPORT_TYPES.join(', ')}`;
   }
   if (!DATE_RANGES.includes(dateRange)) {
     return `Invalid dateRange. Must be one of: ${DATE_RANGES.join(', ')}`;
+  }
+  if (!Array.isArray(wards)) {
+    return 'wards must be an array';
+  }
+  const unknownWards = wards.filter((ward) => ward !== 'All Wards' && !WARDS.includes(ward));
+  if (unknownWards.length > 0) {
+    return `Invalid ward(s). Must be one of: ${WARDS.join(', ')}`;
   }
   return null;
 };
@@ -113,10 +124,26 @@ exports.emailReport = async (req, res) => {
       return res.status(400).json({ success: false, message: optionsError });
     }
 
+    if (!FORMATS.includes(format)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid format. Must be pdf or csv'
+      });
+    }
+
     if (!email) {
       return res.status(400).json({
         success: false,
         message: 'Email address is required'
+      });
+    }
+
+    // Managers choose who receives a report; the address only has to be a single valid one
+    const recipient = normalizeAddress(email);
+    if (!recipient) {
+      return res.status(400).json({
+        success: false,
+        message: 'Enter a single valid email address'
       });
     }
 
@@ -134,23 +161,18 @@ exports.emailReport = async (req, res) => {
       const pdfResult = await reportService.generatePDF(reportData);
       reportBuffer = pdfResult.buffer;
       fileName = pdfResult.fileName;
-    } else if (format === 'csv') {
+    } else {
       const csvResult = await reportService.generateCSV(reportData);
       reportBuffer = Buffer.from(csvResult.csv);
       fileName = csvResult.fileName;
-    } else {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid format. Must be pdf or csv'
-      });
     }
 
-    // Send email
-    await emailService.sendReportEmail(email, null, reportBuffer, fileName, format);
+    // Send to the cleaned-up address, not the raw one from the request
+    await emailService.sendReportEmail(recipient, null, reportBuffer, fileName, format);
 
     res.status(200).json({
       success: true,
-      message: `Report sent to ${email}`,
+      message: `Report sent to ${recipient}`,
       format,
       fileName
     });
@@ -303,12 +325,13 @@ exports.getSchedules = async (req, res) => {
 exports.updateSchedule = async (req, res) => {
   try {
     const { scheduleId } = req.params;
-    const updates = req.body;
 
-    const result = scheduledReportService.updateSchedule(scheduleId, updates);
+    // The service accepts only known fields; anything else in the body is ignored
+    const result = await scheduledReportService.updateSchedule(scheduleId, req.body);
 
     if (!result.success) {
-      return res.status(404).json(result);
+      const { status = 400, ...body } = result;
+      return res.status(status).json(body);
     }
 
     res.status(200).json(result);
@@ -334,7 +357,8 @@ exports.runScheduleNow = async (req, res) => {
     const result = await scheduledReportService.runScheduleNow(scheduleId);
 
     if (!result.success) {
-      return res.status(404).json(result);
+      const { status = 500, ...body } = result;
+      return res.status(status).json(body);
     }
 
     res.status(200).json({
