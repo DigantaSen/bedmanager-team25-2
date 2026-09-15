@@ -20,7 +20,7 @@ const { ACTIVE_BEDS } = require('../services/bedAccess');
 /**
  * @desc    Get occupancy summary for all beds with week-over-week comparison
  * @route   GET /api/analytics/occupancy-summary
- * @access  Public
+ * @access  Private (Manager, Hospital Admin)
  * @returns { totalBeds, occupiedBeds, availableBeds, cleaningBeds, occupancyRate, weekOverWeek }
  */
 exports.getOccupancySummary = async (req, res) => {
@@ -82,7 +82,7 @@ exports.getOccupancySummary = async (req, res) => {
 /**
  * @desc    Get occupancy breakdown by ward
  * @route   GET /api/analytics/occupancy-by-ward
- * @access  Public
+ * @access  Private (Manager, Hospital Admin)
  * @returns Array of { ward, totalBeds, occupied, available, cleaning, occupancyPercentage }
  */
 exports.getOccupancyByWard = async (req, res) => {
@@ -158,7 +158,7 @@ exports.getOccupancyByWard = async (req, res) => {
 /**
  * @desc    Get bed history - complete history of status changes for a specific bed
  * @route   GET /api/analytics/bed-history/:bedId
- * @access  Public
+ * @access  Private (Manager, Hospital Admin)
  * @param   bedId - MongoDB ObjectId or bedId string (e.g., "iA5")
  * @query   limit (default: 50), skip (default: 0)
  * @returns Array of occupancy log entries with user and status change details
@@ -226,7 +226,7 @@ exports.getBedHistory = async (req, res) => {
 /**
  * @desc    Get occupancy trends over time
  * @route   GET /api/analytics/occupancy-trends
- * @access  Public
+ * @access  Private (Manager, Hospital Admin)
  * @query   startDate (ISO string), endDate (ISO string), granularity ('hourly'|'daily'|'weekly', default: 'daily')
  * @returns Array of time series data points with occupancy metrics
  */
@@ -838,7 +838,7 @@ exports.getCleaningPerformance = async (req, res) => {
 /**
  * @desc    Get occupancy history with date range and granularity
  * @route   GET /api/analytics/occupancy-history
- * @access  Public
+ * @access  Private (Manager, Hospital Admin)
  * @query   startDate (ISO string), endDate (ISO string), wardFilter (string), granularity ('hourly'|'daily'|'weekly', default: 'daily')
  * @returns Time series data of occupancy changes aggregated from OccupancyLog
  */
@@ -967,7 +967,7 @@ exports.getOccupancyHistory = async (req, res) => {
 /**
  * @desc    Get ward utilization with detailed metrics
  * @route   GET /api/analytics/ward-utilization
- * @access  Public
+ * @access  Private (Manager, Hospital Admin)
  * @returns Detailed ward-level metrics aggregated from OccupancyLog and Bed data
  */
 exports.getWardUtilization = async (req, res) => {
@@ -1050,7 +1050,7 @@ exports.getWardUtilization = async (req, res) => {
 /**
  * @desc    Get peak demand analysis with seasonal patterns and projections
  * @route   GET /api/analytics/peak-demand-analysis
- * @access  Public
+ * @access  Private (Manager, Hospital Admin)
  * @returns Peak demand patterns, seasonal trends, and projections from OccupancyLog
  */
 exports.getPeakDemandAnalysis = async (req, res) => {
