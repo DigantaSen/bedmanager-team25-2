@@ -44,12 +44,12 @@ jobs:
 
       # Each suite starts its own in-memory MongoDB and its own copy of the server on its
       # own port, so no database or other service is needed here.
+      # No JWT_SECRET is set here on purpose. Each suite supplies its own throwaway secret
+      # before starting the server, so nothing secret-shaped needs to live in this file.
       - name: Run end-to-end tests
         working-directory: backend
         run: npm test
         env:
-          # The suites set their own secret, but the server refuses to start without one
-          JWT_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef
           # Use the interpreter this job just set up
           ML_PYTHON: python
 
